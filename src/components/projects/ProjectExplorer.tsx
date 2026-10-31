@@ -226,3 +226,4 @@ export function ProjectExplorer({ initialProjects, categories }: ProjectExplorer
     </div>
   );
 }
+

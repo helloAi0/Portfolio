@@ -94,3 +94,4 @@ The 3D hero scene (`BucephalusCanvas.tsx`) is engineered with:
 - **Celestial Embers**: Additive-blended upward drifting particle field representing celestial guidance.
 - **Performance Optimization**: Damped mouse parallax listener, `toneMapping` exposure, and automatic resource disposal (`cancelAnimationFrame`, geometry and material disposal on component unmount).
 - **Graceful Degradation**: Integrated WebGL availability detection falling back to a lightweight, static imperial crest for low-power mobile hardware.
+

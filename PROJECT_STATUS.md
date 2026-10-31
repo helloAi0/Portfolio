@@ -64,3 +64,4 @@
    - LeetCode / competitive programming stats scraper via `Integration` and `SyncLog`.
 3. **AI Persona & RAG Digital Twin**:
    - Embed `AiKnowledgeRecord` into vector storage or conversational assistant.
+

@@ -43,3 +43,4 @@ export async function submitVisitorEnquiry(input: CreateEnquiryInput) {
     return { success: false, error: (error as Error).message };
   }
 }
+

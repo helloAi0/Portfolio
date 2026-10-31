@@ -238,3 +238,4 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
     </div>
   );
 }
+

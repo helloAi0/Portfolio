@@ -19,3 +19,4 @@ export function Card({ children, variant = 'marble', className = '', ...props }:
     </div>
   );
 }
+

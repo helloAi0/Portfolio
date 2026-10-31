@@ -8,6 +8,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================
+// IDENTITY & PROFILE
+// ============================================================
+
 model Profile {
   id                         String   @id @default(cuid())
   displayName                String   @default("Sahil Depurwala")
@@ -42,6 +46,10 @@ model Education {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
+
+// ============================================================
+// PROJECTS
+// ============================================================
 
 model ProjectCategory {
   id          String            @id @default(cuid())
@@ -81,26 +89,44 @@ model Project {
   status                 String          @default("Active")
   featured               Boolean         @default(false)
   orderIndex             Int             @default(0)
+  githubSynced           Boolean         @default(false)
+  githubRepoId           Int?
+  githubStars            Int             @default(0)
+  githubForks            Int             @default(0)
+  githubLanguages        String?
+  githubTopics           String?
+  githubLastPushedAt     DateTime?
+  approvalStatus         String          @default("APPROVED")
   skills                 ProjectSkill[]
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
 }
 
+// ============================================================
+// SKILLS — Enhanced Week 2
+// ============================================================
+
 model Skill {
-  id               String         @id @default(cuid())
-  slug             String         @unique
-  name             String
-  domain           String
-  category         String
-  proficiencyLevel String         @default("FOUNDATIONAL")
-  verified         Boolean        @default(false)
-  detectedOnly     Boolean        @default(true)
-  evidenceNotes    String?
-  icon             String?
-  orderIndex       Int            @default(0)
-  projects         ProjectSkill[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id                String         @id @default(cuid())
+  slug              String         @unique
+  name              String
+  domain            String
+  category          String
+  subcategory       String?
+  proficiencyLevel  String         @default("FOUNDATIONAL")
+  level             String         @default("DETECTED")
+  verified          Boolean        @default(false)
+  detectedOnly      Boolean        @default(true)
+  confidenceScore   Float          @default(0.5)
+  evidenceNotes     String?
+  evidenceSources   String?
+  firstDetectedAt   DateTime       @default(now())
+  lastConfirmedAt   DateTime?
+  icon              String?
+  orderIndex        Int            @default(0)
+  projects          ProjectSkill[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 model ProjectSkill {
@@ -114,6 +140,94 @@ model ProjectSkill {
   @@unique([projectId, skillId])
 }
 
+// ============================================================
+// GITHUB INTEGRATION
+// ============================================================
+
+model GithubRepository {
+  id               String    @id @default(cuid())
+  githubId         Int       @unique
+  name             String
+  fullName         String    @unique
+  description      String?
+  htmlUrl          String
+  cloneUrl         String?
+  homepage         String?
+  defaultBranch    String    @default("main")
+  isPrivate        Boolean   @default(false)
+  isFork           Boolean   @default(false)
+  isArchived       Boolean   @default(false)
+  stars            Int       @default(0)
+  forks            Int       @default(0)
+  openIssues       Int       @default(0)
+  watchersCount    Int       @default(0)
+  languages        String?
+  topics           String?
+  readmeContent    String?
+  readmeSummary    String?
+  licenseKey       String?
+  pushedAt         DateTime?
+  githubCreatedAt  DateTime?
+  githubUpdatedAt  DateTime?
+  classificationStatus   String   @default("PENDING")
+  suggestedCategorySlug  String?
+  suggestedSubcategory   String?
+  suggestedSkills        String?
+  classificationScore    Float    @default(0.0)
+  classificationNotes    String?
+  linkedProjectId        String?
+  lastSyncedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+// ============================================================
+// CODING PLATFORMS
+// ============================================================
+
+model CodingPlatformProfile {
+  id              String    @id @default(cuid())
+  platform        String    @unique
+  username        String
+  profileUrl      String
+  totalSolved     Int?
+  easySolved      Int?
+  mediumSolved    Int?
+  hardSolved      Int?
+  contestRating   Float?
+  globalRanking   Int?
+  contributionPoints Int?
+  badges          String?
+  recentActivity  String?
+  rawData         String?
+  dataSource      String    @default("MOCK")
+  lastSyncedAt    DateTime?
+  syncError       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ============================================================
+// LINKEDIN
+// ============================================================
+
+model LinkedinPost {
+  id             String    @id @default(cuid())
+  title          String?
+  contentExcerpt String
+  postUrl        String?
+  publishedAt    DateTime
+  importMethod   String    @default("MANUAL")
+  isPublic       Boolean   @default(true)
+  isApproved     Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// ============================================================
+// CERTIFICATES & ACHIEVEMENTS
+// ============================================================
+
 model Certificate {
   id                  String    @id @default(cuid())
   title               String
@@ -125,6 +239,10 @@ model Certificate {
   verificationStatus  String    @default("PENDING_VERIFICATION")
   description         String?
   skillsCovered       String?
+  filePath            String?
+  fileType            String?
+  isPublic            Boolean   @default(false)
+  ownerApproved       Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }
@@ -139,9 +257,15 @@ model Achievement {
   verificationStatus String    @default("PENDING_VERIFICATION")
   description        String?
   proofUrl           String?
+  isPublic           Boolean   @default(false)
+  ownerApproved      Boolean   @default(false)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+// ============================================================
+// EXPERIENCE
+// ============================================================
 
 model Experience {
   id               String    @id @default(cuid())
@@ -154,22 +278,42 @@ model Experience {
   isCurrent        Boolean   @default(false)
   description      String
   keyContributions String?
+  skills           String?
+  evidenceUrl      String?
+  isPublic         Boolean   @default(true)
   verified         Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 }
 
-model SocialLink {
-  id         String   @id @default(cuid())
-  platform   String   @unique
-  label      String
-  url        String
-  icon       String
-  orderIndex Int      @default(0)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+// ============================================================
+// ADMIN & AUTH
+// ============================================================
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  email        String         @unique
+  passwordHash String
+  role         String         @default("ADMIN")
+  lastLogin    DateTime?
+  sessions     AdminSession[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  adminId   String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// SYNC ENGINE
+// ============================================================
 
 model Integration {
   id           String    @id @default(cuid())
@@ -187,21 +331,29 @@ model SyncLog {
   id            String      @id @default(cuid())
   integrationId String
   integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  trigger       String      @default("MANUAL")
   status        String
   details       String?
   recordsSynced Int         @default(0)
+  errorMessage  String?
+  durationMs    Int?
   syncedAt      DateTime    @default(now())
 }
 
-model AdminUser {
-  id           String    @id @default(cuid())
-  username     String    @unique
-  email        String    @unique
-  passwordHash String
-  role         String    @default("ADMIN")
-  lastLogin    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+// ============================================================
+// OTHER MODELS
+// ============================================================
+
+model SocialLink {
+  id         String   @id @default(cuid())
+  platform   String   @unique
+  label      String
+  url        String
+  icon       String
+  orderIndex Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model AiKnowledgeRecord {

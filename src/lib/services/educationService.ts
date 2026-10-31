@@ -22,3 +22,4 @@ export async function getEducationHistory() {
     return { records: [], dynamicStanding: null };
   }
 }
+

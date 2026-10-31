@@ -92,3 +92,4 @@ npm run start
 ## 🚢 Deployment to Render
 
 See [deploy/render.md](deploy/render.md) for complete step-by-step instructions for deploying Project LAMO and connecting a managed PostgreSQL database on Render.
+

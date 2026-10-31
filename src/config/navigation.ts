@@ -26,3 +26,4 @@ export const secondaryNavItems: NavItem[] = [
   { title: 'Scholarships', href: '/scholarships' },
   { title: 'Experience', href: '/experience' },
 ];
+

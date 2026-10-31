@@ -30,3 +30,4 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
   return <ProjectDetailsView project={project} />;
 }
+
