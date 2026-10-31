@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-cinzel: 'Cinzel', Georgia, serif;
+  --font-plus-jakarta: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-jetbrains: 'JetBrains Mono', monospace;
+}
+
+body {
+  background-color: #08090c;
+  color: #e2e8f0;
+  font-family: var(--font-plus-jakarta);
+  overflow-x: hidden;
+  selection-background-color: #d4af37;
+  selection-color: #08090c;
+}
+
+::selection {
+  background-color: rgba(212, 175, 55, 0.35);
+  color: #fceea7;
+}
+
+/* Custom Imperial Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0c0e12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2213;
+  border-radius: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
+
+/* Marble & Imperial Stone Surface */
+.marble-card {
+  background: linear-gradient(145deg, rgba(22, 26, 34, 0.85) 0%, rgba(12, 14, 18, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8), inset 0 1px 0 0 rgba(212, 175, 55, 0.1);
+}
+
+.marble-card:hover {
+  border-color: rgba(212, 175, 55, 0.35);
+  box-shadow: 0 12px 35px -8px rgba(212, 175, 55, 0.12), inset 0 1px 0 0 rgba(212, 175, 55, 0.2);
+}
+
+/* Monumental Text Shimmer */
+.gold-text-shimmer {
+  background: linear-gradient(120deg, #d4af37 0%, #fff2b2 35%, #b8860b 70%, #d4af37 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Imperial Ambient Glow */
+.gold-glow {
+  box-shadow: 0 0 35px -5px rgba(212, 175, 55, 0.22);
+}
+
+.gold-glow-subtle {
+  box-shadow: 0 0 20px -3px rgba(212, 175, 55, 0.12);
+}
+
+/* Fine Golden Borders */
+.border-gold-subtle {
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+.border-gold-accent {
+  border-color: rgba(212, 175, 55, 0.45);
+}

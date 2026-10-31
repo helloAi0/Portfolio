@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                         String   @id @default(cuid())
+  displayName                String   @default("Sahil Depurwala")
+  contactEmail               String   @default("tahaudaipurwala68@gmail.com")
+  headline                   String   @default("Imperial Engineering & AI Architecture")
+  bio                        String
+  dateOfBirth                DateTime
+  location                   String   @default("Kolkata, West Bengal, India")
+  githubUrl                  String   @default("https://github.com/helloAi0")
+  linkedinUrl                String   @default("https://linkedin.com")
+  identityVerificationStatus String   @default("PENDING_OWNER_CONFIRMATION")
+  identityFlagNotes          String?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model Education {
+  id                 String   @id @default(cuid())
+  institution        String
+  institutionAcronym String?
+  schoolType         String   // "HIGHER_EDUCATION" | "HIGH_SCHOOL"
+  degree             String?  // "B.Tech"
+  field              String?  // "Computer Science and Engineering (AIML)"
+  minor              String?  // "Cybersecurity"
+  additionalInterest String?  // "Robotics"
+  location           String
+  startYear          Int
+  endYear            Int?
+  isCurrent          Boolean  @default(false)
+  graduationStatus   String   // "IN_PROGRESS" | "COMPLETED" | "EXPECTED_2028"
+  orderIndex         Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model ProjectCategory {
+  id          String            @id @default(cuid())
+  slug        String            @unique
+  name        String
+  description String?
+  icon        String?
+  parentId    String?
+  parent      ProjectCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    ProjectCategory[] @relation("CategoryHierarchy")
+  projects    Project[]
+  orderIndex  Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model Project {
+  id                     String          @id @default(cuid())
+  slug                   String          @unique
+  title                  String
+  tagline                String
+  description            String
+  detailedExplanation    String
+  categoryId             String
+  category               ProjectCategory @relation(fields: [categoryId], references: [id])
+  subcategory            String
+  difficulty             String          @default("Advanced") // "Foundational" | "Intermediate" | "Advanced" | "Imperial"
+  githubRepo             String?
+  liveDeployment         String?
+  demoVideoUrl           String?
+  architectureDiagramUrl String?
+  problemStatement       String
+  solution               String
+  keyFeatures            String          // JSON encoded string array
+  challenges             String          // JSON encoded string array
+  results                String          // JSON encoded string array
+  status                 String          @default("Active") // "Active" | "Completed" | "Research" | "Prototyped"
+  featured               Boolean         @default(false)
+  orderIndex             Int             @default(0)
+  skills                 ProjectSkill[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+}
+
+model Skill {
+  id               String         @id @default(cuid())
+  slug             String         @unique
+  name             String
+  domain           String         // "AI/ML", "Robotics", "Cybersecurity", "Languages", "Cloud/DevOps", "Frontend", "Backend"
+  category         String
+  proficiencyLevel String         @default("FOUNDATIONAL") // "FOUNDATIONAL", "INTERMEDIATE", "ADVANCED", "EXPERT"
+  verified         Boolean        @default(false) // owner-verified proficiency
+  detectedOnly     Boolean        @default(true)  // detected in repository
+  evidenceNotes    String?
+  icon             String?
+  orderIndex       Int            @default(0)
+  projects         ProjectSkill[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model ProjectSkill {
+  id        String   @id @default(cuid())
+  projectId String
+  skillId   String
+  relevance String   @default("PRIMARY") // "PRIMARY" | "SECONDARY"
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, skillId])
+}
+
+model Certificate {
+  id                  String    @id @default(cuid())
+  title               String
+  issuingOrganization String
+  issueDate           DateTime?
+  expiryDate          DateTime?
+  credentialId        String?
+  credentialUrl       String?
+  verificationStatus  String    @default("PENDING_VERIFICATION") // "VERIFIED" | "PENDING_VERIFICATION" | "UNVERIFIED"
+  description         String?
+  skillsCovered       String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Achievement {
+  id                 String    @id @default(cuid())
+  title              String
+  category           String    // "Academic", "Hackathon", "Open Source", "Honor"
+  organization       String
+  date               DateTime?
+  rankOrAward        String?
+  verificationStatus String    @default("PENDING_VERIFICATION")
+  description        String?
+  proofUrl           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Experience {
+  id               String    @id @default(cuid())
+  roleTitle        String
+  organization     String
+  organizationType String    @default("Organization") // "Company", "Lab", "Student Society", "Freelance"
+  location         String?
+  startDate        DateTime
+  endDate          DateTime?
+  isCurrent        Boolean   @default(false)
+  description      String
+  keyContributions String?   // JSON array or newline-delimited
+  verified         Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model SocialLink {
+  id         String   @id @default(cuid())
+  platform   String   @unique
+  label      String
+  url        String
+  icon       String
+  orderIndex Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Integration {
+  id           String    @id @default(cuid())
+  platform     String    @unique // "GITHUB", "LEETCODE", "RENDER"
+  identifier   String
+  status       String    @default("PENDING") // "CONNECTED", "PENDING", "DISABLED"
+  configData   String?   // JSON settings
+  lastSyncedAt DateTime?
+  syncLogs     SyncLog[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model SyncLog {
+  id            String      @id @default(cuid())
+  integrationId String
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  status        String      // "SUCCESS", "FAILED"
+  details       String?
+  recordsSynced Int         @default(0)
+  syncedAt      DateTime    @default(now())
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  email        String    @unique
+  passwordHash String
+  role         String    @default("ADMIN") // "SUPERADMIN" | "ADMIN" | "EDITOR"
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model AiKnowledgeRecord {
+  id              String   @id @default(cuid())
+  topic           String
+  category        String   // "Philosophy", "Engineering", "Biography", "ProjectContext"
+  content         String
+  source          String?
+  confidenceScore Float    @default(1.0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model VisitorEnquiry {
+  id          String   @id @default(cuid())
+  senderName  String
+  senderEmail String
+  subject     String
+  message     String
+  status      String   @default("UNREAD") // "UNREAD" | "READ" | "RESPONDED" | "ARCHIVED"
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
