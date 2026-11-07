@@ -88,7 +88,6 @@ model Project {
   status                 String          @default("Active")
   featured               Boolean         @default(false)
   orderIndex             Int             @default(0)
-  // Week 2: GitHub sync fields
   githubSynced           Boolean         @default(false)
   githubRepoId           Int?
   githubStars            Int             @default(0)
@@ -103,7 +102,7 @@ model Project {
 }
 
 // ============================================================
-// SKILLS — Enhanced Week 2
+// SKILLS
 // ============================================================
 
 model Skill {
@@ -114,7 +113,6 @@ model Skill {
   category          String
   subcategory       String?
   proficiencyLevel  String         @default("FOUNDATIONAL")
-  // Week 2: Granular evidence tracking
   level             String         @default("DETECTED") // "DETECTED"|"LEARNING"|"PRACTICING"|"OWNER_CONFIRMED"|"DEMONSTRATED"
   verified          Boolean        @default(false)
   detectedOnly      Boolean        @default(true)
@@ -153,7 +151,7 @@ model GithubRepository {
   description      String?
   htmlUrl          String
   cloneUrl         String?
-  homepage         String?   // live website if set
+  homepage         String?
   defaultBranch    String    @default("main")
   isPrivate        Boolean   @default(false)
   isFork           Boolean   @default(false)
@@ -162,23 +160,21 @@ model GithubRepository {
   forks            Int       @default(0)
   openIssues       Int       @default(0)
   watchersCount    Int       @default(0)
-  languages        String?   // JSON map {"Python": 12345, "C++": 5678}
-  topics           String?   // JSON array ["robotics", "ros2"]
-  readmeContent    String?   // raw README markdown
-  readmeSummary    String?   // AI/engine-generated summary (max 500 chars)
+  languages        String?   // JSON map
+  topics           String?   // JSON array
+  readmeContent    String?
+  readmeSummary    String?
   licenseKey       String?
   pushedAt         DateTime?
   githubCreatedAt  DateTime?
   githubUpdatedAt  DateTime?
-  // Classification engine output
-  classificationStatus   String   @default("PENDING")   // "PENDING"|"SUGGESTED"|"APPROVED"|"REJECTED"|"SKIPPED"
+  classificationStatus   String   @default("PENDING")
   suggestedCategorySlug  String?
   suggestedSubcategory   String?
-  suggestedSkills        String?  // JSON array of skill slugs
+  suggestedSkills        String?
   classificationScore    Float    @default(0.0)
   classificationNotes    String?
-  linkedProjectId        String?  // set when owner approves and a Project row is created/linked
-  // Sync metadata
+  linkedProjectId        String?
   lastSyncedAt     DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -190,10 +186,9 @@ model GithubRepository {
 
 model CodingPlatformProfile {
   id              String    @id @default(cuid())
-  platform        String    @unique  // "LEETCODE" | "GEEKSFORGEEKS"
+  platform        String    @unique
   username        String
   profileUrl      String
-  // Aggregated stats — nullable since provider may not expose them
   totalSolved     Int?
   easySolved      Int?
   mediumSolved    Int?
@@ -201,10 +196,10 @@ model CodingPlatformProfile {
   contestRating   Float?
   globalRanking   Int?
   contributionPoints Int?
-  badges          String?   // JSON array
-  recentActivity  String?   // JSON array of recent problem slugs
-  rawData         String?   // full provider JSON snapshot
-  dataSource      String    @default("MOCK")  // "LIVE" | "MOCK" | "MANUAL"
+  badges          String?
+  recentActivity  String?
+  rawData         String?
+  dataSource      String    @default("MOCK")
   lastSyncedAt    DateTime?
   syncError       String?
   createdAt       DateTime  @default(now())
@@ -221,7 +216,7 @@ model LinkedinPost {
   contentExcerpt String
   postUrl        String?
   publishedAt    DateTime
-  importMethod   String    @default("MANUAL")  // "MANUAL" | "API"
+  importMethod   String    @default("MANUAL")
   isPublic       Boolean   @default(true)
   isApproved     Boolean   @default(false)
   createdAt      DateTime  @default(now())
@@ -229,7 +224,7 @@ model LinkedinPost {
 }
 
 // ============================================================
-// CERTIFICATES & ACHIEVEMENTS (Enhanced)
+// CERTIFICATES & ACHIEVEMENTS
 // ============================================================
 
 model Certificate {
@@ -242,9 +237,9 @@ model Certificate {
   credentialUrl       String?
   verificationStatus  String    @default("PENDING_VERIFICATION")
   description         String?
-  skillsCovered       String?   // JSON array
-  filePath            String?   // uploaded file path
-  fileType            String?   // "PDF" | "IMAGE"
+  skillsCovered       String?
+  filePath            String?
+  fileType            String?
   isPublic            Boolean   @default(false)
   ownerApproved       Boolean   @default(false)
   createdAt           DateTime  @default(now())
@@ -268,7 +263,7 @@ model Achievement {
 }
 
 // ============================================================
-// EXPERIENCE (Enhanced)
+// EXPERIENCE
 // ============================================================
 
 model Experience {
@@ -282,7 +277,7 @@ model Experience {
   isCurrent        Boolean   @default(false)
   description      String
   keyContributions String?
-  skills           String?   // JSON array of skill slugs
+  skills           String?
   evidenceUrl      String?
   isPublic         Boolean   @default(true)
   verified         Boolean   @default(false)
@@ -307,11 +302,11 @@ model AdminUser {
 }
 
 model AdminSession {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   adminId   String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
 }
 
@@ -335,7 +330,7 @@ model SyncLog {
   id            String      @id @default(cuid())
   integrationId String
   integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
-  trigger       String      @default("MANUAL")  // "MANUAL" | "SCHEDULED" | "WEBHOOK"
+  trigger       String      @default("MANUAL")
   status        String
   details       String?
   recordsSynced Int         @default(0)
@@ -345,7 +340,7 @@ model SyncLog {
 }
 
 // ============================================================
-// OTHER MODELS
+// OTHER CORE MODELS
 // ============================================================
 
 model SocialLink {
@@ -361,15 +356,18 @@ model SocialLink {
 }
 
 model AiKnowledgeRecord {
-  id              String   @id @default(cuid())
-  topic           String
-  category        String
-  content         String
-  source          String?
-  confidenceScore Float    @default(1.0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  topic              String
+  category           String
+  content            String
+  source             String?
+  confidenceScore    Float    @default(1.0)
+  verificationStatus String   @default("VERIFIED") // "VERIFIED" | "OWNER_CONFIRMED" | "IN_PROGRESS"
+  visibility         String   @default("PUBLIC")   // "PUBLIC" | "PRIVATE"
+  ownerApproved      Boolean  @default(true)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model VisitorEnquiry {
@@ -383,4 +381,74 @@ model VisitorEnquiry {
   userAgent   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================
+// WEEK 3: LAMO AI PORTFOLIO MANAGER & CONVERSATIONAL ENGINE
+// ============================================================
+
+model LamoConversation {
+  id           String        @id @default(cuid())
+  sessionId    String        @unique
+  visitorName  String?
+  visitorEmail String?
+  messages     LamoMessage[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model LamoMessage {
+  id               String           @id @default(cuid())
+  conversationId   String
+  conversation     LamoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role             String           // "USER" | "ASSISTANT" | "SYSTEM"
+  content          String
+  retrievedContext String?          // JSON array of citation sources used
+  confidence       String?          // "VERIFIED" | "OWNER_CONFIRMED" | "IN_PROGRESS" | "UNKNOWN"
+  suggestedActions String?          // JSON array of navigation pills [{label, href}]
+  createdAt        DateTime         @default(now())
+}
+
+model UnansweredQuestion {
+  id                  String    @id @default(cuid())
+  questionId          String    @unique // e.g. "LQ-2026-8472"
+  question            String
+  context             String?
+  category            String    @default("General") // "Robotics", "AI/ML", "Cybersecurity", "Experience", "Education"
+  reason              String    // e.g. "No verified evidence found in database"
+  status              String    @default("PENDING_OWNER") // "PENDING_OWNER" | "ANSWERED" | "REJECTED" | "PRIVATE_DECLINED"
+  visitorName         String?
+  visitorEmail        String?
+  ownerAnswer         String?
+  approvedKnowledgeId String?
+  emailNotified       Boolean   @default(false)
+  notifiedAt          DateTime?
+  answeredAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model BiographyReview {
+  id                 String    @id @default(cuid())
+  reviewDate         DateTime  @default(now())
+  currentBio         String
+  proposedBio        String
+  reasons            String    // JSON array of reasons/detected milestones
+  supportingEvidence String    // JSON array of new evidence sources
+  status             String    @default("PENDING_APPROVAL") // "PENDING_APPROVAL" | "APPROVED" | "DECLINED"
+  ownerFeedback      String?
+  appliedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model AdminAuditLog {
+  id           String    @id @default(cuid())
+  action       String    // e.g. "COPILOT_PROJECT_DESCRIPTION", "BIOGRAPHY_UPDATE", "QUESTION_APPROVED"
+  target       String    // e.g. "Project:autonomous-rover-slam", "Profile"
+  previousState String?  // JSON serialized prior snapshot for rollback
+  newState     String?   // JSON serialized new state
+  explanation  String?
+  status       String    @default("COMMITTED") // "PREVIEW" | "COMMITTED" | "ROLLED_BACK"
+  createdAt    DateTime  @default(now())
 }

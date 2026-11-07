@@ -3,6 +3,7 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { IdentityVerificationBanner } from '@/components/home/IdentityVerificationBanner';
+import LamoChatWidget from '@/components/lamo/LamoChatWidget';
 import { siteConfig } from '@/config/site';
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ export default function RootLayout({
         <Header />
         <main className="flex-1 w-full pt-16">{children}</main>
         <Footer />
+        <LamoChatWidget />
       </body>
     </html>
   );

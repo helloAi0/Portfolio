@@ -25,5 +25,5 @@ export const secondaryNavItems: NavItem[] = [
   { title: 'Certificates', href: '/certificates' },
   { title: 'Scholarships', href: '/scholarships' },
   { title: 'Experience', href: '/experience' },
+  { title: 'Command Gate (Admin)', href: '/admin', badge: 'Secure' },
 ];
-

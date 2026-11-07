@@ -4,15 +4,23 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { deriveAcademicStanding } from '@/lib/identity';
-import { Milestone, Flag, Calendar, Compass, Shield } from 'lucide-react';
+import { prisma } from '@/lib/prisma';
+import { Milestone, Flag, Calendar, Compass, Shield, Linkedin, ExternalLink } from 'lucide-react';
 
 export const metadata = {
   title: 'Professional Journey | The Imperial March',
-  description: 'Chronological progression of Sahil Depurwala from 2024 to 2028 and beyond.',
+  description: 'Chronological progression of Sahil Depurwala from 2024 to 2028 and verified professional transmissions.',
 };
 
-export default function JourneyPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function JourneyPage() {
   const academicStanding = deriveAcademicStanding(2024, 2028);
+
+  const linkedinPosts = await prisma.linkedinPost.findMany({
+    where: { isApproved: true, isPublic: true },
+    orderBy: { publishedAt: 'desc' },
+  });
 
   const chapters = [
     {
@@ -59,10 +67,9 @@ export default function JourneyPage() {
         description="The unbroken campaign from initial enrollment in Kolkata to autonomous robotics research and the realization of sovereign systems."
       />
 
-      <div className="relative border-l border-gold-500/30 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-12">
+      <div className="relative border-l border-gold-500/30 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-12 mb-16">
         {chapters.map((ch, idx) => (
           <div key={idx} className="relative group">
-            {/* Timeline node */}
             <div className="absolute -left-[31px] sm:-left-[47px] top-1.5 w-4 h-4 rounded-full bg-imperial-950 border-2 border-gold-400 flex items-center justify-center group-hover:scale-125 transition-transform">
               <div className="w-1.5 h-1.5 rounded-full bg-gold-400" />
             </div>
@@ -88,7 +95,49 @@ export default function JourneyPage() {
           </div>
         ))}
       </div>
+
+      {/* Verified Professional Transmissions Stream (LinkedIn Integration) */}
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2 text-xs font-mono uppercase tracking-widest text-gold-400">
+          <Linkedin className="w-4 h-4 text-gold-400" />
+          <span>Verified Professional Transmissions (LinkedIn Feed)</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {linkedinPosts.map((post) => (
+            <Card key={post.id} variant="marble" className="p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Badge variant="verified" size="xs">Verified Transmission</Badge>
+                  <span className="text-[10px] font-mono text-neutral-400">
+                    {new Date(post.publishedAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <h4 className="font-serif font-bold text-base text-white mb-2">
+                  {post.title || 'Professional Announcement'}
+                </h4>
+                <p className="text-xs text-neutral-300 leading-relaxed font-sans mb-4">
+                  {post.contentExcerpt}
+                </p>
+              </div>
+
+              {post.postUrl && (
+                <div className="pt-3 border-t border-white/5">
+                  <a
+                    href={post.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1.5 text-xs font-mono text-gold-400 hover:text-gold-200"
+                  >
+                    <span>View on LinkedIn Network</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
-

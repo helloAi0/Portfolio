@@ -103,7 +103,7 @@ model Project {
 }
 
 // ============================================================
-// SKILLS — Enhanced Week 2
+// SKILLS
 // ============================================================
 
 model Skill {
@@ -303,11 +303,11 @@ model AdminUser {
 }
 
 model AdminSession {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   adminId   String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
 }
 
@@ -341,7 +341,7 @@ model SyncLog {
 }
 
 // ============================================================
-// OTHER MODELS
+// OTHER CORE MODELS
 // ============================================================
 
 model SocialLink {
@@ -357,15 +357,18 @@ model SocialLink {
 }
 
 model AiKnowledgeRecord {
-  id              String   @id @default(cuid())
-  topic           String
-  category        String
-  content         String
-  source          String?
-  confidenceScore Float    @default(1.0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  topic              String
+  category           String
+  content            String
+  source             String?
+  confidenceScore    Float    @default(1.0)
+  verificationStatus String   @default("VERIFIED")
+  visibility         String   @default("PUBLIC")
+  ownerApproved      Boolean  @default(true)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model VisitorEnquiry {
@@ -379,4 +382,74 @@ model VisitorEnquiry {
   userAgent   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================
+// WEEK 3: LAMO AI PORTFOLIO MANAGER & CONVERSATIONAL ENGINE
+// ============================================================
+
+model LamoConversation {
+  id           String        @id @default(cuid())
+  sessionId    String        @unique
+  visitorName  String?
+  visitorEmail String?
+  messages     LamoMessage[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model LamoMessage {
+  id               String           @id @default(cuid())
+  conversationId   String
+  conversation     LamoConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role             String
+  content          String
+  retrievedContext String?
+  confidence       String?
+  suggestedActions String?
+  createdAt        DateTime         @default(now())
+}
+
+model UnansweredQuestion {
+  id                  String    @id @default(cuid())
+  questionId          String    @unique
+  question            String
+  context             String?
+  category            String    @default("General")
+  reason              String
+  status              String    @default("PENDING_OWNER")
+  visitorName         String?
+  visitorEmail        String?
+  ownerAnswer         String?
+  approvedKnowledgeId String?
+  emailNotified       Boolean   @default(false)
+  notifiedAt          DateTime?
+  answeredAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model BiographyReview {
+  id                 String    @id @default(cuid())
+  reviewDate         DateTime  @default(now())
+  currentBio         String
+  proposedBio        String
+  reasons            String
+  supportingEvidence String
+  status             String    @default("PENDING_APPROVAL")
+  ownerFeedback      String?
+  appliedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model AdminAuditLog {
+  id           String    @id @default(cuid())
+  action       String
+  target       String
+  previousState String?
+  newState     String?
+  explanation  String?
+  status       String    @default("COMMITTED")
+  createdAt    DateTime  @default(now())
 }
