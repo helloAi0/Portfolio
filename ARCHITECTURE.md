@@ -147,3 +147,31 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 - **Repository Skill Extraction**: Automatically identifies unindexed skills from project codebases.
 - **Project Enhancement Draft**: Elevates descriptions to imperial engineering standards.
 - **60–90 Day Biography Review**: Aggregates recent milestones, detects newly added achievements, compares current vs proposed bio, and applies updates with full audit rollback via `AdminAuditLog`.
+
+---
+
+## 4. Production Hardening, Observability & Render Deployment (Week 4)
+
+### 4.1 3D WebGL Optimization Pipeline (`src/components/home/BucephalusCanvas.tsx`)
+- **Reduced Motion Support**: Inspects `(prefers-reduced-motion: reduce)`. If active, renders a single high-fidelity static frame without continuous animation loops.
+- **Viewport Visibility Throttling**: Employs `IntersectionObserver` and document `visibilitychange` listeners to completely freeze animation rendering when the monument is scrolled off-screen or the browser tab is hidden.
+- **Mobile Hardware Adaptation**: Caps device pixel ratio (`dpr`) at 1.5 on mobile devices (vs 2.0 on desktop) and disables multi-sample anti-aliasing (MSAA) on low-power devices.
+- **Deterministic Memory Cleanup**: Recursively traverses and disposes geometries, materials, and textures on unmount to prevent WebGL context exhaustion.
+
+### 4.2 Contact Transmission Engine (`src/lib/services/enquiryService.ts`)
+- **Single-Email Submission**: Full form (Name, Email, optional Phone, Subject, Message) and single-email transmission paths supported. Sensible defaults are applied if optional fields are omitted.
+- **Spam Trap Protection**: Hidden honeypot field (`website_hp`) silently traps automated spambots without false positives.
+- **IP Rate Limiting**: In-memory sliding window prevents flooding (maximum 5 transmissions per 10-minute window per IP).
+- **Asynchronous Dispatch**: Dispatches formatted notifications to `OWNER_NOTIFICATION_EMAIL` without blocking client response times.
+
+### 4.3 Observability & Health Telemetry (`src/app/api/health/route.ts`)
+- Lightweight `SELECT 1` ping measuring database response latency in milliseconds.
+- Aggregates core counts for verified projects, skills, and pending questions.
+- Monitors Node.js process memory usage (`heapUsedMb`, `rssMb`) and server uptime.
+- Returns `200 OK` for healthy states; returns `503 Service Unavailable` for database failures.
+
+### 4.4 Render Blueprint Infrastructure (`render.yaml`, `scripts/render-build.mjs`)
+- Declarative Infrastructure-as-Code provisioning both the web service and managed PostgreSQL database.
+- Orchestrates build via `node scripts/render-build.mjs`, dynamically handling PostgreSQL (`prisma db push --schema=prisma/schema.postgresql.prisma`) vs SQLite schema generation.
+- Binds health check directly to `/api/health` for automated container healing and zero-downtime rolling deploys.
+- Documented in `MAINTENANCE_AND_DISASTER_RECOVERY.md` for complete backup and zero-vendor-lockin portability.

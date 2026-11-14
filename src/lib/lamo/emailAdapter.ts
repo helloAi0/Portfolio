@@ -203,3 +203,70 @@ Sahil Depurwala & LAMO AI
 
   return { success: true, provider: 'CONSOLE_AUDIT_TRANSPORT' };
 }
+
+export async function sendOwnerEnquiryNotification(payload: {
+  enquiryId: string;
+  senderName: string;
+  senderEmail: string;
+  senderPhone?: string | null;
+  subject: string;
+  message: string;
+}): Promise<{ success: boolean; provider: string; error?: string }> {
+  const recipient =
+    process.env.OWNER_NOTIFICATION_EMAIL ||
+    process.env.OWNER_CONTACT_EMAIL ||
+    'tahaudaipurwala68@gmail.com';
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const emailSubject = `Citadel Transmission — New Direct Enquiry: ${payload.subject}`;
+
+  const plaintext = `Hello Sahil,
+
+You have received a new communication transmission through the Project LAMO contact portal.
+
+Transmission ID: ${payload.enquiryId}
+From: ${payload.senderName} <${payload.senderEmail}>
+Phone: ${payload.senderPhone || 'Not provided'}
+Subject: ${payload.subject}
+
+Message:
+"${payload.message}"
+
+Review in Admin Dashboard:
+${siteUrl}/admin
+
+Best regards,
+Project LAMO Transmission Gateway
+`;
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'LAMO Portal <lamo@projectlamo.dev>',
+          to: [recipient],
+          subject: emailSubject,
+          text: plaintext,
+        }),
+      });
+      if (res.ok) {
+        return { success: true, provider: 'RESEND' };
+      }
+    } catch (err) {
+      logger.error('EmailAdapter.EnquiryNotification', err as Error);
+    }
+  }
+
+  logger.info('EmailAdapter.EnquiryNotification', `[NEW ENQUIRY TO: ${recipient}]`, {
+    enquiryId: payload.enquiryId,
+    senderEmail: payload.senderEmail,
+    subject: payload.subject,
+  });
+
+  return { success: true, provider: 'CONSOLE_AUDIT_TRANSPORT' };
+}

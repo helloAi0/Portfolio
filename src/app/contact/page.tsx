@@ -5,14 +5,16 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { Mail, Send, CheckCircle2, AlertCircle, ShieldAlert, MapPin, Github, Linkedin, Lock } from 'lucide-react';
+import { Mail, Send, CheckCircle2, AlertCircle, ShieldAlert, MapPin, Github, Phone } from 'lucide-react';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     senderName: '',
     senderEmail: '',
+    senderPhone: '',
     subject: '',
     message: '',
+    website_hp: '', // Honeypot field for bot spam trap
   });
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -37,7 +39,14 @@ export default function ContactPage() {
       }
 
       setStatus('success');
-      setFormData({ senderName: '', senderEmail: '', subject: '', message: '' });
+      setFormData({
+        senderName: '',
+        senderEmail: '',
+        senderPhone: '',
+        subject: '',
+        message: '',
+        website_hp: '',
+      });
     } catch (err) {
       setStatus('error');
       setErrorMessage((err as Error).message);
@@ -64,7 +73,7 @@ export default function ContactPage() {
 
             <div className="space-y-4 text-xs font-mono">
               <div className="flex items-start space-x-3">
-                <Mail className="w-4 h-4 text-gold-400 mt-0.5" />
+                <Mail className="w-4 h-4 text-gold-400 mt-0.5 shrink-0" aria-hidden="true" />
                 <div>
                   <span className="text-neutral-400 block uppercase text-[10px]">Configured Contact Email</span>
                   <a
@@ -77,7 +86,7 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start space-x-3">
-                <MapPin className="w-4 h-4 text-gold-400 mt-0.5" />
+                <MapPin className="w-4 h-4 text-gold-400 mt-0.5 shrink-0" aria-hidden="true" />
                 <div>
                   <span className="text-neutral-400 block uppercase text-[10px]">Location Base</span>
                   <span className="text-neutral-200">Kolkata, West Bengal, India</span>
@@ -85,7 +94,7 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start space-x-3">
-                <Github className="w-4 h-4 text-gold-400 mt-0.5" />
+                <Github className="w-4 h-4 text-gold-400 mt-0.5 shrink-0" aria-hidden="true" />
                 <div>
                   <span className="text-neutral-400 block uppercase text-[10px]">GitHub Repository</span>
                   <a
@@ -103,7 +112,7 @@ export default function ContactPage() {
             {/* Identity Guardrail Verification Notice */}
             <div className="p-4 rounded bg-imperial-950 border border-amber-500/30 text-xs space-y-2">
               <div className="flex items-center space-x-2 text-amber-400 font-mono text-[11px] font-bold">
-                <ShieldAlert className="w-4 h-4" />
+                <ShieldAlert className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>Identity Isolation Guardrail Active</span>
               </div>
               <p className="text-[11px] text-neutral-400 leading-normal">
@@ -125,77 +134,112 @@ export default function ContactPage() {
               Dispatch Secure Enquiry
             </h3>
             <p className="text-xs text-neutral-400 mb-6 font-mono">
-              Transmissions are recorded to the central database and flagged for review.
+              Transmissions are recorded to the central database and flagged for review. Only your email is required to establish communication.
             </p>
 
-            {status === 'success' && (
-              <div className="p-4 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono mb-6 flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>Transmission successfully received and recorded to the database.</span>
-              </div>
-            )}
+            <div aria-live="polite">
+              {status === 'success' && (
+                <div className="p-4 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono mb-6 flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                  <span>Transmission successfully received and recorded to the database.</span>
+                </div>
+              )}
 
-            {status === 'error' && (
-              <div className="p-4 rounded bg-red-950/60 border border-red-500/40 text-red-300 text-xs font-mono mb-6 flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{errorMessage || 'Failed to transmit signal. Please try again.'}</span>
-              </div>
-            )}
+              {status === 'error' && (
+                <div className="p-4 rounded bg-red-950/60 border border-red-500/40 text-red-300 text-xs font-mono mb-6 flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+                  <span>{errorMessage || 'Failed to transmit signal. Please try again.'}</span>
+                </div>
+              )}
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-mono">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-mono" noValidate={false}>
+              {/* Spam Honeypot Field */}
+              <input
+                type="text"
+                name="website_hp"
+                value={formData.website_hp}
+                onChange={(e) => setFormData({ ...formData, website_hp: e.target.value })}
+                className="hidden"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-neutral-400 uppercase text-[10px] block">
-                    Your Name *
+                  <label htmlFor="contact-email" className="text-neutral-400 uppercase text-[10px] block font-semibold">
+                    Your Email Address <span className="text-gold-400">*</span>
                   </label>
                   <input
-                    type="text"
-                    required
-                    value={formData.senderName}
-                    onChange={(e) => setFormData({ ...formData, senderName: e.target.value })}
-                    placeholder="e.g. Commander Marcus"
-                    className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-neutral-400 uppercase text-[10px] block">
-                    Your Email Address *
-                  </label>
-                  <input
+                    id="contact-email"
                     type="email"
                     required
+                    aria-required="true"
                     value={formData.senderEmail}
                     onChange={(e) => setFormData({ ...formData, senderEmail: e.target.value })}
                     placeholder="commander@enterprise.org"
                     className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
                   />
                 </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="contact-name" className="text-neutral-400 uppercase text-[10px] block">
+                    Your Name <span className="text-neutral-500">(Optional)</span>
+                  </label>
+                  <input
+                    id="contact-name"
+                    type="text"
+                    value={formData.senderName}
+                    onChange={(e) => setFormData({ ...formData, senderName: e.target.value })}
+                    placeholder="e.g. Commander Marcus"
+                    className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label htmlFor="contact-phone" className="text-neutral-400 uppercase text-[10px] block">
+                    Phone Number <span className="text-neutral-500">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="contact-phone"
+                      type="tel"
+                      value={formData.senderPhone}
+                      onChange={(e) => setFormData({ ...formData, senderPhone: e.target.value })}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="contact-subject" className="text-neutral-400 uppercase text-[10px] block">
+                    Subject / Domain <span className="text-neutral-500">(Optional)</span>
+                  </label>
+                  <input
+                    id="contact-subject"
+                    type="text"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    placeholder="e.g. Autonomous SLAM Research Collaboration"
+                    className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-neutral-400 uppercase text-[10px] block">
-                  Subject / Domain
-                </label>
-                <input
-                  type="text"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="e.g. Autonomous SLAM Research Collaboration"
-                  className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-neutral-400 uppercase text-[10px] block">
-                  Transmission Payload *
+                <label htmlFor="contact-message" className="text-neutral-400 uppercase text-[10px] block">
+                  Transmission Payload <span className="text-neutral-500">(Optional)</span>
                 </label>
                 <textarea
-                  required
-                  rows={5}
+                  id="contact-message"
+                  rows={4}
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  placeholder="Detail your inquiry, project scope, or research topic..."
+                  placeholder="Detail your inquiry, project scope, or research topic (or transmit with only your email above)..."
                   className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors resize-none"
                 />
               </div>
@@ -212,6 +256,10 @@ export default function ContactPage() {
                   {status === 'loading' ? 'Transmitting Signal...' : 'Transmit Signal'}
                 </Button>
               </div>
+
+              <p className="text-[10px] text-neutral-500 text-center font-mono mt-2">
+                Protected by spam honeypot and IP rate limiting • Ground-truth verification policy enforced
+              </p>
             </form>
           </Card>
         </div>
@@ -219,4 +267,3 @@ export default function ContactPage() {
     </div>
   );
 }
-

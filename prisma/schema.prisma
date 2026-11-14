@@ -372,10 +372,11 @@ model AiKnowledgeRecord {
 
 model VisitorEnquiry {
   id          String   @id @default(cuid())
-  senderName  String
+  senderName  String   @default("Anonymous Visitor")
   senderEmail String
-  subject     String
-  message     String
+  senderPhone String?
+  subject     String   @default("Direct Portfolio Transmission")
+  message     String   @default("Visitor initiated transmission via portfolio contact form.")
   status      String   @default("UNREAD")
   ipAddress   String?
   userAgent   String?

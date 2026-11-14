@@ -28,6 +28,15 @@ Project LAMO is an imperial-inspired, self-evolving professional digital identit
   - Admin Question Inbox with one-click owner approval converting answers into permanent `AiKnowledgeRecord` entries.
   - Admin Copilot: completeness auditing, repository skill extraction, and project description enhancement.
   - Intelligent 60–90 day biography review cycle with evidence-based milestone detection and full audit rollback.
+- [x] **Week 4: Final Integration, Production Hardening and Render Deployment**
+  - Full production integration across all 16 public pages, Bucephalus 3D monument, and Admin Citadel.
+  - Bucephalus 3D performance hardening: `prefers-reduced-motion` static frame rendering, `IntersectionObserver` pause on scroll, mobile DPR throttling, and memory geometry disposal.
+  - Accessibility & SEO: Semantic HTML, ARIA compliance, dynamic XML sitemap (`/sitemap.xml`), crawler control (`/robots.txt`), Open Graph, Twitter cards, and JSON-LD structured data (`Person`, `WebSite`).
+  - Contact transmission system: Name, Email, optional Phone, Subject, Message. Single-email transmission supported, spam honeypot trap, IP rate limiting, and async owner dispatch.
+  - Observability & Monitoring: `/api/health` real-time telemetry (database ping latency, record counts, uptime, memory, integrations).
+  - Production Deployment Readiness: Infrastructure-as-Code `render.yaml` Blueprint provisioning Web Service and Managed PostgreSQL with automated schema migration script (`scripts/render-build.mjs`).
+  - Disaster Recovery: `MAINTENANCE_AND_DISASTER_RECOVERY.md` detailing automated cloud backups, `pg_dump`/`pg_restore` runbooks, and zero vendor lock-in portability.
+  - Comprehensive Test Suite: 33 automated integration tests verifying all critical paths (`scripts/test_week4_comprehensive.ts`).
 
 ---
 
@@ -105,8 +114,12 @@ npx prisma db push
 npx tsx prisma/seed.ts
 ```
 
-### 4. Run Automated Week 3 Verification Suite
+### 4. Run Automated Verification Suites
 ```bash
+# Run Week 4 comprehensive production test suite (33 tests)
+npm test
+
+# Run Week 3 LAMO RAG verification suite
 npx tsx scripts/test_week3_lamo.ts
 ```
 
@@ -121,6 +134,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 npm run build
 npm run start
 ```
+
+### 7. Render Production Deployment
+1. Connect repository `https://github.com/helloAi0/Portfolio.git` to Render as a **Blueprint**.
+2. Render detects `render.yaml` and provisions both `project-lamo` (Web Service) and `project-lamo-db` (Managed PostgreSQL).
+3. Set optional environment secrets (`GEMINI_API_KEY`, `RESEND_API_KEY`, `ADMIN_DEFAULT_PASSWORD`) in the Render Dashboard.
+4. Render runs `node scripts/render-build.mjs` (syncing PostgreSQL schemas automatically) and verifies deployment via `/api/health`.
 
 ---
 

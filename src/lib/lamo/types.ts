@@ -46,3 +46,4 @@ export interface GuardrailCheck {
   isPrivateDataRequest?: boolean;
   isFabricationRequest?: boolean;
 }
+

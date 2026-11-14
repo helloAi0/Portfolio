@@ -12,10 +12,18 @@ export function BucephalusCanvas() {
     const container = mountRef.current;
     if (!container) return;
 
-    // Check WebGL availability
+    // 1. Accessibility: Check prefers-reduced-motion
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // 2. Hardware: Check WebGL availability safely
+    let gl: WebGLRenderingContext | null = null;
     try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const testCanvas = document.createElement('canvas');
+      gl =
+        (testCanvas.getContext('webgl') as WebGLRenderingContext) ||
+        (testCanvas.getContext('experimental-webgl') as WebGLRenderingContext);
       if (!gl) {
         setHasWebGL(false);
         return;
@@ -25,8 +33,9 @@ export function BucephalusCanvas() {
       return;
     }
 
-    const width = container.clientWidth || window.innerWidth;
+    const width = container.clientWidth || 800;
     const height = container.clientHeight || 600;
+    const isMobile = width < 768;
 
     // Scene, Camera, Renderer
     const scene = new THREE.Scene();
@@ -35,27 +44,32 @@ export function BucephalusCanvas() {
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     camera.position.set(0, 1.2, 5.5);
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    container.appendChild(renderer.domElement);
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: !isMobile, // Disable expensive MSAA on mobile for 60fps
+        powerPreference: 'high-performance',
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2.0));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.2;
+      container.appendChild(renderer.domElement);
+    } catch {
+      setHasWebGL(false);
+      return;
+    }
 
     // Group for entire imperial monument
     const monumentGroup = new THREE.Group();
     scene.add(monumentGroup);
 
-    // 1. Materials: Imperial Bronze & Antique Gold
+    // 3. Optimized Materials: Bronze & Gold
     const goldMaterial = new THREE.MeshStandardMaterial({
       color: 0xd4af37,
       metalness: 0.85,
       roughness: 0.25,
-      wireframe: false,
     });
 
     const bronzeMaterial = new THREE.MeshStandardMaterial({
@@ -70,8 +84,7 @@ export function BucephalusCanvas() {
       roughness: 0.6,
     });
 
-    // 2. Bucephalus Monumental Sculpture (Stylized Architectural Equine Bust)
-    // Pedestal Plinth (Stepped ancient Macedonian plinth)
+    // 4. Stepped ancient Macedonian plinth
     const base1 = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, 2.2), darkMarbleMaterial);
     base1.position.y = -1.6;
     monumentGroup.add(base1);
@@ -85,12 +98,12 @@ export function BucephalusCanvas() {
     monumentGroup.add(base3);
 
     // Architectural Bronze Ring
-    const goldRing = new THREE.Mesh(new THREE.TorusGeometry(0.88, 0.04, 16, 48), goldMaterial);
+    const goldRing = new THREE.Mesh(new THREE.TorusGeometry(0.88, 0.04, 12, 36), goldMaterial);
     goldRing.rotation.x = Math.PI / 2;
     goldRing.position.y = -0.55;
     monumentGroup.add(goldRing);
 
-    // Bucephalus Warhorse Bust - Procedural Imperial Geometric Construction
+    // Bucephalus Warhorse Bust - Procedural Construction
     const horseGroup = new THREE.Group();
     horseGroup.position.y = 0.2;
 
@@ -109,13 +122,13 @@ export function BucephalusCanvas() {
     head.position.set(0.35, 0.55, 0);
     horseGroup.add(head);
 
-    // Forehead crest (Alexander's Macedonian star crown / brow armor)
+    // Forehead crest / Macedonian star brow
     const browGeo = new THREE.BoxGeometry(0.3, 0.12, 0.45);
     const brow = new THREE.Mesh(browGeo, goldMaterial);
     brow.position.set(0.25, 0.8, 0);
     horseGroup.add(brow);
 
-    // Alert Warhorse Ears
+    // Ears
     const earGeo = new THREE.ConeGeometry(0.08, 0.35, 4);
     const leftEar = new THREE.Mesh(earGeo, goldMaterial);
     leftEar.position.set(0.05, 1.1, 0.15);
@@ -129,7 +142,7 @@ export function BucephalusCanvas() {
     rightEar.rotation.x = -0.2;
     horseGroup.add(rightEar);
 
-    // Dynamic Flowing Mane (Macedonian charging mane)
+    // Charging Mane
     for (let i = 0; i < 6; i++) {
       const maneFeather = new THREE.Mesh(
         new THREE.BoxGeometry(0.08, 0.35, 0.18),
@@ -142,7 +155,7 @@ export function BucephalusCanvas() {
 
     monumentGroup.add(horseGroup);
 
-    // 3. Background Colonnade (Silhouette Macedonian architectural columns)
+    // 5. Background Colonnade (Silhouette architectural columns)
     const pillarMat = new THREE.MeshStandardMaterial({
       color: 0x0f1218,
       roughness: 0.8,
@@ -151,15 +164,15 @@ export function BucephalusCanvas() {
 
     const pillarsGroup = new THREE.Group();
     for (let x = -4; x <= 4; x += 2.6) {
-      if (Math.abs(x) < 1.5) continue; // Leave center open
-      const column = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 6, 12), pillarMat);
+      if (Math.abs(x) < 1.5) continue;
+      const column = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 6, 8), pillarMat);
       column.position.set(x, 0.5, -3.2);
       pillarsGroup.add(column);
     }
     scene.add(pillarsGroup);
 
-    // 4. Atmospheric Celestial Particles / Golden Embers
-    const particleCount = 200;
+    // 6. Atmospheric Celestial Particles (reduced on mobile)
+    const particleCount = isMobile ? 80 : 180;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     const particleSpeeds = new Float32Array(particleCount);
@@ -183,7 +196,7 @@ export function BucephalusCanvas() {
     const particles = new THREE.Points(particleGeo, particleMat);
     scene.add(particles);
 
-    // 5. Lighting Setup (Cinematic key, fill, rim)
+    // 7. Lighting Setup
     const ambientLight = new THREE.AmbientLight(0xfff4d6, 0.4);
     scene.add(ambientLight);
 
@@ -191,24 +204,25 @@ export function BucephalusCanvas() {
     keyGoldLight.position.set(4, 5, 4);
     scene.add(keyGoldLight);
 
-    const rimBlueBronzeLight = new THREE.PointLight(0x7393b3, 1.8, 12);
-    rimBlueBronzeLight.position.set(-4, 2, -3);
-    scene.add(rimBlueBronzeLight);
+    const rimBlueLight = new THREE.PointLight(0x7393b3, 1.8, 12);
+    rimBlueLight.position.set(-4, 2, -3);
+    scene.add(rimBlueLight);
 
     const warmUnderGlow = new THREE.PointLight(0xd4af37, 1.5, 6);
     warmUnderGlow.position.set(0, -1.8, 1.5);
     scene.add(warmUnderGlow);
 
-    // 6. Interactive Mouse & Parallax Controller
+    // 8. Interactive Mouse & Parallax Controller
     const targetRotation = { x: 0, y: 0 };
     const currentRotation = { x: 0, y: 0 };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (prefersReducedMotion) return;
       const rect = container.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width - 0.5;
       const y = (e.clientY - rect.top) / rect.height - 0.5;
-      targetRotation.y = x * 0.6;
-      targetRotation.x = y * 0.3;
+      targetRotation.y = x * 0.5;
+      targetRotation.x = y * 0.25;
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -226,22 +240,58 @@ export function BucephalusCanvas() {
     window.addEventListener('resize', handleResize);
     setIsLoaded(true);
 
-    // 7. Animation Loop
+    // 9. Intersection Observer & Visibility API (Pauses rendering when scrolled out of view or tab hidden)
+    let isVisible = true;
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible && !animationFrameId && !prefersReducedMotion) {
+          animate();
+        }
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(container);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isVisible = false;
+      } else {
+        isVisible = true;
+        if (!animationFrameId && !prefersReducedMotion) {
+          animate();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 10. Animation Loop
     const animate = () => {
+      if (!isVisible) {
+        animationFrameId = 0;
+        return;
+      }
+
       animationFrameId = requestAnimationFrame(animate);
+
+      if (prefersReducedMotion) {
+        // Render a single static, well-lit imperial frame and halt loop
+        renderer.render(scene, camera);
+        return;
+      }
+
       const elapsedTime = clock.getElapsedTime();
 
       // Smooth damped rotation tracking
       currentRotation.x += (targetRotation.x - currentRotation.x) * 0.05;
       currentRotation.y += (targetRotation.y - currentRotation.y) * 0.05;
 
-      // Subtle monumental breathing motion
-      monumentGroup.rotation.y = currentRotation.y + Math.sin(elapsedTime * 0.5) * 0.06;
+      monumentGroup.rotation.y = currentRotation.y + Math.sin(elapsedTime * 0.5) * 0.05;
       monumentGroup.rotation.x = currentRotation.x + Math.sin(elapsedTime * 0.8) * 0.02;
-      monumentGroup.position.y = Math.sin(elapsedTime * 1.2) * 0.04;
+      monumentGroup.position.y = Math.sin(elapsedTime * 1.2) * 0.03;
 
       // Animate celestial particles upward
       const positions = particleGeo.attributes.position.array as Float32Array;
@@ -256,14 +306,19 @@ export function BucephalusCanvas() {
       renderer.render(scene, camera);
     };
 
+    // Initial render / start animation
     animate();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
 
-      if (container && renderer.domElement) {
+      if (container && renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
 
@@ -272,21 +327,30 @@ export function BucephalusCanvas() {
       goldMaterial.dispose();
       bronzeMaterial.dispose();
       darkMarbleMaterial.dispose();
+      pillarMat.dispose();
+      chestGeo.dispose();
+      headGeo.dispose();
+      browGeo.dispose();
+      earGeo.dispose();
     };
   }, []);
 
   return (
-    <div className="relative w-full h-[480px] sm:h-[560px] lg:h-[640px] flex items-center justify-center overflow-hidden">
+    <div
+      className="relative w-full h-[480px] sm:h-[560px] lg:h-[640px] flex items-center justify-center overflow-hidden"
+      role="region"
+      aria-label="Interactive 3D Bucephalus Monument"
+    >
       {/* Three.js WebGL Container */}
       {hasWebGL ? (
         <div
           ref={mountRef}
-          className={`w-full h-full cursor-grab active:cursor-grabbing transition-opacity duration-1000 ${
+          className={`w-full h-full cursor-grab active:cursor-grabbing transition-opacity duration-700 ${
             isLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         />
       ) : (
-        /* Lightweight Fallback for unsupported devices */
+        /* Static Lightweight Fallback for unsupported devices */
         <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-imperial-900 to-imperial-950 border border-gold-500/20 rounded-lg">
           <div className="w-32 h-32 rounded-full border-2 border-gold-400/40 flex items-center justify-center bg-gold-500/10 mb-4 shadow-imperial-gold">
             <span className="font-serif text-5xl font-black text-gold-300">Β</span>
@@ -304,10 +368,9 @@ export function BucephalusCanvas() {
 
       {/* Interactive 3D Hint pill */}
       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 pointer-events-none flex items-center space-x-2 px-3 py-1 rounded-full bg-imperial-900/80 border border-gold-500/30 text-[10px] font-mono text-gold-300/90 shadow-lg backdrop-blur-sm">
-        <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-ping" />
+        <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-ping" aria-hidden="true" />
         <span>Bucephalus Monument • Interactive Parallax Canvas</span>
       </div>
     </div>
   );
 }
-

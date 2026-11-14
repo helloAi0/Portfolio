@@ -1,0 +1,57 @@
+# Render Blueprint Specification for Project LAMO
+# Complete Infrastructure-as-Code for Web Service and Managed PostgreSQL
+services:
+  - type: web
+    name: project-lamo
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: main
+    buildCommand: node scripts/render-build.mjs
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: project-lamo-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: OWNER_DISPLAY_NAME
+        value: Sahil Depurwala
+      - key: OWNER_CONTACT_EMAIL
+        value: tahaudaipurwala68@gmail.com
+      - key: IDENTITY_VERIFICATION_STATUS
+        value: PENDING_OWNER_CONFIRMATION
+      - key: GITHUB_USERNAME
+        value: helloAi0
+      - key: LEETCODE_USERNAME
+        value: helloAi0
+      - key: GFG_USERNAME
+        value: helloAi0
+      - key: LINKEDIN_PROFILE_URL
+        value: https://linkedin.com
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: ADMIN_DEFAULT_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: LAMO AI <lamo@projectlamo.dev>
+      - key: OWNER_NOTIFICATION_EMAIL
+        value: tahaudaipurwala68@gmail.com
+
+databases:
+  - name: project-lamo-db
+    databaseName: portfolio
+    user: lamo_admin
+    region: oregon
+    plan: free
