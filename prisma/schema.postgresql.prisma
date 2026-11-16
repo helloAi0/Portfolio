@@ -14,14 +14,13 @@ datasource db {
 
 model Profile {
   id                         String   @id @default(cuid())
-  displayName                String   @default("Sahil Depurwala")
+  displayName                String   @default("Taha Udaipurwala")
   contactEmail               String   @default("tahaudaipurwala68@gmail.com")
-  headline                   String   @default("Imperial Engineering & AI Architecture")
+  headline                   String   @default("Aspiring AI/ML and Robotics Engineer")
   bio                        String
-  dateOfBirth                DateTime
   location                   String   @default("Kolkata, West Bengal, India")
   githubUrl                  String   @default("https://github.com/helloAi0")
-  linkedinUrl                String   @default("https://linkedin.com")
+  linkedinUrl                String?
   identityVerificationStatus String   @default("PENDING_OWNER_CONFIRMATION")
   identityFlagNotes          String?
   createdAt                  DateTime @default(now())
@@ -37,8 +36,9 @@ model Education {
   field              String?
   minor              String?
   additionalInterest String?
-  location           String
-  startYear          Int
+  location           String?
+  startYear          Int?
+  verificationStatus String   @default("OWNER_REVIEW_REQUIRED")
   endYear            Int?
   isCurrent          Boolean  @default(false)
   graduationStatus   String
@@ -200,7 +200,7 @@ model CodingPlatformProfile {
   badges          String?
   recentActivity  String?
   rawData         String?
-  dataSource      String    @default("MOCK")
+  dataSource      String    @default("UNAVAILABLE")
   lastSyncedAt    DateTime?
   syncError       String?
   createdAt       DateTime  @default(now())

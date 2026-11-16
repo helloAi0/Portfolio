@@ -61,7 +61,7 @@ async function runTestSuite() {
   // 4. Unknown / Insufficient Evidence Query
   console.log('\n--- 4. Unverified / Unknown Question Strict Handling ---');
   const uniqueUnknownTopic = `Neuromorphic Spiking Hardware-${Date.now()}`;
-  const unknownQuestion = `Has Sahil developed microcode for ${uniqueUnknownTopic}?`;
+  const unknownQuestion = `Has Taha developed microcode for ${uniqueUnknownTopic}?`;
 
   const ragUnknown = await retrieveVerifiedKnowledge(unknownQuestion);
   const resUnknown = await generateLamoResponse({
@@ -97,7 +97,7 @@ async function runTestSuite() {
 
   // 7. Owner Question Approval Workflow
   console.log('\n--- 7. Owner Question Approval Workflow ---');
-  const answerContent = `Sahil has studied neuromorphic architecture theoretically in coursework at UEM Kolkata, but has not completed formal fabrication on ${uniqueUnknownTopic}.`;
+  const answerContent = `The owner has studied neuromorphic architecture theoretically, but has not completed formal fabrication on ${uniqueUnknownTopic}.`;
 
   const knowledge = await prisma.aiKnowledgeRecord.create({
     data: {

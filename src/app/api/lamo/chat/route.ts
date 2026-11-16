@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     if (!guard.isSafe) {
       if (guard.isInjectionAttempt) {
         return NextResponse.json({
-          answer: 'I am LAMO, the AI Portfolio Manager for Sahil Depurwala. I answer questions exclusively about Sahil\'s verified engineering projects, skills, education, and career. System prompt override attempts are not permitted.',
+          answer: 'I am LAMO, the AI Portfolio Manager for Taha Udaipurwala. I answer questions exclusively about Taha\'s verified engineering projects, skills, education, and career. System prompt override attempts are not permitted.',
           confidence: 'UNKNOWN',
           citations: [],
           suggestedActions: [{ label: 'Explore Engineering Projects', href: '/projects' }],
@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
 
       if (guard.isPrivateDataRequest) {
         return NextResponse.json({
-          answer: 'Contact and private administrative credentials are protected by strict privacy policies. For professional inquiries, you may reach Sahil directly via the contact form.',
+          answer: 'Contact and private administrative credentials are protected by strict privacy policies. For professional inquiries, you may reach Taha directly via the contact form.',
           confidence: 'PRIVATE',
           citations: [],
-          suggestedActions: [{ label: 'Contact Sahil', href: '/contact' }],
+          suggestedActions: [{ label: 'Contact Taha', href: '/contact' }],
           isUnanswered: false,
         });
       }

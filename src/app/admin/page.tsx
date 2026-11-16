@@ -848,12 +848,12 @@ export default function AdminDashboardPage() {
               <Card variant="marble" className="p-6 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono text-neutral-400">Configured Username:</span>
-                  <span className="text-white font-mono font-bold">{codingStats.leetcode?.username || 'helloAi0'}</span>
+                  <span className="text-white font-mono font-bold">{codingStats.leetcode?.username || 'Not configured'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono text-neutral-400">Data Source Mode:</span>
                   <Badge variant={codingStats.leetcode?.dataSource === 'LIVE' ? 'verified' : 'detected'} size="xs">
-                    {codingStats.leetcode?.dataSource || 'MOCK'}
+                    {codingStats.leetcode?.dataSource || 'UNAVAILABLE'}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -918,7 +918,7 @@ export default function AdminDashboardPage() {
                       type="text"
                       value={newPost.title}
                       onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                      placeholder="e.g. Autonomous SLAM Trajectory Update"
+                      placeholder="e.g. Post title"
                       className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                     />
                   </div>
@@ -1181,7 +1181,7 @@ export default function AdminDashboardPage() {
                         required
                         value={newExp.roleTitle}
                         onChange={(e) => setNewExp({ ...newExp, roleTitle: e.target.value })}
-                        placeholder="e.g. Autonomous Robotics Lab Researcher"
+                        placeholder="e.g. Job or internship title"
                         className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                       />
                     </div>
@@ -1192,7 +1192,7 @@ export default function AdminDashboardPage() {
                         required
                         value={newExp.organization}
                         onChange={(e) => setNewExp({ ...newExp, organization: e.target.value })}
-                        placeholder="e.g. UEM Robotics Computing Society"
+                        placeholder="e.g. Organization name"
                         className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                       />
                     </div>
@@ -1205,7 +1205,7 @@ export default function AdminDashboardPage() {
                       rows={2}
                       value={newExp.description}
                       onChange={(e) => setNewExp({ ...newExp, description: e.target.value })}
-                      placeholder="Conducted experiments on ROS 2 Humble nodes..."
+                      placeholder="What you actually did in this role"
                       className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                     />
                   </div>

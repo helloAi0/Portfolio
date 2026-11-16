@@ -23,9 +23,9 @@ const INJECTION_PATTERNS = [
 // Patterns that request inventing or fabricating unverified credentials
 const FABRICATION_PATTERNS = [
   /invent\s+(a\s+)?(job|experience|project|achievement|award|scholarship|degree)/i,
-  /pretend\s+(he|sahil)\s+(has|won|graduated|worked)/i,
+  /pretend\s+(he|taha)\s+(has|won|graduated|worked)/i,
   /make\s+up\s+an?\s+(answer|credential|qualification)/i,
-  /claim\s+(that\s+)?(he|sahil)\s+is\s+a\s+senior/i,
+  /claim\s+(that\s+)?(he|taha)\s+is\s+a\s+senior/i,
   /say\s+he\s+has\s+a\s+(phd|masters|gpa)/i,
 ];
 

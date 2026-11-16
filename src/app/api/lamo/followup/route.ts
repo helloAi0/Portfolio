@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Your contact has been linked to this query. Sahil will receive your question and can follow up directly.',
+      message: 'Your contact has been linked to this query. Taha will receive your question and can follow up directly.',
     });
   } catch (error) {
     console.error('Error in LAMO followup API:', error);

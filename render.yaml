@@ -21,19 +21,31 @@ services:
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
       - key: OWNER_DISPLAY_NAME
-        value: Sahil Depurwala
+        value: Taha Udaipurwala
       - key: OWNER_CONTACT_EMAIL
         value: tahaudaipurwala68@gmail.com
       - key: IDENTITY_VERIFICATION_STATUS
         value: PENDING_OWNER_CONFIRMATION
       - key: GITHUB_USERNAME
         value: helloAi0
+      # Set these only after verifying the real profiles (left blank = not shown).
       - key: LEETCODE_USERNAME
-        value: helloAi0
+        sync: false
       - key: GFG_USERNAME
-        value: helloAi0
+        sync: false
       - key: LINKEDIN_PROFILE_URL
-        value: https://linkedin.com
+        sync: false
+      # Private owner profile settings (never exposed publicly)
+      - key: OWNER_BIRTH_DATE
+        sync: false
+      - key: OWNER_SHOW_PUBLIC_AGE
+        value: "false"
+      - key: OWNER_INSTITUTION
+        sync: false
+      - key: ADMIN_USERNAME
+        value: taha
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true
       - key: ADMIN_JWT_SECRET
         generateValue: true
       - key: CRON_SECRET

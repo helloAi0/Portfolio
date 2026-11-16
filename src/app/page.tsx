@@ -28,20 +28,20 @@ export default async function HomePage() {
         <div className="max-w-5xl mx-auto px-4 text-center">
           <div className="marble-card p-10 sm:p-14 rounded-lg relative overflow-hidden">
             <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400 mb-2 block">
-              Direct Communication Gateway
+              Contact
             </span>
             <h2 className="text-2xl sm:text-4xl font-serif font-black text-white mb-4">
-              Construct The Future of Intelligent Systems
+              Let&apos;s Talk
             </h2>
             <p className="text-sm text-neutral-300 max-w-xl mx-auto leading-relaxed mb-8">
-              Open to collaborative research in Autonomous Robotics, Foundation Model engineering, and Imperial Software Citadel construction.
+              Interested in AI/ML, robotics and secure systems. Questions, collaboration ideas and opportunities are welcome.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Button href="/contact" variant="primary" size="md" icon={<ArrowRight className="w-4 h-4" />}>
-                Transmit Secure Message
+                Send a message
               </Button>
               <Button href="/resume" variant="outline" size="md">
-                Examine Dossier
+                View resume
               </Button>
             </div>
           </div>

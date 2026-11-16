@@ -1,15 +1,11 @@
 /**
  * GeeksForGeeks Provider Adapter
  *
- * GeeksForGeeks does NOT have an official public API.
- * Their profile data is served via HTML pages and some internal JSON endpoints
- * that are undocumented and subject to change at any time.
- *
- * This adapter:
- * 1. Attempts to read from the public profile JSON endpoint if available.
- * 2. Falls back cleanly to MOCK data labeled explicitly as such.
- * 3. Never authenticates or scrapes protected user data.
- * 4. Clearly marks all unavailable metrics as null.
+ * GeeksForGeeks has NO official public API. This adapter therefore does not call
+ * any third-party scraping proxy by default. It only syncs when the owner supplies
+ * an endpoint they trust via GFG_STATS_ENDPOINT (a URL template containing
+ * {username}); otherwise GfG is reported UNAVAILABLE and stats can be entered
+ * manually in the admin. No values are ever invented.
  */
 
 import { logger } from '@/lib/logger';
@@ -30,14 +26,14 @@ export interface GFGStats {
   overallScore: number | null;
   rank: number | null;
   instituteName: string | null;
-  dataSource: 'LIVE' | 'MOCK';
+  dataSource: 'LIVE' | 'UNAVAILABLE';
   lastSyncedAt: Date;
   syncError?: string;
 }
 
-const MOCK_GFG_STATS: GFGStats = {
-  username: GFG_USERNAME || 'configure-gfg-username',
-  profileUrl: `https://www.geeksforgeeks.org/user/${GFG_USERNAME || 'configure-gfg-username'}`,
+const UNAVAILABLE_GFG_STATS: GFGStats = {
+  username: GFG_USERNAME,
+  profileUrl: GFG_USERNAME ? `https://www.geeksforgeeks.org/user/${GFG_USERNAME}` : '',
   totalSolved: null,
   school: null,
   basic: null,
@@ -49,21 +45,24 @@ const MOCK_GFG_STATS: GFGStats = {
   overallScore: null,
   rank: null,
   instituteName: null,
-  dataSource: 'MOCK',
+  dataSource: 'UNAVAILABLE',
   lastSyncedAt: new Date(),
-  syncError: 'GeeksForGeeks does not provide an official public API. Configure GFG_USERNAME in .env. Stats display pending available data access.',
+  syncError: 'GeeksForGeeks has no official public API. Set GFG_USERNAME and GFG_STATS_ENDPOINT, or enter stats manually in the admin.',
 };
 
 export async function fetchGFGStats(): Promise<GFGStats> {
   const username = process.env.GFG_USERNAME;
 
   if (!username) {
-    logger.warn('GFGAdapter', 'GFG_USERNAME not configured. Returning mock.');
-    return MOCK_GFG_STATS;
+    logger.warn('GFGAdapter', 'GFG_USERNAME not configured.');
+    return UNAVAILABLE_GFG_STATS;
   }
 
-  // Attempt the known internal JSON endpoint (undocumented, may break)
-  const url = `https://geeks-for-geeks-stats-api.vercel.app/?raw=Y&userName=${username}`;
+  const template = process.env.GFG_STATS_ENDPOINT;
+  if (!template || !template.includes('{username}')) {
+    return { ...UNAVAILABLE_GFG_STATS, syncError: 'No supported GfG data source configured (GFG_STATS_ENDPOINT). Enter stats manually in the admin.' };
+  }
+  const url = template.replace('{username}', encodeURIComponent(username));
 
   try {
     const res = await fetch(url, {
@@ -97,7 +96,7 @@ export async function fetchGFGStats(): Promise<GFGStats> {
       monthlyScore: info.monthlyScore ?? null,
       overallScore: info.overallCodingScore ?? null,
       rank: info.rank ?? null,
-      instituteName: info.instituteRank ? 'UEM / IEM Kolkata' : null,
+      instituteName: null,
       dataSource: 'LIVE',
       lastSyncedAt: new Date(),
     };
@@ -106,8 +105,8 @@ export async function fetchGFGStats(): Promise<GFGStats> {
     return result;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    logger.warn('GFGAdapter', `GFG live fetch failed: ${errMsg}. Returning mock.`);
-    return { ...MOCK_GFG_STATS, syncError: `Live sync failed: ${errMsg}` };
+    logger.warn('GFGAdapter', `GFG live fetch failed: ${errMsg}. Reporting UNAVAILABLE.`);
+    return { ...UNAVAILABLE_GFG_STATS, syncError: `Live sync failed: ${errMsg}` };
   }
 }
 

@@ -1,20 +1,23 @@
+import { PROFILE } from './profile';
+
 export const siteConfig = {
   name: 'PROJECT LAMO',
-  tagline: 'Imperial Engineering & Intelligent Systems Architecture',
+  tagline: 'Engineering portfolio of an aspiring AI/ML and robotics engineer',
   description:
-    'Self-evolving digital identity and engineering citadel of Sahil Depurwala. Inspired by Alexander the Great, Bucephalus, and Macedonian monumental design.',
+    `Portfolio of ${PROFILE.displayName}: B.Tech student in Computer Science and Engineering (AI & ML) with a minor in Cybersecurity and a growing focus on robotics. Inspired by Alexander the Great, Bucephalus, and Macedonian monumental design.`,
   author: {
-    name: 'Sahil Depurwala',
-    email: 'tahaudaipurwala68@gmail.com',
-    github: 'https://github.com/helloAi0',
-    linkedin: 'https://linkedin.com',
-    institution: 'University of Engineering and Management / Institute of Engineering and Management (UEM / IEM), Kolkata',
+    name: PROFILE.displayName,
+    email: PROFILE.contactEmail,
+    github: PROFILE.github.url,
+    linkedin: PROFILE.linkedinUrl,
+    institution: PROFILE.education.institution,
     degree: 'B.Tech in Computer Science and Engineering (AI & ML)',
-    minor: 'Cybersecurity',
+    minor: PROFILE.education.minor,
     technicalInterest: 'Robotics',
   },
   links: {
-    github: 'https://github.com/helloAi0/Portfolio.git',
+    github: PROFILE.github.url,
+    repository: 'https://github.com/helloAi0/Portfolio',
     deployTarget: 'Render',
   },
   theme: {
@@ -24,4 +27,3 @@ export const siteConfig = {
     marbleAccent: '#161a22',
   },
 };
-

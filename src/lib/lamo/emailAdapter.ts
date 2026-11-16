@@ -92,7 +92,7 @@ LAMO (Personal AI Portfolio Manager)`;
 
       <div style="border-top: 1px solid #2d3748; padding-top: 16px; margin-top: 24px; font-size: 11px; color: #718096; font-family: monospace;">
         Thank you,<br/>
-        <strong>LAMO</strong> — Personal AI Portfolio Manager for Sahil Depurwala
+        <strong>LAMO</strong> — Personal AI Portfolio Manager for Taha Udaipurwala
       </div>
     </div>
   `;
@@ -153,12 +153,12 @@ export async function sendVisitorAnswerNotification(payload: {
   question: string;
   answer: string;
 }): Promise<{ success: boolean; provider: string; error?: string }> {
-  const subject = 'Sahil Depurwala — Answer to your Portfolio Question via LAMO';
+  const subject = 'Taha Udaipurwala — Answer to your Portfolio Question via LAMO';
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
   const plaintext = `Hello ${payload.visitorName || 'Visitor'},
 
-Thank you for your question on Sahil Depurwala's engineering portfolio.
+Thank you for your question on Taha Udaipurwala's engineering portfolio.
 
 Your Question:
 "${payload.question}"
@@ -170,7 +170,7 @@ You can view the full portfolio and projects here:
 ${siteUrl}
 
 Best regards,
-Sahil Depurwala & LAMO AI
+Taha Udaipurwala & LAMO AI
 `;
 
   if (process.env.RESEND_API_KEY) {
@@ -182,7 +182,7 @@ Sahil Depurwala & LAMO AI
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Sahil Depurwala <lamo@projectlamo.dev>',
+          from: process.env.EMAIL_FROM || 'Taha Udaipurwala <lamo@projectlamo.dev>',
           to: [payload.visitorEmail],
           subject,
           text: plaintext,
@@ -220,7 +220,7 @@ export async function sendOwnerEnquiryNotification(payload: {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   const emailSubject = `Citadel Transmission — New Direct Enquiry: ${payload.subject}`;
 
-  const plaintext = `Hello Sahil,
+  const plaintext = `Hello Taha,
 
 You have received a new communication transmission through the Project LAMO contact portal.
 

@@ -16,13 +16,13 @@ export function FeaturedProjects({ projects }: FeaturedProjectsProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
           <SectionHeading
-            eyebrow="Flagship Citadels"
-            title="Categorized Engineering Library"
-            description="Explore seeded architectural projects spanning Autonomous Robotics, Artificial Intelligence, Cybersecurity, and WebGL Systems."
+            eyebrow="Projects"
+            title="Featured Projects"
+            description="Projects synced from GitHub and organized by engineering domain."
           />
           <div className="mt-4 md:mt-0">
             <Button href="/projects" variant="outline" size="sm" icon={<ArrowRight className="w-3.5 h-3.5" />}>
-              View All 10 Domains
+              View all projects
             </Button>
           </div>
         </div>

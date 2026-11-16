@@ -79,7 +79,7 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 ### 1.2 Domain Logic & Temporal Computing (`src/lib/identity.ts`)
 - **Dynamic Age Derivation**: Age is computed on every request using UTC milliseconds from Date of Birth (`2 November 2006`).
 - **Academic Progression Calculator**: Dynamically determines semester, academic standing, and graduation milestone (Class of 2024–2028).
-- **Safety Decoupling**: Isolates `OWNER_DISPLAY_NAME` (`Sahil Depurwala`) from `OWNER_CONTACT_EMAIL` (`tahaudaipurwala68@gmail.com`), flagging discrepancies as `PENDING_OWNER_CONFIRMATION`.
+- **Safety Decoupling**: Isolates `OWNER_DISPLAY_NAME` (`Taha Udaipurwala`) from `OWNER_CONTACT_EMAIL` (`tahaudaipurwala68@gmail.com`), flagging discrepancies as `PENDING_OWNER_CONFIRMATION`.
 
 ---
 
@@ -99,7 +99,7 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 
 ### 2.3 Coding Arena Adapters (`src/lib/services/codingStatsService.ts`)
 - Modular provider adapters for LeetCode and GeeksforGeeks.
-- Supports official / permitted data access; clearly labels mock data during local development.
+- Supports official or permitted data access; when data cannot be retrieved it shows UNAVAILABLE or STALE with the last successful sync time (no mock values).
 - Tracks total solved, easy, medium, hard, contest ratings, and global rankings.
 
 ---
@@ -109,7 +109,7 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 ### 3.1 Grounded Retrieval-Augmented Generation (`src/lib/lamo/knowledgeRetriever.ts`)
 - Queries across 10 verified database domains before any answer synthesis:
   1. Identity & Profile
-  2. Education History (UEM/IEM Kolkata)
+  2. Education History (the B.Tech institution (owner-confirmed value))
   3. Projects & Architectural Blueprints
   4. Verified Skill Taxonomy Graph
   5. Coding Arena Profiles

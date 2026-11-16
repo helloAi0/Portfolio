@@ -30,10 +30,9 @@ interface ChatMessage {
 
 const SUGGESTED_QUESTIONS = [
   'Tell me about this engineer.',
-  'What robotics projects has he developed?',
-  'Does he know ROS 2?',
+  'What projects has he built?',
+  'Which skills are verified?',
   'What is his educational background?',
-  'Show me his verified skills.',
   'How can I contact him?',
 ];
 
@@ -64,14 +63,14 @@ export default function LamoChatWidget() {
         id: 'msg_welcome',
         role: 'ASSISTANT',
         content:
-          'Welcome to the imperial engineering portfolio of Sahil Depurwala. I am **LAMO**, his Personal AI Portfolio Manager. I answer questions regarding his robotics research, autonomous systems, AI/ML models, and verified academic credentials.',
+          'Hello, I am **LAMO**, the Personal AI Portfolio Manager for Taha Udaipurwala. I answer questions using only the verified records on this site: his education, projects, skills and certificates. If I do not have verified information, I will say so.',
         confidence: 'VERIFIED',
         citations: [
-          { source: 'Profile:SahilDepurwala', title: 'Sahil Depurwala Profile', status: 'VERIFIED', url: '/journey' },
+          { source: 'Profile:TahaUdaipurwala', title: 'About Taha Udaipurwala', status: 'VERIFIED', url: '/about' },
         ],
         suggestedActions: [
-          { label: 'Explore Robotics', href: '/projects?category=Robotics' },
-          { label: 'Academic Journey', href: '/journey' },
+          { label: 'Projects', href: '/projects' },
+          { label: 'Journey', href: '/journey' },
           { label: 'Coding Arena', href: '/coding-arena' },
         ],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -181,7 +180,7 @@ export default function LamoChatWidget() {
       {
         id: 'msg_welcome_' + Date.now(),
         role: 'ASSISTANT',
-        content: 'Conversation history reset. How may I assist you with Sahil Depurwala\'s engineering portfolio?',
+        content: 'Conversation history reset. How may I assist you with Taha Udaipurwala\'s engineering portfolio?',
         confidence: 'VERIFIED',
         citations: [],
         suggestedActions: [
@@ -245,7 +244,7 @@ export default function LamoChatWidget() {
                   </span>
                 </div>
                 <p className="text-[11px] text-gray-400 font-mono">
-                  Sahil Depurwala • Verified Knowledge
+                  Taha Udaipurwala • Verified Knowledge
                 </p>
               </div>
             </div>
@@ -355,12 +354,12 @@ export default function LamoChatWidget() {
                   {msg.isUnanswered && msg.questionId && (
                     <div className="mt-3 p-2.5 rounded-lg bg-[#181d28] border border-amber-500/30">
                       <p className="text-[11px] text-amber-200/90 mb-2">
-                        Would you like Sahil to follow up with you directly once he answers?
+                        Would you like Taha to follow up with you directly once he answers?
                       </p>
 
                       {followupStatus[msg.questionId] === 'sent' ? (
                         <div className="text-[11px] text-emerald-400 font-mono">
-                          ✓ Notification saved. Sahil has been notified!
+                          ✓ Notification saved. Taha has been notified!
                         </div>
                       ) : (
                         <div className="flex items-center space-x-1.5">
@@ -435,7 +434,7 @@ export default function LamoChatWidget() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about Sahil's robotics, AI, or skills..."
+                placeholder="Ask about Taha's robotics, AI, or skills..."
                 maxLength={400}
                 className="flex-1 bg-[#0b0e14] border border-gray-700/70 focus:border-[#d4af37] text-xs sm:text-sm text-white placeholder-gray-500 rounded-lg px-3 py-2.5 focus:outline-none transition"
               />

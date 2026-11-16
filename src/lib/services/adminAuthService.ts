@@ -9,8 +9,20 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
-const JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'imperial-lamo-dev-secret-change-in-production';
 const JWT_EXPIRY = '8h';
+
+/**
+ * The signing secret must come from the environment. There is deliberately no
+ * hardcoded production fallback (the repository is public). In local development
+ * only, a clearly labelled dev secret is used so the app works out of the box.
+ * Resolved lazily so `next build` does not fail when the variable is absent.
+ */
+function getJwtSecret(): string {
+  const secret = process.env.ADMIN_JWT_SECRET;
+  if (secret && secret.length >= 32) return secret;
+  if (process.env.NODE_ENV !== 'production') return 'local-development-only-secret-do-not-use-in-production';
+  throw new Error('ADMIN_JWT_SECRET must be set to a random string of at least 32 characters.');
+}
 
 export interface AdminPayload {
   adminId: string;
@@ -43,12 +55,12 @@ export async function verifyAdminCredentials(
 }
 
 export function signAdminToken(payload: AdminPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRY });
 }
 
 export function verifyAdminToken(token: string): AdminPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as AdminPayload;
+    return jwt.verify(token, getJwtSecret()) as AdminPayload;
   } catch {
     return null;
   }
@@ -66,18 +78,20 @@ export async function ensureDefaultAdmin(): Promise<void> {
   const existing = await prisma.adminUser.findFirst();
   if (existing) return;
 
-  const password = process.env.ADMIN_DEFAULT_PASSWORD || 'imperial-change-me-now';
-  const passwordHash = await hashPassword(password);
+  const password = process.env.ADMIN_DEFAULT_PASSWORD;
+  if (!password || password.length < 12) {
+    logger.warn('AdminAuth', 'No admin user created: set ADMIN_DEFAULT_PASSWORD (12+ characters).');
+    return;
+  }
 
   await prisma.adminUser.create({
     data: {
-      username: 'sahil',
-      email: process.env.OWNER_CONTACT_EMAIL || 'admin@projectlamo.local',
-      passwordHash,
+      username: process.env.ADMIN_USERNAME || 'taha',
+      email: process.env.OWNER_CONTACT_EMAIL || 'tahaudaipurwala68@gmail.com',
+      passwordHash: await hashPassword(password),
       role: 'SUPERADMIN',
     },
   });
 
-  logger.info('AdminAuth', 'Default admin user created. Change password immediately.');
+  logger.info('AdminAuth', 'Admin user created from environment configuration.');
 }
-

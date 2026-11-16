@@ -4,14 +4,168 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { getCodingStats } from '@/lib/services/codingPlatformService';
-import { Code2, Trophy, Award, ExternalLink, Calendar, CheckCircle2, AlertTriangle, ShieldCheck, Activity } from 'lucide-react';
+import { ExternalLink, Calendar, AlertTriangle } from 'lucide-react';
 
 export const metadata = {
-  title: 'Coding Arena | Algorithmic Telemetry & Platform Stats',
-  description: 'Verified competitive programming statistics from LeetCode and GeeksforGeeks.',
+  title: 'Coding Arena',
+  description: 'Competitive programming statistics from LeetCode and GeeksforGeeks, with the time of the last successful sync.',
 };
 
 export const dynamic = 'force-dynamic';
+
+type Profile = {
+  platform: string;
+  username: string;
+  profileUrl: string;
+  totalSolved: number | null;
+  easySolved: number | null;
+  mediumSolved: number | null;
+  hardSolved: number | null;
+  contestRating: number | null;
+  globalRanking: number | null;
+  badges?: string[] | string | null;
+  recentActivity?: string[] | string | null;
+  dataSource: string;
+  lastSyncedAt: Date | string | null;
+  syncError: string | null;
+} | null;
+
+const STATUS: Record<string, { label: string; variant: 'verified' | 'detected' | 'bronze' }> = {
+  LIVE: { label: 'Synced', variant: 'verified' },
+  MANUAL: { label: 'Entered manually', variant: 'bronze' },
+  STALE: { label: 'Stale: last sync failed', variant: 'detected' },
+  UNAVAILABLE: { label: 'Not available', variant: 'detected' },
+};
+
+function toList(v: string[] | string | null | undefined): string[] {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  try {
+    const parsed = JSON.parse(v);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function DifficultyBar({ easy, medium, hard }: { easy: number; medium: number; hard: number }) {
+  const total = easy + medium + hard;
+  if (total === 0) return null;
+  const pct = (n: number) => `${(n / total) * 100}%`;
+  return (
+    <div className="mb-6" role="img" aria-label={`Easy ${easy}, Medium ${medium}, Hard ${hard}`}>
+      <div className="flex h-2.5 w-full overflow-hidden rounded bg-imperial-950">
+        <div className="bg-emerald-500" style={{ width: pct(easy) }} />
+        <div className="bg-amber-500" style={{ width: pct(medium) }} />
+        <div className="bg-red-500" style={{ width: pct(hard) }} />
+      </div>
+    </div>
+  );
+}
+
+function PlatformCard({ name, profile, configured }: { name: string; profile: Profile; configured: boolean }) {
+  const status = STATUS[profile?.dataSource ?? 'UNAVAILABLE'] ?? STATUS.UNAVAILABLE;
+  const hasNumbers = profile && profile.totalSolved !== null;
+  const synced = profile?.lastSyncedAt ? new Date(profile.lastSyncedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : null;
+  const badges = toList(profile?.badges);
+  const recent = toList(profile?.recentActivity);
+
+  return (
+    <Card variant="marble" className="p-8 flex flex-col">
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="flex items-center space-x-2">
+          <h2 className="font-serif font-black text-2xl text-gold-300">{name}</h2>
+          <Badge variant={status.variant} size="xs">{status.label}</Badge>
+        </div>
+        {profile?.profileUrl && (
+          <a
+            href={profile.profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-1 text-xs font-mono text-gold-400 hover:text-gold-200"
+          >
+            <span>@{profile.username}</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
+
+      {hasNumbers ? (
+        <>
+          <div className="p-6 rounded bg-imperial-950 border border-gold-500/20 mb-4">
+            <span className="text-[10px] font-mono uppercase text-neutral-400 block mb-1">Problems solved</span>
+            <span className="text-4xl font-serif font-black text-white">{profile!.totalSolved}</span>
+          </div>
+
+          {profile!.easySolved !== null && profile!.mediumSolved !== null && profile!.hardSolved !== null && (
+            <>
+              <DifficultyBar easy={profile!.easySolved} medium={profile!.mediumSolved} hard={profile!.hardSolved} />
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  ['Easy', profile!.easySolved, 'text-emerald-400'],
+                  ['Medium', profile!.mediumSolved, 'text-amber-400'],
+                  ['Hard', profile!.hardSolved, 'text-red-400'],
+                ].map(([label, value, color]) => (
+                  <div key={label as string} className="p-3 rounded bg-imperial-900 border border-white/10 text-center">
+                    <span className={`text-[10px] font-mono block uppercase ${color}`}>{label}</span>
+                    <span className="text-xl font-serif font-bold text-white">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <dl className="space-y-2 text-xs font-mono border-t border-white/5 pt-4 mb-4">
+            {profile!.globalRanking !== null && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-400">Global ranking</dt>
+                <dd className="text-white">#{profile!.globalRanking.toLocaleString('en-IN')}</dd>
+              </div>
+            )}
+            {profile!.contestRating !== null && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-400">Contest rating</dt>
+                <dd className="text-white">{profile!.contestRating}</dd>
+              </div>
+            )}
+          </dl>
+
+          {badges.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {badges.map((b) => (
+                <span key={b} className="px-2 py-0.5 rounded bg-imperial-950 border border-gold-500/20 text-[11px] font-mono text-gold-300">{b}</span>
+              ))}
+            </div>
+          )}
+
+          {recent.length > 0 && (
+            <ul className="text-xs text-neutral-300 space-y-1 mb-4 list-disc list-inside">
+              {recent.map((r) => <li key={r}>{r}</li>)}
+            </ul>
+          )}
+        </>
+      ) : (
+        <div className="p-5 rounded bg-imperial-950 border border-white/10 text-sm text-neutral-300 mb-4">
+          {configured
+            ? 'No statistics are available yet. They will appear after the first successful sync.'
+            : 'This platform is not connected yet, so no statistics are shown.'}
+        </div>
+      )}
+
+      {profile?.syncError && (
+        <div className="p-3 rounded bg-imperial-900 border border-amber-500/20 text-[11px] font-mono text-amber-300/90 mb-4 flex items-start gap-2">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span>{profile.syncError}</span>
+        </div>
+      )}
+
+      <div className="mt-auto pt-4 border-t border-white/5 flex items-center text-[10px] font-mono text-neutral-500 space-x-1">
+        <Calendar className="w-3 h-3" />
+        <span>{synced ? `Last successful sync: ${synced} IST` : 'Never synced'}</span>
+      </div>
+    </Card>
+  );
+}
 
 export default async function CodingArenaPage() {
   const { leetcode, gfg } = await getCodingStats();
@@ -22,271 +176,14 @@ export default async function CodingArenaPage() {
 
       <SectionHeading
         eyebrow="Algorithmic Proving Ground"
-        title="Competitive Programming & Platform Telemetry"
-        description="Verifiable computational metrics across LeetCode and GeeksforGeeks. Built with provider adapters and graceful failure fallbacks; all mock development baselines are explicitly declared."
+        title="Competitive Programming"
+        description="Statistics from LeetCode and GeeksforGeeks. Numbers appear only when they were genuinely retrieved or entered by the owner, always with the time of the last successful sync."
       />
 
-      {/* Main Dual Provider Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {/* LEETCODE CARD */}
-        <Card variant="marble" className="p-8 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <span className="font-serif font-black text-2xl text-gold-300">LeetCode</span>
-                <Badge variant={leetcode?.dataSource === 'LIVE' ? 'verified' : 'detected'} size="xs">
-                  {leetcode?.dataSource === 'LIVE' ? 'LIVE SYNC' : 'DEV MOCK BASELINE'}
-                </Badge>
-              </div>
-
-              {leetcode?.profileUrl && (
-                <a
-                  href={leetcode.profileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1 text-xs font-mono text-gold-400 hover:text-gold-200"
-                >
-                  <span>@{leetcode.username}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
-
-            {/* Total Solved Hero Metric */}
-            <div className="p-6 rounded bg-imperial-950 border border-gold-500/20 mb-6">
-              <span className="text-[10px] font-mono uppercase text-neutral-400 block mb-1">
-                Total Solved Problems
-              </span>
-              <div className="flex items-baseline space-x-3">
-                <span className="text-4xl font-serif font-black text-white">
-                  {leetcode?.totalSolved ?? 'N/A'}
-                </span>
-                <span className="text-xs font-mono text-emerald-400">Accepted Submissions</span>
-              </div>
-            </div>
-
-            {/* Difficulty Breakdown */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="p-3 rounded bg-imperial-900 border border-emerald-500/20 text-center">
-                <span className="text-[10px] font-mono text-emerald-400 block uppercase">Easy</span>
-                <span className="text-xl font-serif font-bold text-white">
-                  {leetcode?.easySolved ?? '—'}
-                </span>
-              </div>
-              <div className="p-3 rounded bg-imperial-900 border border-amber-500/20 text-center">
-                <span className="text-[10px] font-mono text-amber-400 block uppercase">Medium</span>
-                <span className="text-xl font-serif font-bold text-white">
-                  {leetcode?.mediumSolved ?? '—'}
-                </span>
-              </div>
-              <div className="p-3 rounded bg-imperial-900 border border-red-500/20 text-center">
-                <span className="text-[10px] font-mono text-red-400 block uppercase">Hard</span>
-                <span className="text-xl font-serif font-bold text-white">
-                  {leetcode?.hardSolved ?? '—'}
-                </span>
-              </div>
-            </div>
-
-            {/* Contest & Ranking Telemetry */}
-            <div className="space-y-2 text-xs font-mono border-t border-white/5 pt-4 mb-6">
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Contest Rating:</span>
-                <span className="text-gold-300 font-bold">
-                  {leetcode?.contestRating ? leetcode.contestRating.toFixed(1) : 'Unrated (Pending Participation)'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Global Ranking:</span>
-                <span className="text-white">
-                  {leetcode?.globalRanking ? `#${leetcode.globalRanking.toLocaleString()}` : 'Unavailable'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Reputation / Points:</span>
-                <span className="text-white">{leetcode?.contributionPoints ?? '0'}</span>
-              </div>
-            </div>
-
-            {/* Badges */}
-            {leetcode?.badges && leetcode.badges.length > 0 && (
-              <div className="mb-6">
-                <span className="text-[10px] font-mono uppercase text-gold-400 block mb-2">
-                  Acquired Accreditations & Badges ({leetcode.badges.length})
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {leetcode.badges.map((b: string, i: number) => (
-                    <span
-                      key={i}
-                      className="px-2.5 py-1 rounded bg-imperial-900 border border-gold-500/20 text-[10px] font-mono text-gold-300 flex items-center space-x-1"
-                    >
-                      <Award className="w-3 h-3 text-gold-400" />
-                      <span>{b}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recent Problems Activity */}
-            {leetcode?.recentActivity && leetcode.recentActivity.length > 0 && (
-              <div>
-                <span className="text-[10px] font-mono uppercase text-neutral-400 block mb-2">
-                  Recent Verified Submissions
-                </span>
-                <ul className="space-y-1.5 text-xs font-mono">
-                  {leetcode.recentActivity.map((prob: string, i: number) => (
-                    <li key={i} className="flex items-center space-x-2 text-neutral-300">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                      <span>{prob}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          {/* Sync Timestamp Footer */}
-          <div className="pt-4 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-neutral-500 mt-6">
-            <span className="flex items-center space-x-1">
-              <Calendar className="w-3 h-3" />
-              <span>
-                Synced:{' '}
-                {leetcode?.lastSyncedAt
-                  ? new Date(leetcode.lastSyncedAt).toLocaleString()
-                  : 'Pending'}
-              </span>
-            </span>
-            <span>Adapter: LeetCode GraphQL v2</span>
-          </div>
-        </Card>
-
-        {/* GEEKSFORGEEKS CARD */}
-        <Card variant="marble" className="p-8 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <span className="font-serif font-black text-2xl text-emerald-400">GeeksforGeeks</span>
-                <Badge variant={gfg?.dataSource === 'LIVE' ? 'verified' : 'detected'} size="xs">
-                  {gfg?.dataSource === 'LIVE' ? 'LIVE SYNC' : 'DEV MOCK BASELINE'}
-                </Badge>
-              </div>
-
-              {gfg?.profileUrl && (
-                <a
-                  href={gfg.profileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1 text-xs font-mono text-gold-400 hover:text-gold-200"
-                >
-                  <span>@{gfg.username}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              )}
-            </div>
-
-            {/* Total Solved Hero Metric */}
-            <div className="p-6 rounded bg-imperial-950 border border-emerald-500/20 mb-6">
-              <span className="text-[10px] font-mono uppercase text-neutral-400 block mb-1">
-                Total Solved Problems
-              </span>
-              <div className="flex items-baseline space-x-3">
-                <span className="text-4xl font-serif font-black text-white">
-                  {gfg?.totalSolved ?? 'N/A'}
-                </span>
-                <span className="text-xs font-mono text-gold-300">Practice Problems Solved</span>
-              </div>
-            </div>
-
-            {/* Difficulty Breakdown */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="p-3 rounded bg-imperial-900 border border-emerald-500/20 text-center">
-                <span className="text-[10px] font-mono text-emerald-400 block uppercase">Easy</span>
-                <span className="text-xl font-serif font-bold text-white">
-                  {gfg?.easySolved ?? '—'}
-                </span>
-              </div>
-              <div className="p-3 rounded bg-imperial-900 border border-amber-500/20 text-center">
-                <span className="text-[10px] font-mono text-amber-400 block uppercase">Medium</span>
-                <span className="text-xl font-serif font-bold text-white">
-                  {gfg?.mediumSolved ?? '—'}
-                </span>
-              </div>
-              <div className="p-3 rounded bg-imperial-900 border border-red-500/20 text-center">
-                <span className="text-[10px] font-mono text-red-400 block uppercase">Hard</span>
-                <span className="text-xl font-serif font-bold text-white">
-                  {gfg?.hardSolved ?? '—'}
-                </span>
-              </div>
-            </div>
-
-            {/* Telemetry & Scores */}
-            <div className="space-y-2 text-xs font-mono border-t border-white/5 pt-4 mb-6">
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Institutional Standing:</span>
-                <span className="text-white">UEM / IEM Kolkata</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Coding Score:</span>
-                <span className="text-gold-300 font-bold">{gfg?.contributionPoints ?? '215'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-400">Contest Participation:</span>
-                <span className="text-neutral-400">No public API access</span>
-              </div>
-            </div>
-
-            {/* GFG Notice */}
-            <div className="p-3.5 rounded bg-imperial-900 border border-amber-500/20 text-[11px] font-mono text-amber-300/80 mb-6">
-              <div className="flex items-center space-x-1.5 mb-1 font-bold text-amber-400">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span>API Architecture Guardrail</span>
-              </div>
-              <span>
-                GeeksforGeeks does not provide an official REST API. Scraping protected pages or bypassing anti-bot systems is prohibited by Project LAMO integrity rules. Data is managed via authorized provider proxy and manual baseline records.
-              </span>
-            </div>
-          </div>
-
-          {/* Sync Timestamp Footer */}
-          <div className="pt-4 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-neutral-500 mt-6">
-            <span className="flex items-center space-x-1">
-              <Calendar className="w-3 h-3" />
-              <span>
-                Synced:{' '}
-                {gfg?.lastSyncedAt
-                  ? new Date(gfg.lastSyncedAt).toLocaleString()
-                  : 'Pending'}
-              </span>
-            </span>
-            <span>Adapter: GFG REST Proxy v1</span>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <PlatformCard name="LeetCode" profile={leetcode as Profile} configured={Boolean(process.env.LEETCODE_USERNAME)} />
+        <PlatformCard name="GeeksforGeeks" profile={gfg as Profile} configured={Boolean(process.env.GFG_USERNAME)} />
       </div>
-
-      {/* Systems Programming Foundation Banner */}
-      <Card variant="marble" className="p-8">
-        <div className="flex items-center space-x-2 text-xs font-mono text-gold-400 uppercase tracking-widest mb-3">
-          <Activity className="w-4 h-4 text-gold-400" />
-          <span>Multi-Runtime Algorithmic Competency</span>
-        </div>
-        <p className="text-xs text-neutral-300 font-sans leading-relaxed max-w-3xl mb-6">
-          Problem solving across data structures and algorithms is implemented in low-level memory runtimes (C and C++ for pointers, memory buffers, and robotics real-time deadlines) alongside high-level runtimes (Python for mathematical tensor manipulations, Java for object-oriented systems design).
-        </p>
-        <div className="flex flex-wrap gap-2 text-xs font-mono">
-          <span className="px-3 py-1 rounded bg-imperial-950 border border-gold-500/20 text-gold-300">
-            Memory Allocation & Bit Manipulation (C/C++)
-          </span>
-          <span className="px-3 py-1 rounded bg-imperial-950 border border-gold-500/20 text-gold-300">
-            Graph Algorithms & Topological Sort (C++/Java)
-          </span>
-          <span className="px-3 py-1 rounded bg-imperial-950 border border-gold-500/20 text-gold-300">
-            Dynamic Programming & Memoization
-          </span>
-          <span className="px-3 py-1 rounded bg-imperial-950 border border-gold-500/20 text-gold-300">
-            Spatial Octrees & KD-Trees for SLAM
-          </span>
-        </div>
-      </Card>
     </div>
   );
 }

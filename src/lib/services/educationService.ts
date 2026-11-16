@@ -9,7 +9,7 @@ export async function getEducationHistory() {
     });
 
     const currentHigherEd = records.find((e) => e.isCurrent && e.schoolType === 'HIGHER_EDUCATION');
-    const dynamicStanding = currentHigherEd
+    const dynamicStanding = currentHigherEd && currentHigherEd.startYear
       ? deriveAcademicStanding(currentHigherEd.startYear, currentHigherEd.endYear || 2028)
       : null;
 

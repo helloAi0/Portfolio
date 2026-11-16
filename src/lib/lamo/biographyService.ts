@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { PROFILE } from '@/config/profile';
 
 export interface MilestoneItem {
   type: 'PROJECT' | 'SKILL' | 'CERTIFICATE' | 'CODING' | 'ACHIEVEMENT';
@@ -139,19 +140,19 @@ export async function generateBiographyReview(forceRefresh = false): Promise<Bio
   if (totalLeetCodeSolved > 0) {
     supportingEvidence.push({
       type: 'CODING',
-      title: 'Algorithmic Arena Performance',
-      detail: `${totalLeetCodeSolved} verified problems solved`,
+      title: 'Coding Arena statistics',
+      detail: `${totalLeetCodeSolved} problems solved`,
       date: new Date().toISOString().split('T')[0],
       source: 'CodingArena:LeetCode',
     });
-    reasons.push(`Demonstrated consistent algorithmic rigor with ${totalLeetCodeSolved}+ verified solved problems.`);
+    reasons.push(`LeetCode statistics show ${totalLeetCodeSolved} solved problems.`);
   }
 
   // 4. Synthesize proposed biography based on verified ground-truth facts
-  const degreeStr = 'B.Tech in Computer Science and Engineering (AI & ML) with a Minor in Cybersecurity at UEM/IEM Kolkata (Expected 2028)';
-  const highlightStack = topSkillNames.length > 0 ? topSkillNames.join(', ') : 'Robotics (ROS 2), Autonomous Systems, Deep Learning, and Full-Stack Engineering';
+  const degreeStr = 'B.Tech in Computer Science and Engineering (AI & ML) with a Minor in Cybersecurity (expected 2028)';
+  const highlightStack = topSkillNames.length > 0 ? topSkillNames.join(', ') : 'AI/ML, robotics and software engineering';
 
-  const proposedBio = `Sahil Depurwala is an engineering specialist and researcher pursuing a ${degreeStr}. His technical domain bridges modern artificial intelligence, autonomous robotics, and resilient systems architecture. With hands-on expertise spanning ${highlightStack}, Sahil develops robust, production-grade applications that combine algorithmic precision with architectural discipline. Driven by an ethos of continuous mastery, his work is verified through open-source contributions, high-rigor problem solving, and autonomous system research.`;
+  const proposedBio = `${PROFILE.displayName} is pursuing a ${degreeStr}, with additional learning and project work in robotics. His current work covers ${highlightStack}. He is aiming toward research and graduate study in intelligent systems.`;
 
   // 5. Store in database
   const createdReview = await prisma.biographyReview.create({

@@ -3,12 +3,13 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
+import { PROFILE } from '@/config/profile';
 import { getEducationHistory } from '@/lib/services/educationService';
 import { GraduationCap, BookOpen, School, Calendar, MapPin, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 export const metadata = {
-  title: 'Academic Foundation & Education',
-  description: 'Chronological and verified academic history of Sahil Depurwala.',
+  title: 'Education',
+  description: 'Education of Taha Udaipurwala: B.Tech in Computer Science and Engineering (AI & ML) and schooling.',
 };
 
 export const dynamic = 'force-dynamic';
@@ -21,9 +22,9 @@ export default async function EducationPage() {
       <Breadcrumbs items={[{ label: 'Academic Foundation' }]} />
 
       <SectionHeading
-        eyebrow="Pedagogical Citadel"
-        title="Formal Education & Academic Specialization"
-        description="Chronological record of verified schooling and ongoing B.Tech degree in Artificial Intelligence & Machine Learning. Strictly date-derived without fabricated ranks or metrics."
+        eyebrow="Education"
+        title="Education"
+        description="My ongoing B.Tech and earlier schooling. No grades or rankings are published unless backed by official records."
       />
 
       {/* Dynamic Undergraduate Status Banner */}
@@ -33,23 +34,23 @@ export default async function EducationPage() {
             <div>
               <div className="flex items-center space-x-2 text-xs font-mono text-gold-400 uppercase tracking-widest mb-2">
                 <GraduationCap className="w-4 h-4 text-gold-400" />
-                <span>Active Undergraduate Trajectory</span>
+                <span>Current degree</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-serif font-black text-white mb-1">
                 B.Tech in Computer Science & Engineering (AI & ML)
               </h2>
-              <p className="text-xs sm:text-sm text-neutral-300">
-                University of Engineering and Management / Institute of Engineering and Management (UEM / IEM), Kolkata
-              </p>
+              {PROFILE.education.institution && (
+                <p className="text-xs sm:text-sm text-neutral-300">{PROFILE.education.institution}</p>
+              )}
             </div>
 
             <div className="p-4 rounded bg-imperial-950/80 border border-gold-500/30 text-right flex flex-col justify-center min-w-[200px]">
-              <span className="text-[10px] font-mono text-neutral-400 uppercase">Derived Standing</span>
+              <span className="text-[10px] font-mono text-neutral-400 uppercase">Current year</span>
               <span className="text-lg font-serif font-bold text-gold-300">
                 {dynamicStanding.yearName}
               </span>
               <span className="text-[10px] font-mono text-neutral-400">
-                Class of 2024 – 2028
+                2024 – 2028 (expected)
               </span>
             </div>
           </div>
@@ -57,8 +58,8 @@ export default async function EducationPage() {
           {/* Academic Progression Bar */}
           <div className="mt-6 pt-4 border-t border-white/5">
             <div className="flex justify-between text-xs font-mono mb-2">
-              <span className="text-neutral-400">Undergraduate Degree Progression</span>
-              <span className="text-gold-400 font-bold">{dynamicStanding.progressPercent}% Elapsed</span>
+              <span className="text-neutral-400">Progress through the degree</span>
+              <span className="text-gold-400 font-bold">about {dynamicStanding.progressPercent}% of the programme elapsed</span>
             </div>
             <div className="w-full h-2 rounded-full bg-imperial-950 border border-gold-500/20 overflow-hidden">
               <div
@@ -81,25 +82,20 @@ export default async function EducationPage() {
                     {edu.schoolType === 'HIGHER_EDUCATION' ? 'University Level' : 'Schooling Foundation'}
                   </Badge>
                   <span className="text-xs font-mono text-gold-400">
-                    {edu.graduationStatus === 'EXPECTED_2028' ? 'Expected Graduation: 2028' : 'Completed'}
+                    {edu.graduationStatus === 'EXPECTED_2028' ? 'Expected graduation: 2028' : edu.graduationStatus === 'COMPLETED' ? 'Completed' : 'Attended'}
                   </span>
                 </div>
                 <h3 className="text-xl font-serif font-bold text-white">
                   {edu.institution}
                 </h3>
-                {edu.institutionAcronym && (
-                  <p className="text-xs font-mono text-neutral-400">
-                    Acronym: {edu.institutionAcronym}
-                  </p>
-                )}
               </div>
 
-              <div className="flex items-center space-x-2 text-xs font-mono text-neutral-400 bg-imperial-900 px-3 py-1.5 rounded border border-white/5">
-                <Calendar className="w-3.5 h-3.5 text-gold-400" />
-                <span>
-                  {edu.startYear} – {edu.endYear ? edu.endYear : 'Present'}
-                </span>
-              </div>
+              {edu.startYear && (
+                <div className="flex items-center space-x-2 text-xs font-mono text-neutral-400 bg-imperial-900 px-3 py-1.5 rounded border border-white/5">
+                  <Calendar className="w-3.5 h-3.5 text-gold-400" aria-hidden />
+                  <span>{edu.startYear} – {edu.endYear ? edu.endYear : 'Present'}</span>
+                </div>
+              )}
             </div>
 
             {/* Degree & Field details */}
@@ -115,29 +111,25 @@ export default async function EducationPage() {
                 </div>
                 <div>
                   <span className="block text-neutral-500 font-mono uppercase text-[10px]">Academic Minor</span>
-                  <span className="text-emerald-300 font-medium">{edu.minor || 'None'}</span>
+                  <span className="text-emerald-300 font-medium">{edu.minor || '-'}</span>
                 </div>
               </div>
             )}
 
-            {/* Location & Academic Protocol Notice */}
-            <div className="flex items-center justify-between text-xs text-neutral-400 pt-4 mt-4 border-t border-white/5">
-              <span className="flex items-center space-x-1">
-                <MapPin className="w-3.5 h-3.5 text-gold-400" />
-                <span>{edu.location}</span>
-              </span>
-              <span className="text-[10px] font-mono text-neutral-500">
-                Verified Historical Registry
-              </span>
-            </div>
+            {(edu.location || edu.verificationStatus === 'OWNER_REVIEW_REQUIRED') && (
+              <div className="flex items-center justify-between text-xs text-neutral-400 pt-4 mt-4 border-t border-white/5">
+                <span className="flex items-center space-x-1">
+                  {edu.location && (<><MapPin className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>{edu.location}</span></>)}
+                </span>
+                {edu.verificationStatus === 'OWNER_REVIEW_REQUIRED' && (
+                  <span className="text-[10px] font-mono text-neutral-500">Dates not published</span>
+                )}
+              </div>
+            )}
           </Card>
         ))}
       </div>
 
-      {/* Integrity Disclaimer */}
-      <div className="mt-12 p-4 rounded bg-imperial-950/60 border border-white/5 text-xs text-neutral-400 text-center font-mono">
-        Strict Integrity Guardrail: Academic marks, percentiles, and university rankings are not published or fabricated unless backed by verified institutional transcripts.
-      </div>
     </div>
   );
 }

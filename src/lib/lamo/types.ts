@@ -12,7 +12,7 @@ export type VerificationTier =
 
 export interface RetrievedKnowledgeChunk {
   id: string;
-  source: string; // e.g. "Project:autonomous-rover-slam", "Education:UEM", "Skill:ros2"
+  source: string; // e.g. "Project:<slug>", "Education:<institution>", "Skill:<slug>"
   category: string;
   title: string;
   content: string;

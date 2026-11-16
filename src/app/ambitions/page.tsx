@@ -6,31 +6,32 @@ import { Compass, Target, Cpu, Shield, Sparkles } from 'lucide-react';
 
 export const metadata = {
   title: 'Ambitions & Engineering Goals',
-  description: 'Long-term strategic roadmap and technical objectives of Sahil Depurwala.',
+  description: 'Academic and professional goals of Taha Udaipurwala.',
 };
 
 export default function AmbitionsPage() {
+  // Goals are stated as intentions, not achievements.
   const milestones = [
     {
-      horizon: 'Phase I (2024–2026)',
-      title: 'Foundational Mastery & Autonomous Robotics Research',
+      horizon: 'During my B.Tech (2024-2028)',
+      title: 'Build a strong foundation and real projects',
       description:
-        'Establish deep theoretical mastery in algorithms, data structures, and computer architecture. Build physical computing testbeds with ROS 2 and SLAM navigation.',
-      focus: ['Systems in C/C++', 'ROS 2 Micro-nodes', 'Cybersecurity Vulnerability Analysis'],
+        'Develop depth in algorithms, data structures and the AI/ML curriculum, learn robotics hands-on, and build projects that can be inspected on GitHub rather than only described.',
+      focus: ['AI / ML', 'Robotics', 'Data Structures & Algorithms', 'Cybersecurity (minor)'],
     },
     {
-      horizon: 'Phase II (2026–2028)',
-      title: 'Foundation Model Integration & Edge Robotics Deployment',
+      horizon: 'After graduation',
+      title: 'Research and graduate study',
       description:
-        'Engineer quantized multimodal neural networks capable of zero-shot robotic task planning. Complete B.Tech AIML with academic distinction and publish laboratory proofs of concept.',
-      focus: ['Edge PyTorch Optimization', 'SLAM Multi-Agent Swarms', 'Zero-Trust Distributed Security'],
+        'Pursue research and graduate-level study in intelligent systems, with a focus on where machine learning meets robotics.',
+      focus: ['Research', 'Graduate study', 'Intelligent systems'],
     },
     {
-      horizon: 'Long-Term Imperial Vision',
-      title: 'Architecting Sovereign Intelligent Platforms',
+      horizon: 'Long term',
+      title: 'Build intelligent systems that work reliably',
       description:
-        'Lead the creation of resilient, self-governing physical-digital autonomous systems designed for decades of mission-critical reliability.',
-      focus: ['Autonomous Aerial & Ground Robotics', 'AI Architectural Governance', 'Imperial Software Systems'],
+        'Work as an engineer on AI and robotic systems that are dependable, secure and well engineered.',
+      focus: ['AI/ML engineering', 'Robotics', 'Secure systems'],
     },
   ];
 
@@ -39,9 +40,9 @@ export default function AmbitionsPage() {
       <Breadcrumbs items={[{ label: 'Ambitions & Goals' }]} />
 
       <SectionHeading
-        eyebrow="Strategic Horizon"
-        title="Ambitions, Milestones & Engineering Vision"
-        description="The relentless roadmap guiding academic progression, laboratory research, and technological contribution from 2024 into the next decade."
+        eyebrow="Direction"
+        title="Ambitions and Goals"
+        description="Where I want to go. These are goals and intentions, not completed achievements."
       />
 
       <div className="space-y-8">
