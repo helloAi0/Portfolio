@@ -95,6 +95,8 @@ export default function AdminDashboardPage() {
   // Initial data loading
   useEffect(() => {
     loadAllData();
+    // Run once on mount; loadAllData is redefined each render and must not re-trigger loading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAllData = async () => {
