@@ -65,3 +65,23 @@ src/lib/services/githubSyncService.ts, src/lib/classification/*, src/app/project
 
 DO NOT REBUILD:
 Identity/profile config, age logic, seed, coding adapters honesty, Breadcrumbs, admin auth, LAMO guardrails.
+
+
+---
+# WEEK 2 HANDOFF (GitHub sync, classification, publication)
+
+WHAT WAS DONE
+- Classifier rewritten (src/lib/classification/classificationEngine.ts): whole-word matching, evidence weighted by source (topics/dependencies > name > description > README), multi-label categories, confidence = strength + margin, skill suggestions with evidence, evidence-based difficulty rubric (never from marketing words; Advanced never claimed without a file tree), live-URL candidates.
+- GitHub adapter hardened: typed errors, retry/backoff, rate-limit aware, no stale cache, throws instead of returning silently empty; adds tree + manifest fetch; constant-time HMAC verification.
+- Sync service: one shared pipeline for manual/scheduled/webhook; idempotent; owner decisions sticky; private repos never ingested; forks skipped unless GITHUB_INCLUDE_FORKS=true; missing/privatized repos unpublish their project (only after a complete listing); honest Integration status (CONNECTED / DEGRADED / ERROR).
+- Webhook: ping, delivery de-duplication (WebhookDelivery), owner check, repository deleted/privatized handling.
+- Publication (projectPublicationService): repo -> Project only on owner approval (or AUTOMATIC mode >= 0.8). Problem/solution/challenges/results are never generated; UI hides empty sections. Skills linked as DETECTED only.
+- Admin: approve/reject/unpublish with category/difficulty overrides; PATCH /api/admin/projects/[id] for corrections (skills, category, difficulty, live URL); audit log; skills GET now requires auth; LinkedIn import validates/dedupes; certificate skill suggestion uses whole-word matching.
+- DB changes: GithubRepository (secondaryCategories, technologyTags, liveUrlCandidates, suggestedDifficulty, complexityScore/Evidence, ownerOverride, missingSince), Project (difficulty default Unrated, difficultyConfirmed, reviewNote), WebhookDelivery. Both Prisma schemas updated. Run `npx prisma db push` (or migrate) locally.
+
+TESTS EXECUTED: npm run test:unit (identity 28 + Week 2 checks), npm run lint, npx tsc --noEmit.
+NOT VERIFIED (no network/Prisma engine in sandbox): live GitHub calls, DB-backed sync/publication, webhook against real GitHub, build.
+NOT IMPLEMENTED: certificate file upload + text extraction (needs storage backend, Week 4); LinkedIn API import (manual import only); LeetCode/GfG remain UNAVAILABLE/manual.
+CREDENTIALS NEEDED: GITHUB_TOKEN (optional, raises limit 60->5000/h), GITHUB_WEBHOOK_SECRET (required for webhooks), CRON_SECRET for scheduled reconcile.
+
+WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, approve a repo, then build LAMO. Do not rebuild sync/classification.

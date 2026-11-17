@@ -94,13 +94,17 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
               <span>Architectural Blueprint & Detailed Explanation</span>
             </h2>
             <div className="prose prose-invert max-w-none text-neutral-300 text-sm leading-relaxed space-y-4">
-              <p>{project.detailedExplanation}</p>
+              {project.detailedExplanation ? (
+                <p className="whitespace-pre-line">{project.detailedExplanation}</p>
+              ) : (
+                <p className="text-neutral-500">A detailed write-up for this project has not been published yet.</p>
+              )}
             </div>
           </Card>
 
           {/* Problem & Solution Duo */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card variant="marble" className="border-red-500/20">
+          {(project.problemStatement || project.solution) && (<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {project.problemStatement && (<Card variant="marble" className="border-red-500/20">
               <div className="flex items-center space-x-2 mb-3">
                 <AlertCircle className="w-4 h-4 text-red-400" />
                 <h3 className="font-serif font-bold text-white text-base">The Core Problem</h3>
@@ -108,9 +112,9 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
               <p className="text-xs text-neutral-300 leading-relaxed font-sans">
                 {project.problemStatement}
               </p>
-            </Card>
+            </Card>)}
 
-            <Card variant="marble" className="border-emerald-500/20">
+            {project.solution && (<Card variant="marble" className="border-emerald-500/20">
               <div className="flex items-center space-x-2 mb-3">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <h3 className="font-serif font-bold text-white text-base">The Imperial Solution</h3>
@@ -118,8 +122,8 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
               <p className="text-xs text-neutral-300 leading-relaxed font-sans">
                 {project.solution}
               </p>
-            </Card>
-          </div>
+            </Card>)}
+          </div>)}
 
           {/* Key Architectural Features */}
           {project.keyFeaturesList?.length > 0 && (

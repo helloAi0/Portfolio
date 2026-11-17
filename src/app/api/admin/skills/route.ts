@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 // GET — list skills with filtering
 export async function GET(req: NextRequest) {
+  if (!getAdminFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const domain = searchParams.get('domain');
   const level = searchParams.get('level');

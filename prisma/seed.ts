@@ -9,6 +9,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { ensureTaxonomy } from '../src/lib/taxonomy';
 
 const prisma = new PrismaClient();
 
@@ -114,120 +115,8 @@ async function main() {
     });
   }
 
-  if ((await prisma.projectCategory.count()) === 0) {
-    // 5. Seed Hierarchical Project Categories
-    const catRobotics = await prisma.projectCategory.create({
-      data: {
-        slug: 'robotics',
-        name: 'Robotics',
-        description: 'Autonomous systems, ROS2 navigation, perception pipelines, and physical computing.',
-        icon: 'Cpu',
-        orderIndex: 1,
-      },
-    });
-
-    const catAI = await prisma.projectCategory.create({
-      data: {
-        slug: 'artificial-intelligence',
-        name: 'Artificial Intelligence',
-        description: 'Neural networks, autonomous agents, and foundation model architectures.',
-        icon: 'Brain',
-        orderIndex: 2,
-      },
-    });
-
-    const catML = await prisma.projectCategory.create({
-      data: {
-        slug: 'machine-learning',
-        name: 'Machine Learning',
-        description: 'Statistical learning, computer vision classifiers, and predictive algorithms.',
-        icon: 'LineChart',
-        orderIndex: 3,
-      },
-    });
-
-    const catCybersecurity = await prisma.projectCategory.create({
-      data: {
-        slug: 'cybersecurity',
-        name: 'Cybersecurity',
-        description: 'Defensive architecture, network penetration defense, and cryptographic protocols.',
-        icon: 'Shield',
-        orderIndex: 4,
-      },
-    });
-
-    const catFrontend = await prisma.projectCategory.create({
-      data: {
-        slug: 'frontend-development',
-        name: 'Frontend Development',
-        description: 'Monumental WebGL experiences, Next.js engineering, and reactive UI architecture.',
-        icon: 'Layout',
-        orderIndex: 5,
-      },
-    });
-
-    const catBackend = await prisma.projectCategory.create({
-      data: {
-        slug: 'backend-development',
-        name: 'Backend Development',
-        description: 'Distributed microservices, resilient APIs, and transactional database engines.',
-        icon: 'Server',
-        orderIndex: 6,
-      },
-    });
-
-    const catFullStack = await prisma.projectCategory.create({
-      data: {
-        slug: 'full-stack-development',
-        name: 'Full Stack Development',
-        description: 'End-to-end mission-critical software systems and digital platforms.',
-        icon: 'Layers',
-        orderIndex: 7,
-      },
-    });
-
-    const catCloud = await prisma.projectCategory.create({
-      data: {
-        slug: 'cloud-and-devops',
-        name: 'Cloud and DevOps',
-        description: 'Container orchestration, CI/CD automation pipelines, and infrastructure as code.',
-        icon: 'Cloud',
-        orderIndex: 8,
-      },
-    });
-
-    const catAutomation = await prisma.projectCategory.create({
-      data: {
-        slug: 'automation',
-        name: 'Automation',
-        description: 'Intelligent process orchestration, headless scrapers, and task engines.',
-        icon: 'Zap',
-        orderIndex: 9,
-      },
-    });
-
-    const catResearch = await prisma.projectCategory.create({
-      data: {
-        slug: 'research-and-experiments',
-        name: 'Research and Experiments',
-        description: 'Exploratory prototypes, theoretical proofs of concept, and architectural lab studies.',
-        icon: 'FlaskConical',
-        orderIndex: 10,
-      },
-    });
-
-    // Seed Subcategories (Nested)
-    await prisma.projectCategory.createMany({
-      data: [
-        { slug: 'robotics-ros2', name: 'ROS 2 Systems', parentId: catRobotics.id, orderIndex: 1 },
-        { slug: 'robotics-slam', name: 'SLAM & Navigation', parentId: catRobotics.id, orderIndex: 2 },
-        { slug: 'robotics-vision', name: 'Autonomous Vision', parentId: catRobotics.id, orderIndex: 3 },
-        { slug: 'frontend-threejs', name: 'Interactive 3D / Three.js', parentId: catFrontend.id, orderIndex: 1 },
-        { slug: 'backend-distributed', name: 'Distributed APIs & DBs', parentId: catBackend.id, orderIndex: 1 },
-      ],
-    });
-    console.log('✅ Hierarchical Project Categories created.');
-  }
+  // Project taxonomy (idempotent upsert; also re-run automatically by GitHub sync).
+  await ensureTaxonomy(prisma);
 
   // Skills: the owner-supplied initial inventory. No proficiency scores are invented.
   // OWNER_VERIFIED = the owner states they use it; LEARNING = in progress.

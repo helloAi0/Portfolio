@@ -1,5 +1,7 @@
 'use client';
 
+import { TAXONOMY } from '@/lib/taxonomy';
+import { DIFFICULTIES } from '@/lib/projectHelpers';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
@@ -197,16 +199,21 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleApproveRepo = async (id: string, action: 'APPROVE' | 'REJECT' | 'SKIP') => {
+  const [repoDrafts, setRepoDrafts] = useState<Record<string, { categorySlug?: string; difficulty?: string }>>({});
+
+  const handleApproveRepo = async (id: string, action: 'APPROVE' | 'REJECT' | 'SKIP' | 'UNPUBLISH', extra: Record<string, unknown> = {}) => {
     try {
       const res = await fetch(`/api/admin/github/${id}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...extra }),
       });
       if (res.ok) {
-        showMsg('success', `Repository classification ${action.toLowerCase()}d.`);
+        showMsg('success', action === 'APPROVE' ? 'Project published.' : `Repository ${action.toLowerCase()}ed.`);
         loadAllData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showMsg('error', err.error || 'Action failed.');
       }
     } catch {
       showMsg('error', 'Failed to update repository approval.');
@@ -790,10 +797,10 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center space-x-2 flex-shrink-0">
                           {repo.classificationStatus !== 'APPROVED' && (
                             <button
-                              onClick={() => handleApproveRepo(repo.id, 'APPROVE')}
+                              onClick={() => handleApproveRepo(repo.id, 'APPROVE', repoDrafts[repo.id] ?? {})}
                               className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-xs font-mono hover:bg-emerald-900"
                             >
-                              Approve
+                              Approve &amp; Publish
                             </button>
                           )}
                           {repo.classificationStatus !== 'REJECTED' && (
@@ -817,6 +824,29 @@ export default function AdminDashboardPage() {
                         </div>
                         {repo.classificationNotes && (
                           <p className="text-[11px] text-neutral-400">{repo.classificationNotes}</p>
+                        )}
+                        {repo.suggestedDifficulty && (
+                          <p className="text-[11px] text-neutral-400">
+                            Suggested difficulty: <strong className="text-gold-300">{repo.suggestedDifficulty}</strong> (evidence-based, owner confirms)
+                          </p>
+                        )}
+                        {repo.missingSince && (
+                          <p className="text-[11px] text-red-300">No longer public on GitHub since {new Date(repo.missingSince).toLocaleDateString()}.</p>
+                        )}
+                        {repo.classificationStatus !== 'APPROVED' && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <select aria-label="Category" className="bg-imperial-900 border border-white/10 rounded px-2 py-1 text-[11px]"
+                              value={repoDrafts[repo.id]?.categorySlug ?? repo.suggestedCategorySlug ?? ''}
+                              onChange={(e) => setRepoDrafts((d) => ({ ...d, [repo.id]: { ...d[repo.id], categorySlug: e.target.value } }))}>
+                              {TAXONOMY.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                            </select>
+                            <select aria-label="Difficulty" className="bg-imperial-900 border border-white/10 rounded px-2 py-1 text-[11px]"
+                              value={repoDrafts[repo.id]?.difficulty ?? ''}
+                              onChange={(e) => setRepoDrafts((d) => ({ ...d, [repo.id]: { ...d[repo.id], difficulty: e.target.value || undefined } }))}>
+                              <option value="">Use suggestion</option>
+                              {DIFFICULTIES.map((x) => <option key={x} value={x}>{x}</option>)}
+                            </select>
+                          </div>
                         )}
                         {repo.readmeSummary && (
                           <div className="pt-1 text-[11px] text-neutral-300 border-t border-white/5">

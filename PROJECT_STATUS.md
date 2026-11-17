@@ -20,6 +20,11 @@ The earlier version of this file declared all four weeks complete and production
 | `npm run build`, `npm test` (DB suite) | NOT VERIFIED | Prisma engine download was blocked in the build sandbox |
 | 3D Bucephalus review, mobile responsiveness | NOT VERIFIED | Needs a real browser |
 
+## Week 2 (GitHub sync, classification, publication)
+- Implemented, unit-tested (DB-free): classifier, difficulty rubric, webhook signature, backoff, SSRF guard.
+- Implemented, NOT yet verified against live GitHub or a database: sync pipeline, publication, webhook handler, admin APIs.
+- NOT IMPLEMENTED: certificate file upload/text extraction; LinkedIn API import.
+
 ## Not started (later weeks)
 GitHub sync verification, taxonomy/classification review, coding charts, skill extraction, LinkedIn import (Week 2); LAMO audit, email delivery, admin copilot (Week 3); security/performance/a11y/SEO pass and Render deploy (Week 4). Existing code for these is present but unaudited.
 

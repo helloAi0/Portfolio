@@ -100,7 +100,7 @@ export async function getProjectCategories() {
       include: {
         children: true,
         _count: {
-          select: { projects: true },
+          select: { projects: { where: { approvalStatus: 'APPROVED' } } },
         },
       },
       orderBy: { orderIndex: 'asc' },
