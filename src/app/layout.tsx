@@ -3,6 +3,7 @@ import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { RevealObserver } from '@/components/motion/RevealObserver';
+import { PointerFX } from '@/components/motion/PointerFX';
 import { ScrollProgress } from '@/components/motion/ScrollProgress';
 import LamoChatWidget from '@/components/lamo/LamoChatWidget';
 import { siteConfig } from '@/config/site';
@@ -102,6 +103,7 @@ export default function RootLayout({
         
         <ScrollProgress />
         <RevealObserver />
+        <PointerFX />
         <Header />
         <main id="main-content" className="flex-1 w-full pt-16" tabIndex={-1}>
           {children}

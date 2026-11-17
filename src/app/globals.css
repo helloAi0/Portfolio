@@ -111,3 +111,23 @@ body {
 .scroll-hint-line { position: relative; width: 1px; height: 44px; overflow: hidden; background: rgba(212,175,55,0.2); }
 .scroll-hint-line::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent, #d4af37, transparent); animation: hint-drop 2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .scroll-hint-line::after { animation: none; } }
+
+/* ------------------------------------------------------------------
+   Redesign layer: spotlight cards, tilt, marquee, bento
+------------------------------------------------------------------- */
+.spot { position: relative; --mx: 50%; --my: 50%; }
+.spot::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; opacity: 0;
+  background: radial-gradient(420px circle at var(--mx) var(--my), rgba(212, 175, 55, 0.13), transparent 60%);
+  transition: opacity 0.35s ease;
+}
+.spot:hover::before { opacity: 1; }
+.tilt { transition: transform 0.25s ease-out, border-color 0.3s ease, box-shadow 0.3s ease; will-change: transform; }
+
+@keyframes marquee-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { animation: marquee-x 38s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+.bento-tile { border-radius: 1.5rem; }
+.display-xl { font-family: var(--font-cinzel); font-weight: 900; letter-spacing: -0.01em; line-height: 0.95; }

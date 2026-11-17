@@ -7,10 +7,10 @@ export interface NavItem {
 }
 
 export const mainNavItems: NavItem[] = [
-  { title: 'Citadel', href: '/' },
+  { title: 'Home', href: '/' },
   { title: 'About', href: '/about' },
   { title: 'Education', href: '/education' },
-  { title: 'Projects', href: '/projects', badge: 'Flagship' },
+  { title: 'Projects', href: '/projects' },
   { title: 'Domains', href: '/domains' },
   { title: 'Skills', href: '/skills' },
   { title: 'Journey', href: '/journey' },
@@ -25,5 +25,5 @@ export const secondaryNavItems: NavItem[] = [
   { title: 'Certificates', href: '/certificates' },
   { title: 'Scholarships', href: '/scholarships' },
   { title: 'Experience', href: '/experience' },
-  { title: 'Command Gate (Admin)', href: '/admin', badge: 'Secure' },
+  { title: 'Admin', href: '/admin', badge: 'Secure' },
 ];

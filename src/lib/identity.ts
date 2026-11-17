@@ -24,6 +24,7 @@ export interface DynamicIdentity {
     semesterLabel: string;
     phase: AcademicStanding['phase'];
     monthsToGraduation: number;
+    semesterProgressPercent: number;
     progressPercent: number;
   };
   identityVerification: {
@@ -98,6 +99,7 @@ export function resolveIdentitySafety(): DynamicIdentity {
       semesterLabel: standing.semesterLabel,
       phase: standing.phase,
       monthsToGraduation: standing.monthsToGraduation,
+      semesterProgressPercent: standing.semesterProgressPercent,
       progressPercent: standing.progressPercent,
     },
     identityVerification: {

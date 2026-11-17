@@ -1,6 +1,7 @@
 import React from 'react';
 import { HeroSection } from '@/components/home/HeroSection';
-import { ImperialEthos } from '@/components/home/ImperialEthos';
+import { BentoGrid } from '@/components/home/BentoGrid';
+import { Marquee } from '@/components/motion/Marquee';
 import { FeaturedProjects } from '@/components/home/FeaturedProjects';
 import { getProjects } from '@/lib/services/projectService';
 import { Card } from '@/components/ui/Card';
@@ -14,11 +15,12 @@ export default async function HomePage() {
 
   return (
     <div className="w-full">
-      {/* 1. Cinematic Hero with Bucephalus WebGL Canvas */}
+      {/* 1. Scroll-driven cinematic 3D hero */}
       <HeroSection />
 
       {/* 2. Imperial Architectural Tenets & Ethos */}
-      <ImperialEthos />
+      <Marquee ariaLabel="Focus areas and languages" items={['Artificial Intelligence', 'Machine Learning', 'Robotics', 'ROS 2', 'SLAM', 'Cybersecurity', 'Python', 'C++', 'Java', 'JavaScript']} />
+      <BentoGrid />
 
       {/* 3. Featured Flagship Projects from Database */}
       <FeaturedProjects projects={projects} />
@@ -26,7 +28,7 @@ export default async function HomePage() {
       {/* 4. Imperial Call to Arms / Contact CTA */}
       <section className="py-20 relative bg-imperial-950 border-t border-gold-500/10">
         <div className="max-w-5xl mx-auto px-4 text-center">
-          <div className="marble-card p-10 sm:p-14 rounded-lg relative overflow-hidden">
+          <div className="reveal marble-card p-10 sm:p-16 rounded-3xl relative overflow-hidden">
             <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400 mb-2 block">
               Contact
             </span>

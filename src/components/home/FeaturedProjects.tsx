@@ -27,13 +27,28 @@ export function FeaturedProjects({ projects }: FeaturedProjectsProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {projects.length === 0 && (
+          <div className="reveal marble-card rounded-3xl p-10 text-center">
+            <p className="font-serif text-xl text-white mb-2">Projects will appear here</p>
+            <p className="text-sm text-neutral-400 max-w-lg mx-auto">
+              They are pulled from GitHub and published only after I review them, so nothing shows up that I haven&apos;t approved.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {projects.map((project) => (
             <Card
               key={project.id}
               variant="marble"
-              className="flex flex-col justify-between group hover:border-gold-500/50 transition-all"
+              className="tilt !rounded-3xl !p-0 flex flex-col justify-between group hover:border-gold-500/50"
             >
+              <div className="relative h-40 overflow-hidden bg-gradient-to-br from-imperial-800 via-imperial-900 to-imperial-950 border-b border-gold-500/15" aria-hidden>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(212,175,55,0.22),transparent_55%)]" />
+                <span className="absolute -bottom-6 -right-2 display-xl text-[7rem] text-gold-500/10 select-none">{(project.category?.name || 'E').charAt(0)}</span>
+                <span className="absolute left-5 top-5 px-3 py-1 rounded-full border border-gold-500/40 bg-imperial-950/70 text-[10px] font-mono uppercase tracking-wider text-gold-300">{project.category?.name || 'Engineering'}</span>
+              </div>
+              <div className="p-6">
               <div>
                 {/* Header Metadata */}
                 <div className="flex items-center justify-between gap-2 mb-4">
@@ -105,6 +120,7 @@ export function FeaturedProjects({ projects }: FeaturedProjectsProps) {
                     </a>
                   )}
                 </div>
+              </div>
               </div>
             </Card>
           ))}

@@ -27,89 +27,66 @@ export function Header() {
   }, [pathname]);
 
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-[#08090cd9] backdrop-blur-md border-b border-gold-500/20 py-3 shadow-lg shadow-black/60'
-          : 'bg-transparent py-5 border-b border-white/5'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          {/* Imperial Crest / Logo */}
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 rounded-sm bg-gradient-to-br from-gold-500/20 via-imperial-800 to-imperial-950 border border-gold-500/40 flex items-center justify-center shadow-imperial-gold group-hover:border-gold-400 transition-all">
-              <span className="font-serif font-black text-gold-400 text-lg tracking-wider">Λ</span>
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-serif font-bold text-lg tracking-widest text-white group-hover:text-gold-300 transition-colors">
-                  PROJECT LAMO
-                </span>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono uppercase bg-gold-500/10 border border-gold-500/30 text-gold-300 rounded">
-                  v1.0
-                </span>
-              </div>
-              <p className="text-[10px] font-mono tracking-wider text-neutral-400 hidden sm:block uppercase">
-                Imperial AI & Robotics
-              </p>
-            </div>
+    <header className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-6 pt-3 sm:pt-4 pointer-events-none">
+      <div
+        className={`pointer-events-auto mx-auto max-w-6xl rounded-full border backdrop-blur-xl transition-all duration-500 ${
+          scrolled
+            ? 'bg-[#0a0b0fcc] border-gold-500/25 shadow-[0_10px_40px_-12px_rgba(0,0,0,0.9)] py-2'
+            : 'bg-[#0a0b0f66] border-white/10 py-2.5'
+        }`}
+      >
+        <div className="flex items-center justify-between pl-3 pr-2 sm:pl-4">
+          <Link href="/" className="flex items-center gap-2.5 group" aria-label="Home">
+            <span className="w-8 h-8 rounded-full bg-gradient-to-br from-gold-400/30 via-imperial-800 to-imperial-950 border border-gold-500/50 flex items-center justify-center group-hover:border-gold-300 transition-colors">
+              <span className="font-serif font-black text-gold-300 text-sm">Λ</span>
+            </span>
+            <span className="font-serif font-bold text-sm tracking-[0.22em] text-white group-hover:text-gold-300 transition-colors hidden sm:block">
+              LAMO
+            </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden lg:flex items-center gap-0.5" aria-label="Primary">
             {mainNavItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3.5 py-2 rounded text-xs font-medium tracking-wide uppercase transition-all duration-200 relative ${
-                    isActive
-                      ? 'text-gold-300 bg-gold-500/10 border border-gold-500/30 shadow-[0_0_12px_rgba(212,175,55,0.15)]'
-                      : 'text-neutral-300 hover:text-white hover:bg-imperial-800/60 border border-transparent'
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`px-3 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all duration-200 ${
+                    isActive ? 'text-imperial-950 bg-gold-400' : 'text-neutral-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {item.title}
-                  {item.badge && (
-                    <span className="ml-1.5 px-1 py-0.2 text-[9px] bg-gold-500/20 text-gold-400 rounded border border-gold-500/40">
-                      {item.badge}
-                    </span>
-                  )}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
-                  )}
                 </Link>
               );
             })}
 
-            {/* More Sections Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                className={`flex items-center space-x-1 px-3 py-2 rounded text-xs font-medium tracking-wide uppercase transition-all ${
-                  moreMenuOpen
-                    ? 'text-gold-300 bg-imperial-800 border border-gold-500/30'
-                    : 'text-neutral-300 hover:text-white hover:bg-imperial-800/60 border border-transparent'
+                aria-expanded={moreMenuOpen}
+                aria-haspopup="menu"
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium tracking-wide transition-all ${
+                  moreMenuOpen ? 'text-white bg-white/10' : 'text-neutral-300 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <span>Citadel Archives</span>
+                <span>More</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {moreMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-md bg-imperial-900 border border-gold-500/30 shadow-2xl py-2 z-50 backdrop-blur-xl">
+                <div role="menu" className="absolute right-0 mt-3 w-60 rounded-2xl bg-[#0c0e12f2] border border-gold-500/25 shadow-2xl p-2 z-50 backdrop-blur-xl">
                   {secondaryNavItems.map((item) => {
                     const isActive = pathname === item.href;
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
+                        role="menuitem"
                         onClick={() => setMoreMenuOpen(false)}
-                        className={`block px-4 py-2 text-xs tracking-wider transition-colors ${
-                          isActive
-                            ? 'text-gold-300 bg-gold-500/10 font-semibold'
-                            : 'text-neutral-300 hover:text-white hover:bg-imperial-800'
+                        className={`block px-3 py-2 rounded-xl text-xs tracking-wide transition-colors ${
+                          isActive ? 'text-gold-300 bg-gold-500/10 font-semibold' : 'text-neutral-300 hover:text-white hover:bg-white/5'
                         }`}
                       >
                         {item.title}
@@ -121,34 +98,29 @@ export function Header() {
             </div>
           </nav>
 
-          {/* Identity & External Actions */}
-          <div className="hidden sm:flex items-center space-x-3">
+          <div className="flex items-center gap-2">
             <Link
-              href="https://github.com/helloAi0/Portfolio.git"
+              href="https://github.com/helloAi0"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-neutral-400 hover:text-gold-300 hover:bg-imperial-800 rounded border border-transparent hover:border-gold-500/20 transition-all"
-              title="GitHub Imperial Repository"
+              className="hidden sm:flex p-2 rounded-full text-neutral-300 hover:text-gold-300 hover:bg-white/10 transition-all"
+              aria-label="GitHub profile"
             >
               <Github className="w-4 h-4" />
             </Link>
-
             <Link
               href="/contact"
-              className="px-4 py-2 rounded text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-imperial-950 shadow-md shadow-gold-500/20 hover:shadow-gold-500/40 transition-all"
+              className="hidden sm:inline-flex px-4 py-2 rounded-full text-[12px] font-semibold tracking-wide bg-gradient-to-r from-gold-400 to-gold-500 text-imperial-950 hover:shadow-[0_0_24px_rgba(212,175,55,0.45)] transition-all"
             >
-              Transmit Signal
+              Get in touch
             </Link>
-          </div>
-
-          {/* Mobile menu trigger */}
-          <div className="lg:hidden flex items-center space-x-2">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded text-neutral-300 hover:text-gold-400 hover:bg-imperial-800 border border-gold-500/20"
+              className="lg:hidden p-2 rounded-full text-neutral-200 hover:text-gold-300 hover:bg-white/10"
               aria-label="Toggle navigation menu"
+              aria-expanded={mobileMenuOpen}
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -156,10 +128,10 @@ export function Header() {
 
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[65px] bottom-0 bg-[#07080aef] backdrop-blur-xl border-t border-gold-500/20 overflow-y-auto p-6 z-40">
+        <div className="lg:hidden fixed inset-x-0 top-[72px] bottom-0 pointer-events-auto bg-[#07080aef] backdrop-blur-xl border-t border-gold-500/20 overflow-y-auto p-6 z-40">
           <div className="flex flex-col space-y-2">
             <div className="text-[10px] font-mono uppercase text-gold-400 tracking-widest px-3 pt-2 pb-1">
-              Primary Citadel Portals
+              Pages
             </div>
             {mainNavItems.map((item) => {
               const isActive = pathname === item.href;
@@ -184,7 +156,7 @@ export function Header() {
             })}
 
             <div className="text-[10px] font-mono uppercase text-gold-400 tracking-widest px-3 pt-4 pb-1">
-              Secondary Imperial Archives
+              More
             </div>
             {secondaryNavItems.map((item) => {
               const isActive = pathname === item.href;
@@ -208,16 +180,16 @@ export function Header() {
                 href="/contact"
                 className="w-full py-3 text-center rounded text-xs font-bold uppercase tracking-wider bg-gold-500 text-imperial-950"
               >
-                Transmit Direct Signal
+                Get in touch
               </Link>
               <div className="flex justify-center space-x-4 pt-2">
                 <Link
-                  href="https://github.com/helloAi0/Portfolio.git"
+                  href="https://github.com/helloAi0"
                   target="_blank"
                   className="text-xs text-neutral-400 flex items-center space-x-1"
                 >
                   <Github className="w-4 h-4" />
-                  <span>GitHub Repository</span>
+                  <span>GitHub</span>
                 </Link>
               </div>
             </div>

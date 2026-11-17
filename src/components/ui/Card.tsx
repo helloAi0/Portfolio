@@ -8,7 +8,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Card({ children, variant = 'marble', className = '', ...props }: CardProps) {
   const variants = {
-    marble: 'reveal marble-card rounded-md p-6 relative overflow-hidden transition-all duration-300',
+    marble: 'reveal spot marble-card rounded-md p-6 relative overflow-hidden transition-all duration-300',
     subtle: 'reveal bg-imperial-900/60 border border-white/5 rounded-md p-6 backdrop-blur-sm',
     'gold-border': 'reveal bg-imperial-900/90 border border-gold-500/40 rounded-md p-6 shadow-imperial-gold',
   };
