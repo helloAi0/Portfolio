@@ -51,9 +51,12 @@ In `package.json`:
    - `DATABASE_URL`: `[Your Render PostgreSQL Connection URL]`
    - `NODE_ENV`: `production`
    - `NEXT_PUBLIC_SITE_URL`: `https://[your-service-name].onrender.com`
-   - `OWNER_DISPLAY_NAME`: `Sahil Depurwala`
+   - `OWNER_DISPLAY_NAME`: `Taha Udaipurwala`
    - `OWNER_CONTACT_EMAIL`: `tahaudaipurwala68@gmail.com`
    - `IDENTITY_VERIFICATION_STATUS`: `PENDING_OWNER_CONFIRMATION` (or `VERIFIED` once confirmed)
+   - `ADMIN_JWT_SECRET`: a random string of at least 32 characters (required; there is no default)
+   - `ADMIN_DEFAULT_PASSWORD`: a strong password of 12+ characters, used once to create the admin user
+   - `OWNER_BIRTH_DATE` (YYYY-MM-DD, private), `OWNER_SHOW_PUBLIC_AGE` (`true`/`false`), `OWNER_INSTITUTION`
 5. Click **Create Web Service**.
 
 ---

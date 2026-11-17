@@ -1,5 +1,7 @@
 'use client';
 
+import { TAXONOMY } from '@/lib/taxonomy';
+import { DIFFICULTIES } from '@/lib/projectHelpers';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
@@ -93,6 +95,8 @@ export default function AdminDashboardPage() {
   // Initial data loading
   useEffect(() => {
     loadAllData();
+    // Run once on mount; loadAllData is redefined each render and must not re-trigger loading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAllData = async () => {
@@ -197,16 +201,21 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleApproveRepo = async (id: string, action: 'APPROVE' | 'REJECT' | 'SKIP') => {
+  const [repoDrafts, setRepoDrafts] = useState<Record<string, { categorySlug?: string; difficulty?: string }>>({});
+
+  const handleApproveRepo = async (id: string, action: 'APPROVE' | 'REJECT' | 'SKIP' | 'UNPUBLISH', extra: Record<string, unknown> = {}) => {
     try {
       const res = await fetch(`/api/admin/github/${id}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...extra }),
       });
       if (res.ok) {
-        showMsg('success', `Repository classification ${action.toLowerCase()}d.`);
+        showMsg('success', action === 'APPROVE' ? 'Project published.' : `Repository ${action.toLowerCase()}ed.`);
         loadAllData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showMsg('error', err.error || 'Action failed.');
       }
     } catch {
       showMsg('error', 'Failed to update repository approval.');
@@ -790,10 +799,10 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center space-x-2 flex-shrink-0">
                           {repo.classificationStatus !== 'APPROVED' && (
                             <button
-                              onClick={() => handleApproveRepo(repo.id, 'APPROVE')}
+                              onClick={() => handleApproveRepo(repo.id, 'APPROVE', repoDrafts[repo.id] ?? {})}
                               className="px-2.5 py-1 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-xs font-mono hover:bg-emerald-900"
                             >
-                              Approve
+                              Approve &amp; Publish
                             </button>
                           )}
                           {repo.classificationStatus !== 'REJECTED' && (
@@ -817,6 +826,29 @@ export default function AdminDashboardPage() {
                         </div>
                         {repo.classificationNotes && (
                           <p className="text-[11px] text-neutral-400">{repo.classificationNotes}</p>
+                        )}
+                        {repo.suggestedDifficulty && (
+                          <p className="text-[11px] text-neutral-400">
+                            Suggested difficulty: <strong className="text-gold-300">{repo.suggestedDifficulty}</strong> (evidence-based, owner confirms)
+                          </p>
+                        )}
+                        {repo.missingSince && (
+                          <p className="text-[11px] text-red-300">No longer public on GitHub since {new Date(repo.missingSince).toLocaleDateString()}.</p>
+                        )}
+                        {repo.classificationStatus !== 'APPROVED' && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <select aria-label="Category" className="bg-imperial-900 border border-white/10 rounded px-2 py-1 text-[11px]"
+                              value={repoDrafts[repo.id]?.categorySlug ?? repo.suggestedCategorySlug ?? ''}
+                              onChange={(e) => setRepoDrafts((d) => ({ ...d, [repo.id]: { ...d[repo.id], categorySlug: e.target.value } }))}>
+                              {TAXONOMY.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                            </select>
+                            <select aria-label="Difficulty" className="bg-imperial-900 border border-white/10 rounded px-2 py-1 text-[11px]"
+                              value={repoDrafts[repo.id]?.difficulty ?? ''}
+                              onChange={(e) => setRepoDrafts((d) => ({ ...d, [repo.id]: { ...d[repo.id], difficulty: e.target.value || undefined } }))}>
+                              <option value="">Use suggestion</option>
+                              {DIFFICULTIES.map((x) => <option key={x} value={x}>{x}</option>)}
+                            </select>
+                          </div>
                         )}
                         {repo.readmeSummary && (
                           <div className="pt-1 text-[11px] text-neutral-300 border-t border-white/5">
@@ -848,12 +880,12 @@ export default function AdminDashboardPage() {
               <Card variant="marble" className="p-6 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono text-neutral-400">Configured Username:</span>
-                  <span className="text-white font-mono font-bold">{codingStats.leetcode?.username || 'helloAi0'}</span>
+                  <span className="text-white font-mono font-bold">{codingStats.leetcode?.username || 'Not configured'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-mono text-neutral-400">Data Source Mode:</span>
                   <Badge variant={codingStats.leetcode?.dataSource === 'LIVE' ? 'verified' : 'detected'} size="xs">
-                    {codingStats.leetcode?.dataSource || 'MOCK'}
+                    {codingStats.leetcode?.dataSource || 'UNAVAILABLE'}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -918,7 +950,7 @@ export default function AdminDashboardPage() {
                       type="text"
                       value={newPost.title}
                       onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                      placeholder="e.g. Autonomous SLAM Trajectory Update"
+                      placeholder="e.g. Post title"
                       className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                     />
                   </div>
@@ -1181,7 +1213,7 @@ export default function AdminDashboardPage() {
                         required
                         value={newExp.roleTitle}
                         onChange={(e) => setNewExp({ ...newExp, roleTitle: e.target.value })}
-                        placeholder="e.g. Autonomous Robotics Lab Researcher"
+                        placeholder="e.g. Job or internship title"
                         className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                       />
                     </div>
@@ -1192,7 +1224,7 @@ export default function AdminDashboardPage() {
                         required
                         value={newExp.organization}
                         onChange={(e) => setNewExp({ ...newExp, organization: e.target.value })}
-                        placeholder="e.g. UEM Robotics Computing Society"
+                        placeholder="e.g. Organization name"
                         className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                       />
                     </div>
@@ -1205,7 +1237,7 @@ export default function AdminDashboardPage() {
                       rows={2}
                       value={newExp.description}
                       onChange={(e) => setNewExp({ ...newExp, description: e.target.value })}
-                      placeholder="Conducted experiments on ROS 2 Humble nodes..."
+                      placeholder="What you actually did in this role"
                       className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
                     />
                   </div>

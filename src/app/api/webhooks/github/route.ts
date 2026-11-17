@@ -1,58 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { syncSingleRepository } from '@/lib/services/githubSyncService';
+import { syncSingleRepository, withdrawRepositoryByName } from '@/lib/services/githubSyncService';
 import { verifyWebhookSignature } from '@/lib/adapters/githubAdapter';
+import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
 /**
- * GitHub Webhook Handler
- * Endpoint: POST /api/webhooks/github
+ * GitHub webhook: POST /api/webhooks/github
+ * Payload URL https://<domain>/api/webhooks/github, content type application/json,
+ * secret = GITHUB_WEBHOOK_SECRET, events: push, repository (and ping).
  *
- * Configure in GitHub repo/org settings:
- * - Payload URL: https://your-domain.onrender.com/api/webhooks/github
- * - Content type: application/json
- * - Secret: value of GITHUB_WEBHOOK_SECRET env var
- * - Events: push, repository, create, delete
+ * - Signature is verified over the RAW body before anything else (fail-closed without a secret).
+ * - Deliveries are de-duplicated by X-GitHub-Delivery (GitHub retries; we must stay idempotent).
+ * - Only the configured owner's repositories are processed.
+ * - The sync is awaited (bounded) so serverless/instance recycling cannot drop it silently.
  */
 export async function POST(req: NextRequest) {
-  const signature = req.headers.get('x-hub-signature-256');
-  const event = req.headers.get('x-github-event');
-  const deliveryId = req.headers.get('x-github-delivery');
-
-  const rawBody = await req.text();
-
-  // Verify webhook signature
   const secret = process.env.GITHUB_WEBHOOK_SECRET;
   if (!secret) {
-    logger.warn('GithubWebhook', 'GITHUB_WEBHOOK_SECRET not configured. Rejecting webhook.');
-    return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
+    logger.warn('GithubWebhook', 'GITHUB_WEBHOOK_SECRET not configured; rejecting.');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 });
   }
+  const rawBody = await req.text();
+  const event = req.headers.get('x-github-event') ?? '';
+  const deliveryId = req.headers.get('x-github-delivery');
 
-  const isValid = await verifyWebhookSignature(rawBody, signature, secret);
-  if (!isValid) {
-    logger.warn('GithubWebhook', `Invalid signature for delivery ${deliveryId}`);
-    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 401 });
+  if (!(await verifyWebhookSignature(rawBody, req.headers.get('x-hub-signature-256'), secret))) {
+    logger.warn('GithubWebhook', `Invalid signature (delivery ${deliveryId})`);
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
+  if (!deliveryId) return NextResponse.json({ error: 'Missing delivery id' }, { status: 400 });
 
-  let payload: Record<string, unknown>;
+  let payload: { action?: string; repository?: { name?: string; private?: boolean; owner?: { login?: string } } };
+  try { payload = JSON.parse(rawBody); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+
+  if (event === 'ping') return NextResponse.json({ received: true, pong: true });
+
+  // Idempotency: the unique deliveryId makes a duplicate insert fail.
   try {
-    payload = JSON.parse(rawBody);
+    await prisma.webhookDelivery.create({ data: { deliveryId, event, repoName: payload.repository?.name ?? null, status: 'RECEIVED' } });
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
-  logger.info('GithubWebhook', `Received event: ${event} (delivery: ${deliveryId})`);
+  const owner = (process.env.GITHUB_USERNAME || 'helloAi0').toLowerCase();
+  const repoName = payload.repository?.name;
+  if (!repoName || payload.repository?.owner?.login?.toLowerCase() !== owner) {
+    await prisma.webhookDelivery.update({ where: { deliveryId }, data: { status: 'IGNORED' } });
+    return NextResponse.json({ received: true, ignored: true });
+  }
 
-  // Handle supported events
-  if (event === 'push' || event === 'repository') {
-    const repoName = (payload.repository as { name?: string })?.name;
-    if (repoName) {
-      // Fire-and-forget background sync — don't block the webhook response
-      syncSingleRepository(repoName).catch((err) =>
-        logger.error('GithubWebhook', `Background sync failed for ${repoName}: ${err instanceof Error ? err.message : String(err)}`)
-      );
+  try {
+    let outcome = 'IGNORED';
+    if (event === 'repository' && (payload.action === 'deleted' || payload.action === 'privatized')) {
+      outcome = (await withdrawRepositoryByName(repoName)) ? 'WITHDRAWN' : 'NOT_FOUND';
+    } else if (event === 'push' || event === 'repository') {
+      outcome = await syncSingleRepository(repoName);
     }
+    await prisma.webhookDelivery.update({ where: { deliveryId }, data: { status: outcome } });
+    return NextResponse.json({ received: true, event, outcome });
+  } catch (err) {
+    await prisma.webhookDelivery.update({ where: { deliveryId }, data: { status: 'FAILED' } }).catch(() => undefined);
+    logger.error('GithubWebhook', `Sync failed for ${repoName}: ${err instanceof Error ? err.message : String(err)}`);
+    // 500 makes GitHub show the failure and lets the owner redeliver; scheduled reconciliation also heals it.
+    return NextResponse.json({ error: 'Sync failed' }, { status: 500 });
   }
-
-  return NextResponse.json({ received: true, event, deliveryId });
 }
-

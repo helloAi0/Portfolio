@@ -79,27 +79,26 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 ### 1.2 Domain Logic & Temporal Computing (`src/lib/identity.ts`)
 - **Dynamic Age Derivation**: Age is computed on every request using UTC milliseconds from Date of Birth (`2 November 2006`).
 - **Academic Progression Calculator**: Dynamically determines semester, academic standing, and graduation milestone (Class of 2024–2028).
-- **Safety Decoupling**: Isolates `OWNER_DISPLAY_NAME` (`Sahil Depurwala`) from `OWNER_CONTACT_EMAIL` (`tahaudaipurwala68@gmail.com`), flagging discrepancies as `PENDING_OWNER_CONFIRMATION`.
+- **Safety Decoupling**: Isolates `OWNER_DISPLAY_NAME` (`Taha Udaipurwala`) from `OWNER_CONTACT_EMAIL` (`tahaudaipurwala68@gmail.com`), flagging discrepancies as `PENDING_OWNER_CONFIRMATION`.
 
 ---
 
 ## 2. Intelligence & Automation Subsystem (Week 2)
 
-### 2.1 GitHub Synchronization Engine (`src/lib/services/githubSyncService.ts`)
-- Discovers public repositories for user `helloAi0` using GitHub REST APIs.
-- Upserts metadata, descriptions, languages, topics, stars, forks, and last pushed timestamps.
-- Supports HMAC-SHA256 verified webhooks at `POST /api/webhooks/github`.
-- Scheduled reconciliation via `POST /api/sync/reconcile` (Bearer `CRON_SECRET`) ensures missed events never leave stale data.
+### 2.1 GitHub Synchronization Engine
+- `src/lib/adapters/githubAdapter.ts`: REST adapter. Typed `GithubApiError`, retry with exponential backoff, rate-limit aware, `cache: 'no-store'`. Only a real 404 returns null; every other failure throws, so an outage is never mistaken for "no README / repo deleted".
+- `src/lib/services/githubSyncService.ts`: one pipeline (`processRepository`) for MANUAL, SCHEDULED (`POST /api/sync/reconcile`, Bearer `CRON_SECRET`) and WEBHOOK triggers. Idempotent upsert by `githubId`; incremental (unchanged repos only refresh cheap metadata); owner decisions and overrides are never overwritten; private repos never ingested; forks skipped unless `GITHUB_INCLUDE_FORKS=true`; repos that disappear or turn private are flagged (`missingSince`) and their projects pulled back to review, only after a complete listing.
+- `POST /api/webhooks/github`: HMAC-SHA256 over the raw body (fail-closed without secret), `ping` support, de-duplication by delivery ID (`WebhookDelivery`), owner check, `repository deleted/privatized` handling.
+- Integration status is honest: CONNECTED / DEGRADED / ERROR with the last error recorded.
 
-### 2.2 Intelligent Project Classifier (`src/lib/services/projectClassifier.ts`)
-- Analyzes repository metadata, README headers, languages, and topics.
-- Inters project categories across 10 engineering domains (Robotics, AI/ML, Cybersecurity, etc.).
-- Computes an objective `confidenceScore` (0.0 to 1.0).
-- Requires owner approval in the Admin Citadel before publishing to public showcase.
+### 2.2 Classification and Publication
+- `src/lib/classification/classificationEngine.ts` (pure): whole-word matching; structured evidence (topics, dependency manifests, repo name) outranks prose; ambiguous words count only from structured sources; multi-label categories; confidence from strength + margin over runner-up; skill suggestions with evidence (detection is not proficiency); difficulty rubric from observable engineering evidence (size, tests, CI, deployment, docs, modularity), never README wording. Categories come from `src/lib/taxonomy.ts` (single source of truth).
+- `src/lib/services/projectPublicationService.ts`: a repository becomes a public Project only on owner approval (`PROJECT_PUBLICATION_MODE=REVIEW`, default) or, in `AUTOMATIC` mode, at confidence >= 0.8. Problem/solution/challenges/results are never generated. Skills are linked as DETECTED. Owner edits via `PATCH /api/admin/projects/[id]` are audited and survive syncs.
+- Live-URL candidates are reachability-checked with an SSRF guard before being offered.
 
 ### 2.3 Coding Arena Adapters (`src/lib/services/codingStatsService.ts`)
 - Modular provider adapters for LeetCode and GeeksforGeeks.
-- Supports official / permitted data access; clearly labels mock data during local development.
+- Supports official or permitted data access; when data cannot be retrieved it shows UNAVAILABLE or STALE with the last successful sync time (no mock values).
 - Tracks total solved, easy, medium, hard, contest ratings, and global rankings.
 
 ---
@@ -109,7 +108,7 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 ### 3.1 Grounded Retrieval-Augmented Generation (`src/lib/lamo/knowledgeRetriever.ts`)
 - Queries across 10 verified database domains before any answer synthesis:
   1. Identity & Profile
-  2. Education History (UEM/IEM Kolkata)
+  2. Education History (the B.Tech institution (owner-confirmed value))
   3. Projects & Architectural Blueprints
   4. Verified Skill Taxonomy Graph
   5. Coding Arena Profiles

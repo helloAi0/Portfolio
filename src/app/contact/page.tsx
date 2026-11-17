@@ -60,7 +60,7 @@ export default function ContactPage() {
       <SectionHeading
         eyebrow="Communication Channel"
         title="Transmit Direct Message"
-        description="Establish encrypted correspondence for research inquiries, autonomous robotics collaborations, or architectural engineering consultations."
+        description="Send an enquiry about opportunities, collaboration or questions about my work."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
@@ -116,7 +116,7 @@ export default function ContactPage() {
                 <span>Identity Isolation Guardrail Active</span>
               </div>
               <p className="text-[11px] text-neutral-400 leading-normal">
-                Display: <strong className="text-white">Sahil Depurwala</strong>
+                Display: <strong className="text-white">Taha Udaipurwala</strong>
                 <br />
                 Mailbox: <strong className="text-gold-300">tahaudaipurwala68@gmail.com</strong>
               </p>
@@ -224,7 +224,7 @@ export default function ContactPage() {
                     type="text"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    placeholder="e.g. Autonomous SLAM Research Collaboration"
+                    placeholder="e.g. Internship opportunity"
                     className="w-full px-3.5 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
                   />
                 </div>

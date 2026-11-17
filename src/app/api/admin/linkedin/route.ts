@@ -24,6 +24,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Post content excerpt is required.' }, { status: 400 });
     }
 
+    if (postUrl) {
+      let u: URL | null = null;
+      try { u = new URL(String(postUrl)); } catch { /* invalid */ }
+      if (!u || u.protocol !== 'https:' || !/(^|\.)linkedin\.com$/i.test(u.hostname)) {
+        return NextResponse.json({ error: 'Post URL must be an https linkedin.com link.' }, { status: 400 });
+      }
+      const dup = await prisma.linkedinPost.findFirst({ where: { postUrl: String(postUrl).trim() } });
+      if (dup) return NextResponse.json({ error: 'This post has already been imported.', id: dup.id }, { status: 409 });
+    }
+    if (publishedAt && Number.isNaN(new Date(publishedAt).getTime())) {
+      return NextResponse.json({ error: 'Invalid publication date.' }, { status: 400 });
+    }
+
     const post = await prisma.linkedinPost.create({
       data: {
         title: title ? title.trim() : null,

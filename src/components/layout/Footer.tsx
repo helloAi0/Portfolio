@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { resolveIdentitySafety } from '@/lib/identity';
-import { Github, ShieldAlert, CheckCircle2, Terminal, ArrowUpRight, Cpu } from 'lucide-react';
+import { Github, ArrowUpRight, Cpu } from 'lucide-react';
+import { PROFILE } from '@/config/profile';
 
 export function Footer() {
   const identity = resolveIdentitySafety();
@@ -25,7 +26,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-xs text-neutral-400 leading-relaxed">
-              The imperial digital citadel and engineering repository of {identity.displayName}. Inspired by Macedonian monumentality and autonomous AI architecture.
+              The engineering portfolio of {identity.displayName}, inspired by Macedonian monumentality.
             </p>
             <div className="pt-2">
               <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded bg-imperial-900 border border-gold-500/20 text-[10px] font-mono text-gold-400">
@@ -77,12 +78,12 @@ export function Footer() {
             <ul className="space-y-2 text-xs">
               <li>
                 <Link href="/domains#robotics" className="hover:text-gold-300 transition-colors">
-                  Autonomous Robotics (ROS 2 / SLAM)
+                  Robotics
                 </Link>
               </li>
               <li>
                 <Link href="/domains#ai" className="hover:text-gold-300 transition-colors">
-                  Artificial Intelligence & Neural Nets
+                  Artificial Intelligence
                 </Link>
               </li>
               <li>
@@ -103,52 +104,48 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Verification & Deployment Guardrail */}
+          {/* Contact */}
           <div className="space-y-3">
             <h4 className="text-xs font-mono uppercase tracking-widest text-gold-400">
-              Identity Verification Status
+              Get in touch
             </h4>
-            <div className="p-3.5 rounded-sm bg-imperial-900/90 border border-gold-500/20 text-xs space-y-2">
-              <div className="flex items-center space-x-2">
-                {identity.identityVerification.isOwnerConfirmed ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                ) : (
-                  <ShieldAlert className="w-4 h-4 text-amber-400 animate-pulse" />
-                )}
-                <span className="font-mono text-[11px] font-semibold text-neutral-200">
-                  {identity.identityVerification.status}
-                </span>
-              </div>
-              <p className="text-[11px] text-neutral-400 leading-normal">
-                Display: <span className="text-white">{identity.displayName}</span>
-                <br />
-                Contact: <span className="text-gold-300 font-mono">{identity.contactEmail}</span>
-              </p>
-              <div className="pt-1 text-[10px] text-amber-300/80 leading-tight">
-                Discrepancy flagged: Separate configuration maintained pending explicit owner signoff before public deployment.
-              </div>
-            </div>
+            <p className="text-xs leading-relaxed">
+              <a href={`mailto:${identity.contactEmail}`} className="text-gold-300 hover:underline break-all">
+                {identity.contactEmail}
+              </a>
+              <br />
+              <Link href="/contact" className="hover:text-gold-300">Send an enquiry &rarr;</Link>
+            </p>
 
             <div className="flex items-center space-x-3 pt-1">
               <Link
-                href="https://github.com/helloAi0/Portfolio.git"
+                href={PROFILE.github.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 text-xs text-neutral-400 hover:text-gold-300"
               >
                 <Github className="w-3.5 h-3.5" />
-                <span>GitHub Repository</span>
+                <span>GitHub</span>
                 <ArrowUpRight className="w-3 h-3" />
               </Link>
-              <span className="text-neutral-700">•</span>
-              <span className="text-xs text-neutral-500 font-mono">Render Ready</span>
+              {PROFILE.linkedinUrl && (
+                <Link
+                  href={PROFILE.linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-1 text-xs text-neutral-400 hover:text-gold-300"
+                >
+                  <span>LinkedIn</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-xs text-neutral-500 space-y-4 sm:space-y-0">
-          <p>© {currentYear} Project LAMO. Built with imperial precision for Sahil Depurwala.</p>
+          <p>© {currentYear} Project LAMO. Portfolio of {identity.displayName}.</p>
           <div className="flex items-center space-x-6 text-[11px] font-mono">
             <Link href="/resume" className="hover:text-gold-400 transition-colors">
               Curriculum Vitae
@@ -156,7 +153,6 @@ export function Footer() {
             <Link href="/contact" className="hover:text-gold-400 transition-colors">
               Dispatch Transmission
             </Link>
-            <span>v1.0.0-imperial</span>
           </div>
         </div>
       </div>

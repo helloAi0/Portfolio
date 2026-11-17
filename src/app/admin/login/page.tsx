@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="sahil"
+                placeholder="Username" autoComplete="username"
                 className="w-full px-4 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
               />
             </div>
@@ -105,10 +105,7 @@ export default function AdminLoginPage() {
             </div>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-white/5 text-[10px] font-mono text-neutral-500 text-center">
-            Default credentials for local dev seeded: <code className="text-gold-400">sahil</code> / <code className="text-gold-400">imperial-admin-2026</code>
-          </div>
-        </Card>
+</Card>
       </div>
     </div>
   );

@@ -18,7 +18,9 @@ export async function syncCodingPlatforms(): Promise<{
   let leetcodeStatus = 'SKIPPED';
   try {
     const stats = await fetchLeetCodeStats();
-    await prisma.codingPlatformProfile.upsert({
+    if (stats.dataSource !== 'LIVE') {
+      await recordUnavailable('LEETCODE', stats.username, stats.profileUrl, stats.syncError);
+    } else await prisma.codingPlatformProfile.upsert({
       where: { platform: 'LEETCODE' },
       create: {
         platform: 'LEETCODE',
@@ -52,7 +54,7 @@ export async function syncCodingPlatforms(): Promise<{
         syncError: stats.syncError ?? null,
       },
     });
-    leetcodeStatus = stats.dataSource === 'LIVE' ? 'LIVE' : 'MOCK';
+    leetcodeStatus = stats.dataSource === 'LIVE' ? 'LIVE' : 'UNAVAILABLE';
   } catch (err) {
     leetcodeStatus = `ERROR: ${err instanceof Error ? err.message : String(err)}`;
     logger.error('CodingPlatformSync', `LeetCode sync failed: ${leetcodeStatus}`);
@@ -62,7 +64,9 @@ export async function syncCodingPlatforms(): Promise<{
   let gfgStatus = 'SKIPPED';
   try {
     const stats = await fetchGFGStats();
-    await prisma.codingPlatformProfile.upsert({
+    if (stats.dataSource !== 'LIVE') {
+      await recordUnavailable('GEEKSFORGEEKS', stats.username, stats.profileUrl, stats.syncError);
+    } else await prisma.codingPlatformProfile.upsert({
       where: { platform: 'GEEKSFORGEEKS' },
       create: {
         platform: 'GEEKSFORGEEKS',
@@ -88,7 +92,7 @@ export async function syncCodingPlatforms(): Promise<{
         syncError: stats.syncError ?? null,
       },
     });
-    gfgStatus = stats.dataSource === 'LIVE' ? 'LIVE' : 'MOCK';
+    gfgStatus = stats.dataSource === 'LIVE' ? 'LIVE' : 'UNAVAILABLE';
   } catch (err) {
     gfgStatus = `ERROR: ${err instanceof Error ? err.message : String(err)}`;
     logger.error('CodingPlatformSync', `GFG sync failed: ${gfgStatus}`);
@@ -96,6 +100,26 @@ export async function syncCodingPlatforms(): Promise<{
 
   logger.info('CodingPlatformSync', `Sync complete. LeetCode: ${leetcodeStatus}, GFG: ${gfgStatus}`);
   return { leetcode: leetcodeStatus, gfg: gfgStatus };
+}
+
+/**
+ * A failed sync must never overwrite the last successful values or its timestamp.
+ * Existing data is kept and flagged STALE; with no prior data the row is UNAVAILABLE.
+ */
+async function recordUnavailable(platform: string, username: string, profileUrl: string, syncError?: string) {
+  const existing = await prisma.codingPlatformProfile.findUnique({ where: { platform } });
+  if (existing && existing.lastSyncedAt) {
+    await prisma.codingPlatformProfile.update({
+      where: { platform },
+      data: { dataSource: existing.dataSource === 'MANUAL' ? 'MANUAL' : 'STALE', syncError: syncError ?? 'Sync failed' },
+    });
+  } else {
+    await prisma.codingPlatformProfile.upsert({
+      where: { platform },
+      create: { platform, username, profileUrl, dataSource: 'UNAVAILABLE', lastSyncedAt: null, syncError: syncError ?? 'Sync failed' },
+      update: { dataSource: 'UNAVAILABLE', syncError: syncError ?? 'Sync failed' },
+    });
+  }
 }
 
 export async function getCodingStats() {

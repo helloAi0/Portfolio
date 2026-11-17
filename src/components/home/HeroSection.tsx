@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BucephalusCanvas } from './BucephalusCanvas';
 import { Button } from '@/components/ui/Button';
 import { resolveIdentitySafety } from '@/lib/identity';
+import { PROFILE } from '@/config/profile';
 import { Github, Linkedin, ArrowRight, ShieldCheck, Cpu, Code2, Sparkles, BookOpen } from 'lucide-react';
 
 export function HeroSection() {
@@ -29,28 +30,30 @@ export function HeroSection() {
                 {identity.displayName.toUpperCase()}
               </h1>
               <p className="text-lg sm:text-2xl font-serif italic text-gold-300 font-light tracking-wide">
-                Architect of Intelligent Systems & Autonomous Robotics
+                {PROFILE.headline}
               </p>
             </div>
 
-            {/* Derived Academic & Identity Specification */}
+            {/* Academic summary (institution shown only once owner-confirmed) */}
             <p className="text-sm sm:text-base text-neutral-300 leading-relaxed font-sans max-w-2xl">
-              Undergraduate engineer at{' '}
-              <span className="text-white font-medium">UEM / IEM Kolkata</span> ({identity.academicStatus.enrollmentYear}–{identity.academicStatus.expectedGraduationYear}), specializing in{' '}
-              <span className="text-gold-300 font-medium">Computer Science & Artificial Intelligence / Machine Learning</span> with an academic minor in{' '}
-              <span className="text-gold-300 font-medium">Cybersecurity</span> and dedicated research focus in{' '}
-              <span className="text-gold-300 font-medium">Autonomous Robotics</span>.
+              B.Tech student in{' '}
+              <span className="text-gold-300 font-medium">Computer Science &amp; Engineering (AI &amp; ML)</span>
+              {identity.academicStatus.institution && (
+                <> at <span className="text-white font-medium">{identity.academicStatus.institution}</span></>
+              )}{' '}
+              ({identity.academicStatus.enrollmentYear}–{identity.academicStatus.expectedGraduationYear}), with a minor in{' '}
+              <span className="text-gold-300 font-medium">Cybersecurity</span> and hands-on learning in{' '}
+              <span className="text-gold-300 font-medium">Robotics</span>.
             </p>
 
             {/* Dynamic Temporal Telemetry Badge */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 pb-2 max-w-xl">
+              {identity.publicAge !== null && (
               <div className="p-3 rounded bg-imperial-900/80 border border-gold-500/20">
-                <span className="block text-[10px] font-mono text-neutral-400 uppercase">Age (Derived)</span>
-                <span className="text-base font-serif font-bold text-white">
-                  {identity.computedAge} Years
-                </span>
-                <span className="block text-[9px] text-gold-400/80 font-mono">Born {identity.birthDateFormatted}</span>
+                <span className="block text-[10px] font-mono text-neutral-400 uppercase">Age</span>
+                <span className="text-base font-serif font-bold text-white">{identity.publicAge} Years</span>
               </div>
+              )}
 
               <div className="p-3 rounded bg-imperial-900/80 border border-gold-500/20">
                 <span className="block text-[10px] font-mono text-neutral-400 uppercase">Progression</span>
@@ -65,7 +68,7 @@ export function HeroSection() {
                 <span className="text-base font-serif font-bold text-white">
                   Cybersecurity
                 </span>
-                <span className="block text-[9px] text-emerald-400 font-mono">Robotics Research</span>
+                <span className="block text-[9px] text-emerald-400 font-mono">Robotics learning</span>
               </div>
             </div>
 
@@ -100,15 +103,18 @@ export function HeroSection() {
                   <Github className="w-5 h-5" />
                 </a>
 
+                {PROFILE.linkedinUrl && (
                 <a
-                  href="https://linkedin.com"
+                  href={PROFILE.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-3 rounded bg-imperial-900 text-neutral-300 hover:text-gold-300 border border-gold-500/20 hover:border-gold-500/60 transition-all shadow-sm"
-                  title="LinkedIn Network"
+                  title="LinkedIn"
+                  aria-label="LinkedIn profile"
                 >
                   <Linkedin className="w-5 h-5" />
                 </a>
+                )}
               </div>
             </div>
           </div>

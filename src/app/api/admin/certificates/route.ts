@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
+import { suggestSkillsFromText } from '@/lib/skills/suggest';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
@@ -25,21 +26,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Title and issuing organization are required.' }, { status: 400 });
     }
 
-    // Auto-suggest skills if not provided
-    let suggestedSkills = skillsCovered;
-    if (!suggestedSkills && description) {
-      const lower = (description + ' ' + title).toLowerCase();
-      const detected: string[] = [];
-      if (lower.includes('python')) detected.push('python');
-      if (lower.includes('c++') || lower.includes('cpp')) detected.push('cpp');
-      if (lower.includes('robot')) detected.push('robotics');
-      if (lower.includes('ros')) detected.push('ros2');
-      if (lower.includes('security') || lower.includes('cyber')) detected.push('cybersecurity');
-      if (lower.includes('machine learning') || lower.includes('ml')) detected.push('machine-learning');
-      if (lower.includes('ai') || lower.includes('artificial intelligence')) detected.push('artificial-intelligence');
-      if (lower.includes('react') || lower.includes('web')) detected.push('javascript');
-      suggestedSkills = JSON.stringify(detected);
-    }
+    // Suggest skills (whole-word, owner confirms) when none were provided.
+    const suggestedSkills = skillsCovered ?? JSON.stringify(suggestSkillsFromText(`${title} ${description ?? ''}`));
+
+    // File upload is NOT IMPLEMENTED: no storage backend yet. Only an https link to an externally hosted file is accepted.
+    const safeFilePath = typeof filePath === 'string' && /^https:\/\//i.test(filePath) ? filePath : null;
 
     const certificate = await prisma.certificate.create({
       data: {
@@ -51,7 +42,7 @@ export async function POST(req: NextRequest) {
         credentialUrl: credentialUrl ? credentialUrl.trim() : null,
         description: description ? description.trim() : null,
         skillsCovered: suggestedSkills || null,
-        filePath: filePath || null,
+        filePath: safeFilePath,
         fileType: fileType || null,
         isPublic: Boolean(isPublic),
         ownerApproved: Boolean(ownerApproved),

@@ -7,12 +7,13 @@
  *
  * This adapter:
  * 1. Attempts the public GraphQL endpoint with a known-safe query.
- * 2. Falls back gracefully to MOCK data labeled as such.
+ * 2. On failure reports UNAVAILABLE (never fabricated numbers).
  * 3. Never scrapes authenticated pages or stores credentials.
  * 4. Clearly marks unavailable metrics with null.
  *
- * IMPORTANT: If LeetCode blocks this endpoint, the adapter returns mock data
- * so the portfolio does not break.
+ * IMPORTANT: this endpoint is unofficial and best-effort. If LeetCode blocks it,
+ * the adapter reports UNAVAILABLE with an error message and the previously synced
+ * values (if any) are kept and shown as stale. No values are ever invented.
  */
 
 import { logger } from '@/lib/logger';
@@ -32,14 +33,14 @@ export interface LeetCodeStats {
   contributionPoints: number | null;
   badges: string[];
   recentSubmissions: string[];
-  dataSource: 'LIVE' | 'MOCK';
+  dataSource: 'LIVE' | 'UNAVAILABLE';
   lastSyncedAt: Date;
   syncError?: string;
 }
 
-const MOCK_LEETCODE_STATS: LeetCodeStats = {
-  username: LEETCODE_USERNAME || 'helloAi0',
-  profileUrl: `https://leetcode.com/${LEETCODE_USERNAME || 'helloAi0'}`,
+const UNAVAILABLE_LEETCODE_STATS: LeetCodeStats = {
+  username: LEETCODE_USERNAME,
+  profileUrl: LEETCODE_USERNAME ? `https://leetcode.com/${LEETCODE_USERNAME}` : '',
   totalSolved: null,
   easySolved: null,
   mediumSolved: null,
@@ -49,17 +50,17 @@ const MOCK_LEETCODE_STATS: LeetCodeStats = {
   contributionPoints: null,
   badges: [],
   recentSubmissions: [],
-  dataSource: 'MOCK',
+  dataSource: 'UNAVAILABLE',
   lastSyncedAt: new Date(),
-  syncError: 'LeetCode public API unavailable or username not configured. Configure LEETCODE_USERNAME in .env to enable live sync.',
+  syncError: 'LeetCode username not configured (set LEETCODE_USERNAME).',
 };
 
 export async function fetchLeetCodeStats(): Promise<LeetCodeStats> {
   const username = process.env.LEETCODE_USERNAME;
 
   if (!username) {
-    logger.warn('LeetCodeAdapter', 'LEETCODE_USERNAME not configured. Using mock data.');
-    return MOCK_LEETCODE_STATS;
+    logger.warn('LeetCodeAdapter', 'LEETCODE_USERNAME not configured. Reporting UNAVAILABLE.');
+    return UNAVAILABLE_LEETCODE_STATS;
   }
 
   // Attempt public GraphQL query
@@ -138,8 +139,8 @@ export async function fetchLeetCodeStats(): Promise<LeetCodeStats> {
     return result;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    logger.warn('LeetCodeAdapter', `Live fetch failed: ${errMsg}. Returning mock.`);
-    return { ...MOCK_LEETCODE_STATS, syncError: `Live sync failed: ${errMsg}` };
+    logger.warn('LeetCodeAdapter', `Live fetch failed: ${errMsg}. Reporting UNAVAILABLE.`);
+    return { ...UNAVAILABLE_LEETCODE_STATS, syncError: `Live sync failed: ${errMsg}` };
   }
 }
 

@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  // Protect reconciliation endpoint if secret configured
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Fail closed: without a configured secret nobody can trigger reconciliation.
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized reconciliation trigger' }, { status: 401 });
   }
 

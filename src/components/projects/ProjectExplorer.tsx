@@ -16,7 +16,7 @@ export function ProjectExplorer({ initialProjects, categories }: ProjectExplorer
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const difficulties = ['ALL', 'Foundational', 'Intermediate', 'Advanced', 'Imperial'];
+  const difficulties = ['ALL', 'Foundational', 'Beginner', 'Intermediate', 'Advanced', 'Research-oriented'];
 
   const filteredProjects = useMemo(() => {
     return initialProjects.filter((p) => {

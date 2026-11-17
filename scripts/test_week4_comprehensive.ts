@@ -45,7 +45,8 @@ async function runWeek4ComprehensiveSuite() {
       prisma.skill.count(),
       prisma.profile.count(),
     ]);
-    assert('Core portfolio entities exist in database', projectCount > 0 && skillCount > 0 && profileCount > 0);
+    // Projects come from GitHub sync, so a fresh database legitimately has none.
+    assert('Core profile and skill records exist in database', skillCount > 0 && profileCount > 0, { projectCount });
 
     // -------------------------------------------------------------
     // MODULE 2: CONTACT SYSTEM & NOTIFICATION ENGINE
@@ -137,11 +138,11 @@ async function runWeek4ComprehensiveSuite() {
     assert('Secret probing attempt is trapped by guardrails', secCheck.isPrivateDataRequest === true && !secCheck.isSafe);
 
     // Grounded knowledge retrieval
-    const ragResult = await retrieveVerifiedKnowledge('What robotics and ROS 2 work has Sahil done?');
+    const ragResult = await retrieveVerifiedKnowledge('Tell me about Taha and his education');
     assert('Verified RAG retrieval finds grounding chunks', ragResult.chunks.length > 0 && ragResult.relevanceScore > 0);
 
     const lamoVerified = await generateLamoResponse({
-      question: 'What robotics and ROS 2 work has Sahil done?',
+      question: 'Tell me about Taha and his education',
       retrievedChunks: ragResult.chunks,
       relevanceScore: ragResult.relevanceScore,
     });
@@ -150,7 +151,7 @@ async function runWeek4ComprehensiveSuite() {
 
     // Strict missing information handling
     const unknownTopic = `Neuromorphic Microcode ${Date.now()}`;
-    const unknownQuestion = `Has Sahil developed microcode for ${unknownTopic}?`;
+    const unknownQuestion = `Has Taha developed microcode for ${unknownTopic}?`;
     const unknownRag = await retrieveVerifiedKnowledge(unknownQuestion);
     const lamoUnknown = await generateLamoResponse({
       question: unknownQuestion,
@@ -165,10 +166,10 @@ async function runWeek4ComprehensiveSuite() {
     // -------------------------------------------------------------
     console.log('\n--- MODULE 5: Coding Arena Provider Adapters ---');
     const leetProfile = await fetchLeetCodeStats();
-    assert('LeetCode adapter returns valid schema and profile structure', !!leetProfile && ('totalSolved' in leetProfile) && (leetProfile.dataSource === 'LIVE' || leetProfile.dataSource === 'MOCK'));
+    assert('LeetCode adapter returns valid schema and profile structure', !!leetProfile && ('totalSolved' in leetProfile) && (leetProfile.dataSource === 'LIVE' || leetProfile.dataSource === 'UNAVAILABLE'));
 
     const gfgProfile = await fetchGFGStats();
-    assert('GeeksforGeeks adapter returns valid schema and profile structure', !!gfgProfile && ('totalSolved' in gfgProfile) && (gfgProfile.dataSource === 'LIVE' || gfgProfile.dataSource === 'MOCK'));
+    assert('GeeksforGeeks adapter returns valid schema and profile structure', !!gfgProfile && ('totalSolved' in gfgProfile) && (gfgProfile.dataSource === 'LIVE' || gfgProfile.dataSource === 'UNAVAILABLE'));
 
     // -------------------------------------------------------------
     // MODULE 6: ADMIN CITADEL & COPILOT SERVICES

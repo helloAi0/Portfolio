@@ -1,121 +1,109 @@
 /**
- * Imperial Identity Verification & Dynamic Temporal Computation
+ * Identity resolution and dynamic temporal computation (server-side only).
  *
- * Enforces dynamic calculations of age, graduation progress,
- * and maintains strict identity verification guardrails.
+ * The date of birth never leaves this module: callers get a derived age, and only
+ * when the owner has enabled public age display.
  */
+
+import { PROFILE } from '@/config/profile';
 
 export interface DynamicIdentity {
   displayName: string;
   contactEmail: string;
-  dateOfBirth: Date;
-  computedAge: number;
-  birthDateFormatted: string;
+  /** Age in years, or null when age display is disabled or no birth date is configured. */
+  publicAge: number | null;
   academicStatus: {
-    institution: string;
+    institution: string | null;
     degree: string;
     field: string;
     minor: string;
     enrollmentYear: number;
     expectedGraduationYear: number;
     currentAcademicYear: string;
-    isDerivedStatus: boolean;
+    progressPercent: number;
   };
   identityVerification: {
-    status: 'VERIFIED' | 'PENDING_OWNER_CONFIRMATION' | 'DISCREPANCY_FLAGGED';
+    status: 'VERIFIED' | 'PENDING_OWNER_CONFIRMATION';
     isOwnerConfirmed: boolean;
-    flagReason: string;
-    safetyNotice: string;
+    pendingItems: string[];
   };
 }
 
-/**
- * Calculates exact age dynamically from the given birth date.
- * Never hardcodes the age.
- */
-export function calculateDynamicAge(birthDate: Date | string): number {
-  const dob = typeof birthDate === 'string' ? new Date(birthDate) : birthDate;
-  const today = new Date();
-  
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  
-  return age;
+/** Current calendar date parts in the Asia/Kolkata timezone. */
+export function getKolkataDateParts(now: Date = new Date()): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PROFILE.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { year: get('year'), month: get('month'), day: get('day') };
 }
 
 /**
- * Computes current academic standing dynamically based on enrollment year (2024)
- * and expected graduation year (2028).
+ * Exact age in whole years for a YYYY-MM-DD birth date, evaluated on the current
+ * date in Asia/Kolkata. Returns null for an invalid date.
  */
-export function deriveAcademicStanding(startYear: number = 2024, endYear: number = 2028): {
-  yearName: string;
-  semesterRange: string;
-  progressPercent: number;
-} {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed (0 = Jan, 6 = Jul, etc.)
+export function calculateAge(birthDate: string, now: Date = new Date()): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate.trim());
+  if (!m) return null;
+  const [by, bm, bd] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const today = getKolkataDateParts(now);
+  let age = today.year - by;
+  if (today.month < bm || (today.month === bm && today.day < bd)) age--;
+  return age >= 0 && age < 130 ? age : null;
+}
 
-  // Academic year typically rolls over around July/August
-  const effectiveYearOffset = currentMonth >= 6 ? currentYear - startYear + 1 : currentYear - startYear;
-  
-  const clampedYear = Math.max(1, Math.min(4, effectiveYearOffset));
+/** Derives the academic year from the enrollment window (rolls over in July). */
+export function deriveAcademicStanding(
+  startYear: number,
+  endYear: number,
+  now: Date = new Date()
+): { yearName: string; progressPercent: number } {
+  const { year, month } = getKolkataDateParts(now);
+  const offset = month >= 7 ? year - startYear + 1 : year - startYear;
   const totalYears = endYear - startYear;
-  const progressPercent = Math.min(100, Math.max(0, Math.round(((clampedYear - 0.5) / totalYears) * 100)));
-
-  const yearNames = ['1st Year (Freshman)', '2nd Year (Sophomore)', '3rd Year (Junior)', '4th Year (Senior)'];
-  const semRanges = ['Semesters 1 - 2', 'Semesters 3 - 4', 'Semesters 5 - 6', 'Semesters 7 - 8'];
-
+  const clamped = Math.max(1, Math.min(totalYears, offset));
+  const names = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
   return {
-    yearName: yearNames[clampedYear - 1] || 'Undergraduate Candidate',
-    semesterRange: semRanges[clampedYear - 1] || 'Academic Track',
-    progressPercent,
+    yearName: names[clamped - 1] || 'Undergraduate',
+    progressPercent: Math.round(((clamped - 0.5) / totalYears) * 100),
   };
 }
 
-/**
- * Resolves verified identity metadata and flags any name/mailbox discrepancy
- * for explicit administrator/owner signoff prior to public deployment.
- */
 export function resolveIdentitySafety(): DynamicIdentity {
-  const dob = new Date('2006-11-02T00:00:00.000Z');
-  const computedAge = calculateDynamicAge(dob);
-  const academicStanding = deriveAcademicStanding(2024, 2028);
+  const showAge = process.env.OWNER_SHOW_PUBLIC_AGE === 'true';
+  const birth = process.env.OWNER_BIRTH_DATE || '';
+  const publicAge = showAge && birth ? calculateAge(birth) : null;
 
-  const displayName = process.env.OWNER_DISPLAY_NAME || 'Sahil Depurwala';
-  const contactEmail = process.env.OWNER_CONTACT_EMAIL || 'tahaudaipurwala68@gmail.com';
-  const verificationStatusEnv = process.env.IDENTITY_VERIFICATION_STATUS || 'PENDING_OWNER_CONFIRMATION';
+  const standing = deriveAcademicStanding(PROFILE.education.startYear, PROFILE.education.endYear);
 
-  const isOwnerConfirmed = verificationStatusEnv === 'VERIFIED';
+  // Controlled identity-verification step: the owner flips this after reviewing the profile.
+  const isOwnerConfirmed = process.env.IDENTITY_VERIFICATION_STATUS === 'VERIFIED';
+  const pendingItems: string[] = [];
+  if (!PROFILE.education.institution) pendingItems.push('Awarding institution not yet confirmed (OWNER_INSTITUTION)');
+  if (!PROFILE.linkedinUrl) pendingItems.push('LinkedIn profile URL not set (LINKEDIN_PROFILE_URL)');
+  if (!birth) pendingItems.push('Birth date not set (OWNER_BIRTH_DATE) - age cannot be computed');
 
   return {
-    displayName,
-    contactEmail,
-    dateOfBirth: dob,
-    computedAge,
-    birthDateFormatted: '2 November 2006',
+    displayName: PROFILE.displayName,
+    contactEmail: PROFILE.contactEmail,
+    publicAge,
     academicStatus: {
-      institution: 'University of Engineering and Management / Institute of Engineering and Management (UEM / IEM), Kolkata',
-      degree: 'B.Tech',
-      field: 'Computer Science and Engineering (Artificial Intelligence & Machine Learning)',
-      minor: 'Cybersecurity',
-      enrollmentYear: 2024,
-      expectedGraduationYear: 2028,
-      currentAcademicYear: academicStanding.yearName,
-      isDerivedStatus: true,
+      institution: PROFILE.education.institution,
+      degree: PROFILE.education.degree,
+      field: PROFILE.education.field,
+      minor: PROFILE.education.minor,
+      enrollmentYear: PROFILE.education.startYear,
+      expectedGraduationYear: PROFILE.education.endYear,
+      currentAcademicYear: standing.yearName,
+      progressPercent: standing.progressPercent,
     },
     identityVerification: {
       status: isOwnerConfirmed ? 'VERIFIED' : 'PENDING_OWNER_CONFIRMATION',
       isOwnerConfirmed,
-      flagReason:
-        'Discrepancy detected between display name (Sahil Depurwala) and email mailbox prefix (tahaudaipurwala68). Separate configuration fields maintained pending owner confirmation before public deployment.',
-      safetyNotice:
-        'IDENTITY SAFETY PROTOCOL ACTIVE: Contact email and display name have distinct identifiers. Do not unify without cryptographic or explicit administrative confirmation.',
+      pendingItems,
     },
   };
 }
-

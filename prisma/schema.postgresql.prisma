@@ -14,14 +14,13 @@ datasource db {
 
 model Profile {
   id                         String   @id @default(cuid())
-  displayName                String   @default("Sahil Depurwala")
+  displayName                String   @default("Taha Udaipurwala")
   contactEmail               String   @default("tahaudaipurwala68@gmail.com")
-  headline                   String   @default("Imperial Engineering & AI Architecture")
+  headline                   String   @default("Aspiring AI/ML and Robotics Engineer")
   bio                        String
-  dateOfBirth                DateTime
   location                   String   @default("Kolkata, West Bengal, India")
   githubUrl                  String   @default("https://github.com/helloAi0")
-  linkedinUrl                String   @default("https://linkedin.com")
+  linkedinUrl                String?
   identityVerificationStatus String   @default("PENDING_OWNER_CONFIRMATION")
   identityFlagNotes          String?
   createdAt                  DateTime @default(now())
@@ -37,8 +36,9 @@ model Education {
   field              String?
   minor              String?
   additionalInterest String?
-  location           String
-  startYear          Int
+  location           String?
+  startYear          Int?
+  verificationStatus String   @default("OWNER_REVIEW_REQUIRED")
   endYear            Int?
   isCurrent          Boolean  @default(false)
   graduationStatus   String
@@ -76,7 +76,9 @@ model Project {
   categoryId             String
   category               ProjectCategory @relation(fields: [categoryId], references: [id])
   subcategory            String
-  difficulty             String          @default("Advanced")
+  difficulty             String          @default("Unrated")
+  difficultyConfirmed    Boolean         @default(false)
+  reviewNote             String?
   githubRepo             String?
   liveDeployment         String?
   demoVideoUrl           String?
@@ -175,10 +177,28 @@ model GithubRepository {
   suggestedSkills        String?
   classificationScore    Float    @default(0.0)
   classificationNotes    String?
+  secondaryCategories    String?  // JSON array of category slugs
+  technologyTags         String?  // JSON array
+  liveUrlCandidates      String?  // JSON array of {url, source, reachable, checkedAt}
+  suggestedDifficulty    String?
+  complexityScore        Int?
+  complexityEvidence     String?  // JSON array of human-readable evidence lines
+  ownerOverride          Boolean  @default(false) // owner corrected the classification; sync must not overwrite it
+  missingSince           DateTime? // set when the repo vanished or became private
   linkedProjectId        String?
   lastSyncedAt     DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+// Idempotency record: GitHub redelivers webhooks; each delivery id is processed once.
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  deliveryId String   @unique
+  event      String
+  repoName   String?
+  status     String   @default("RECEIVED")
+  receivedAt DateTime @default(now())
 }
 
 // ============================================================
@@ -200,7 +220,7 @@ model CodingPlatformProfile {
   badges          String?
   recentActivity  String?
   rawData         String?
-  dataSource      String    @default("MOCK")
+  dataSource      String    @default("UNAVAILABLE")
   lastSyncedAt    DateTime?
   syncError       String?
   createdAt       DateTime  @default(now())

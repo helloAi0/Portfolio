@@ -18,7 +18,7 @@ export const LINKEDIN_INTEGRATION_STATUS = {
   connected: false,
   reason: 'LinkedIn personal post API requires OAuth application approval. Using manual import mode.',
   profileUrlConfigured: !!process.env.LINKEDIN_PROFILE_URL,
-  profileUrl: process.env.LINKEDIN_PROFILE_URL || 'https://linkedin.com',
+  profileUrl: process.env.LINKEDIN_PROFILE_URL?.trim() || null,
   apiAccessMode: 'MANUAL_IMPORT' as 'MANUAL_IMPORT' | 'OAUTH_LIVE',
 };
 

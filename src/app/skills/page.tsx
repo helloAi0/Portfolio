@@ -25,6 +25,10 @@ function parseSources(src: string | null): string[] {
 }
 
 const levelBadgeMap: Record<string, { label: string; variant: 'verified' | 'gold' | 'bronze' | 'detected' | 'neutral' }> = {
+  OWNER_VERIFIED: { label: 'Owner stated', variant: 'gold' },
+  PROJECT_DEMONSTRATED: { label: 'Demonstrated in a project', variant: 'verified' },
+  REPOSITORY_DETECTED: { label: 'Detected in a repository', variant: 'neutral' },
+  IN_PROGRESS: { label: 'In progress', variant: 'bronze' },
   DEMONSTRATED: { label: 'Demonstrated in Projects', variant: 'verified' },
   OWNER_CONFIRMED: { label: 'Owner Confirmed', variant: 'gold' },
   PRACTICING: { label: 'Practicing', variant: 'bronze' },
@@ -41,7 +45,7 @@ export default async function SkillsPage() {
 
       <SectionHeading
         eyebrow="Dynamic Intelligence Graph"
-        title="Evidence-Based Skill Graph & Verification Hierarchy"
+        title="Skills and the Evidence Behind Them"
         description="Every skill is graded across five objective tiers: Demonstrated through Projects, Owner Confirmed, Practicing, Learning, and Repository-Detected. Automatic repository discovery is never equated with mastery."
       />
 
@@ -59,11 +63,11 @@ export default async function SkillsPage() {
           <div className="flex items-center space-x-1.5 mb-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-[10px] font-mono uppercase text-emerald-400">
-              Demonstrated / Verified
+              Owner-stated or demonstrated
             </span>
           </div>
           <span className="text-3xl font-serif font-black text-emerald-300">{verifiedCount}</span>
-          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Backed by project architecture</span>
+          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Backed by a project or owner confirmation</span>
         </Card>
 
         <Card variant="marble" className="p-5 border-gold-500/30">
@@ -74,9 +78,9 @@ export default async function SkillsPage() {
             </span>
           </div>
           <span className="text-3xl font-serif font-black text-gold-300">
-            {all.filter((s: any) => s.level === 'PRACTICING' || s.level === 'LEARNING').length}
+            {all.filter((s: any) => s.level === 'PRACTICING' || s.level === 'LEARNING' || s.level === 'IN_PROGRESS').length}
           </span>
-          <span className="text-[10px] font-mono text-neutral-500 block mt-1">In active laboratory progression</span>
+          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Currently learning</span>
         </Card>
 
         <Card variant="marble" className="p-5 border-amber-500/30">
@@ -87,7 +91,7 @@ export default async function SkillsPage() {
             </span>
           </div>
           <span className="text-3xl font-serif font-black text-amber-300">{detectedCount}</span>
-          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Discovered in repository topics</span>
+          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Found in repositories, not yet reviewed</span>
         </Card>
       </div>
 
@@ -104,7 +108,6 @@ export default async function SkillsPage() {
               {skills.map((skill: any) => {
                 const levelInfo = levelBadgeMap[skill.level] || { label: skill.level || 'DETECTED', variant: 'neutral' };
                 const sources = parseSources(skill.evidenceSources);
-                const confidencePct = Math.round((skill.confidenceScore || 0.5) * 100);
 
                 return (
                   <Card key={skill.id} variant="marble" className="p-6 flex flex-col justify-between">
@@ -119,22 +122,8 @@ export default async function SkillsPage() {
                       </div>
 
                       <p className="text-[11px] font-mono text-gold-400 mb-3">
-                        {skill.category} • Tier: {skill.proficiencyLevel}
+                        {skill.category}
                       </p>
-
-                      {/* Confidence Score Bar */}
-                      <div className="mb-4">
-                        <div className="flex justify-between text-[10px] font-mono mb-1">
-                          <span className="text-neutral-400">Evidence Confidence:</span>
-                          <span className="text-gold-300 font-bold">{confidencePct}%</span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full bg-imperial-950 border border-gold-500/20 overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-gold-600 to-gold-400 rounded-full"
-                            style={{ width: `${confidencePct}%` }}
-                          />
-                        </div>
-                      </div>
 
                       {skill.evidenceNotes && (
                         <p className="text-xs text-neutral-400 leading-normal mb-3 font-sans">

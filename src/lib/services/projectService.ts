@@ -10,7 +10,8 @@ export interface ProjectFilterOptions {
 
 export async function getProjects(filters?: ProjectFilterOptions) {
   try {
-    const whereClause: any = {};
+    // Only owner-approved projects are ever public; PENDING_REVIEW / REJECTED stay in the admin queue.
+    const whereClause: any = { approvalStatus: 'APPROVED' };
 
     if (filters?.featuredOnly) {
       whereClause.featured = true;
@@ -62,8 +63,8 @@ export async function getProjects(filters?: ProjectFilterOptions) {
 
 export async function getProjectBySlug(slug: string) {
   try {
-    const project = await prisma.project.findUnique({
-      where: { slug },
+    const project = await prisma.project.findFirst({
+      where: { slug, approvalStatus: 'APPROVED' },
       include: {
         category: {
           include: {
@@ -99,7 +100,7 @@ export async function getProjectCategories() {
       include: {
         children: true,
         _count: {
-          select: { projects: true },
+          select: { projects: { where: { approvalStatus: 'APPROVED' } } },
         },
       },
       orderBy: { orderIndex: 'asc' },

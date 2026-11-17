@@ -5,11 +5,12 @@
 
 import { prisma } from '@/lib/prisma';
 import { resolveIdentitySafety } from '@/lib/identity';
+import { PROFILE } from '@/config/profile';
 import { RetrievedKnowledgeChunk, VerificationTier } from './types';
 import { logger } from '@/lib/logger';
 
 const STOP_WORDS = new Set([
-  'sahil', 'depurwala', 'does', 'has', 'have', 'had', 'what', 'tell', 'about',
+  'taha', 'udaipurwala', 'does', 'has', 'have', 'had', 'what', 'tell', 'about',
   'with', 'for', 'from', 'this', 'that', 'they', 'his', 'him', 'her', 'how',
   'can', 'could', 'would', 'should', 'are', 'was', 'were', 'been', 'being',
   'show', 'give', 'any', 'all', 'some', 'the', 'and', 'not', 'but', 'you', 'your'
@@ -35,7 +36,16 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
       source: 'Profile:Identity',
       category: 'Identity',
       title: `${identity.displayName} — Professional Identity`,
-      content: `Name: ${identity.displayName}. Age: ${identity.computedAge} years (dynamically derived from birth date ${identity.birthDateFormatted}). Headline: Architect of Intelligent Systems | AI & Autonomous Robotics. Location: Kolkata, West Bengal, India. Academic Standing: ${identity.academicStatus.currentAcademicYear} B.Tech at UEM / IEM Kolkata (Class of 2024–2028). Specialization: Computer Science & Engineering (Artificial Intelligence and Machine Learning). Academic Minor: Cybersecurity. Core research focus: Autonomous Robotics (ROS 2 & SLAM).`,
+      content: [
+        `Name: ${identity.displayName}.`,
+        `Headline: ${PROFILE.headline}.`,
+        `Location: ${PROFILE.location}.`,
+        `Studying: ${identity.academicStatus.degree} in ${identity.academicStatus.field} (${identity.academicStatus.enrollmentYear}-${identity.academicStatus.expectedGraduationYear}), currently in the ${identity.academicStatus.currentAcademicYear}.`,
+        identity.academicStatus.institution ? `Institution: ${identity.academicStatus.institution}.` : '',
+        `Minor: ${identity.academicStatus.minor}. Additional learning in Robotics.`,
+        identity.publicAge !== null ? `Age: ${identity.publicAge}.` : '',
+        `Contact: ${identity.contactEmail}. GitHub: ${PROFILE.github.url}.`,
+      ].filter(Boolean).join(' '),
       verificationStatus: 'VERIFIED',
       confidenceScore: 1.0,
       visibility: 'PUBLIC',
@@ -52,10 +62,10 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
         id: `education:${edu.id}`,
         source: `Education:${edu.institutionAcronym || edu.institution}`,
         category: 'Education',
-        title: `${edu.institution} (${edu.startYear}–${edu.endYear || 'Present'})`,
-        content: `Institution: ${edu.institution}. Degree: ${edu.degree || 'Secondary'}. Field: ${edu.field || 'General'}. Minor: ${edu.minor || 'None'}. Status: ${edu.graduationStatus}. Location: ${edu.location}. Verified academic enrollment.`,
-        verificationStatus: 'VERIFIED',
-        confidenceScore: 0.98,
+        title: edu.startYear ? `${edu.institution} (${edu.startYear}–${edu.endYear || 'Present'})` : edu.institution,
+        content: `Institution: ${edu.institution}. ${edu.degree ? `Degree: ${edu.degree}. ` : ''}${edu.field ? `Field: ${edu.field}. ` : ''}${edu.minor ? `Minor: ${edu.minor}. ` : ''}Status: ${edu.graduationStatus}. ${edu.startYear ? `Years: ${edu.startYear}-${edu.endYear ?? 'present'}.` : 'Dates not published.'}`,
+        verificationStatus: edu.verificationStatus === 'OWNER_REVIEW_REQUIRED' ? 'IN_PROGRESS' : 'OWNER_CONFIRMED',
+        confidenceScore: 0.9,
         visibility: 'PUBLIC',
         lastUpdated: edu.updatedAt.toISOString(),
         urlPath: '/education',
@@ -78,7 +88,7 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
         source: `Project:${proj.title}`,
         category: proj.category.name,
         title: proj.title,
-        content: `Title: ${proj.title}. Category: ${proj.category.name} (${proj.subcategory}). Difficulty: ${proj.difficulty}. Status: ${proj.status}. Tagline: ${proj.tagline}. Problem: ${proj.problemStatement}. Solution: ${proj.solution}. Key Features: ${proj.keyFeatures}. Challenges: ${proj.challenges}. Results: ${proj.results}. Technologies used: ${skillsList}. GitHub: ${proj.githubRepo || 'Available upon request'}. Live demo: ${proj.liveDeployment || 'Local laboratory testbed'}.`,
+        content: `Title: ${proj.title}. Category: ${proj.category.name} (${proj.subcategory}). Difficulty: ${proj.difficulty}. Status: ${proj.status}. Tagline: ${proj.tagline}. Problem: ${proj.problemStatement}. Solution: ${proj.solution}. Key Features: ${proj.keyFeatures}. Challenges: ${proj.challenges}. Results: ${proj.results}. Technologies used: ${skillsList}. GitHub: ${proj.githubRepo || 'none listed'}. Live demo: ${proj.liveDeployment || 'none listed'}.`,
         verificationStatus: 'VERIFIED',
         confidenceScore: 0.95,
         visibility: 'PUBLIC',
@@ -89,16 +99,26 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
 
     // 4. Skills Taxonomy
     const skills = await prisma.skill.findMany({
+      where: { level: { notIn: ['DETECTED', 'REPOSITORY_DETECTED'] } },
       orderBy: [{ verified: 'desc' }, { domain: 'asc' }],
     });
     for (const sk of skills) {
-      const vStatus: VerificationTier = sk.verified ? 'VERIFIED' : sk.level === 'LEARNING' || sk.level === 'PRACTICING' ? 'IN_PROGRESS' : 'OWNER_CONFIRMED';
+      const vStatus: VerificationTier =
+        sk.level === 'PROJECT_DEMONSTRATED' || sk.level === 'DEMONSTRATED' || sk.verified
+          ? 'VERIFIED'
+          : sk.level === 'OWNER_VERIFIED' || sk.level === 'OWNER_CONFIRMED'
+            ? 'OWNER_CONFIRMED'
+            : 'IN_PROGRESS';
+      const stateText =
+        vStatus === 'VERIFIED' ? 'demonstrated in project work'
+        : vStatus === 'OWNER_CONFIRMED' ? 'stated by the owner, not yet backed by a listed project'
+        : 'currently being learned';
       chunks.push({
         id: `skill:${sk.slug}`,
         source: `Skill:${sk.name}`,
         category: sk.domain,
         title: `${sk.name} (${sk.domain})`,
-        content: `Skill: ${sk.name}. Domain: ${sk.domain}. Category: ${sk.category}. Subcategory: ${sk.subcategory || 'Core'}. Evidence Level: ${sk.level}. Verified: ${sk.verified ? 'Yes' : 'In Progress'}. Confidence: ${(sk.confidenceScore * 100).toFixed(0)}%. Notes: ${sk.evidenceNotes || 'Demonstrated in engineering repositories'}.`,
+        content: `Skill: ${sk.name}. Domain: ${sk.domain}. Status: ${stateText}.${sk.evidenceNotes ? ` Notes: ${sk.evidenceNotes}` : ''}`,
         verificationStatus: vStatus,
         confidenceScore: sk.confidenceScore,
         visibility: 'PUBLIC',
@@ -108,15 +128,17 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
     }
 
     // 5. Coding Platform Stats
-    const codingProfiles = await prisma.codingPlatformProfile.findMany();
+    const codingProfiles = await prisma.codingPlatformProfile.findMany({
+      where: { totalSolved: { not: null }, lastSyncedAt: { not: null } },
+    });
     for (const cp of codingProfiles) {
       chunks.push({
         id: `coding:${cp.platform}`,
         source: `CodingPlatform:${cp.platform}`,
         category: 'Coding Arena',
-        title: `${cp.platform} Competitive Metrics`,
-        content: `Platform: ${cp.platform} (@${cp.username}). Total Solved: ${cp.totalSolved ?? 'N/A'}. Easy: ${cp.easySolved ?? 'N/A'}. Medium: ${cp.mediumSolved ?? 'N/A'}. Hard: ${cp.hardSolved ?? 'N/A'}. Contest Rating: ${cp.contestRating ?? 'Unrated'}. Global Rank: ${cp.globalRanking ? '#' + cp.globalRanking : 'N/A'}. Badges: ${cp.badges || 'None'}. Data Mode: ${cp.dataSource}.`,
-        verificationStatus: 'VERIFIED',
+        title: `${cp.platform} statistics`,
+        content: `Platform: ${cp.platform} (@${cp.username}). Problems solved: ${cp.totalSolved}${cp.easySolved !== null ? ` (Easy ${cp.easySolved}, Medium ${cp.mediumSolved}, Hard ${cp.hardSolved})` : ''}. Last successful sync: ${cp.lastSyncedAt?.toISOString()}${cp.dataSource === 'STALE' ? ' (latest sync failed, figures may be out of date)' : ''}.`,
+        verificationStatus: cp.dataSource === 'MANUAL' ? 'OWNER_CONFIRMED' : 'VERIFIED',
         confidenceScore: 0.9,
         visibility: 'PUBLIC',
         lastUpdated: cp.updatedAt.toISOString(),
@@ -134,8 +156,8 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
         source: `Certificate:${cert.title}`,
         category: 'Certifications',
         title: `${cert.title} — ${cert.issuingOrganization}`,
-        content: `Certificate: ${cert.title}. Issuing Organization: ${cert.issuingOrganization}. Issue Date: ${cert.issueDate?.toLocaleDateString() || 'N/A'}. Credential ID: ${cert.credentialId || 'N/A'}. Verification Status: ${cert.verificationStatus}. Description: ${cert.description || 'Verified institutional certification'}. Skills covered: ${cert.skillsCovered || 'N/A'}.`,
-        verificationStatus: 'VERIFIED',
+        content: `Certificate: ${cert.title}. Issuing Organization: ${cert.issuingOrganization}. Issue Date: ${cert.issueDate?.toLocaleDateString() || 'N/A'}. Credential ID: ${cert.credentialId || 'N/A'}. Verification Status: ${cert.verificationStatus}. Description: ${cert.description || 'No description provided'}. Skills covered: ${cert.skillsCovered || 'not listed'}.`,
+        verificationStatus: cert.verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'OWNER_CONFIRMED',
         confidenceScore: 0.95,
         visibility: 'PUBLIC',
         lastUpdated: cert.updatedAt.toISOString(),
@@ -172,7 +194,7 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
         source: `Experience:${exp.roleTitle}`,
         category: 'Work Experience',
         title: `${exp.roleTitle} at ${exp.organization}`,
-        content: `Role: ${exp.roleTitle}. Organization: ${exp.organization} (${exp.organizationType}). Duration: ${exp.startDate.toLocaleDateString()} to ${exp.isCurrent ? 'Present' : exp.endDate?.toLocaleDateString() || 'N/A'}. Location: ${exp.location || 'Kolkata'}. Description: ${exp.description}. Key Contributions: ${exp.keyContributions || 'N/A'}.`,
+        content: `Role: ${exp.roleTitle}. Organization: ${exp.organization} (${exp.organizationType}). Duration: ${exp.startDate.toLocaleDateString()} to ${exp.isCurrent ? 'Present' : exp.endDate?.toLocaleDateString() || 'N/A'}. Location: ${exp.location || 'not specified'}. Description: ${exp.description}. Key Contributions: ${exp.keyContributions || 'N/A'}.`,
         verificationStatus: exp.verified ? 'VERIFIED' : 'OWNER_CONFIRMED',
         confidenceScore: 0.92,
         visibility: 'PUBLIC',
@@ -275,11 +297,11 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
       }
     }
     if (queryLower.includes('cyber') || queryLower.includes('security')) {
-      if (chunk.category.toLowerCase().includes('cyber') || chunk.title.toLowerCase().includes('cipher')) {
+      if (chunk.category.toLowerCase().includes('cyber') ) {
         score += 10;
       }
     }
-    if (queryLower.includes('education') || queryLower.includes('college') || queryLower.includes('school') || queryLower.includes('degree') || queryLower.includes('uem')) {
+    if (queryLower.includes('education') || queryLower.includes('college') || queryLower.includes('school') || queryLower.includes('degree')) {
       if (chunk.category === 'Education') {
         score += 12;
       }

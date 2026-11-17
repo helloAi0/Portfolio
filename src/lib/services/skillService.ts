@@ -32,8 +32,8 @@ export async function getSkillTaxonomy() {
     return {
       all: skills,
       byDomain: groupedByDomain,
-      verifiedCount: skills.filter((s) => s.verified).length,
-      detectedCount: skills.filter((s) => s.detectedOnly).length,
+      verifiedCount: skills.filter((s) => s.verified || ['OWNER_VERIFIED', 'PROJECT_DEMONSTRATED', 'DEMONSTRATED', 'OWNER_CONFIRMED'].includes(s.level)).length,
+      detectedCount: skills.filter((s) => s.detectedOnly || s.level === 'REPOSITORY_DETECTED').length,
     };
   } catch (error) {
     logger.error('skillService.getSkillTaxonomy', error as Error);

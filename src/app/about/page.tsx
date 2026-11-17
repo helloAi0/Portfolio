@@ -5,11 +5,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { resolveIdentitySafety } from '@/lib/identity';
+import { PROFILE } from '@/config/profile';
 import { User, ShieldAlert, Cpu, Compass, BookOpen, GraduationCap, MapPin, Calendar, Terminal } from 'lucide-react';
 
 export const metadata = {
   title: 'About & Imperial Identity',
-  description: 'Verified professional identity, philosophical ethos, and academic background of Sahil Depurwala.',
+  description: 'Verified professional identity, philosophical ethos, and academic background of Taha Udaipurwala.',
 };
 
 export default function AboutPage() {
@@ -22,7 +23,7 @@ export default function AboutPage() {
       <SectionHeading
         eyebrow="Architect Dossier"
         title="Imperial Identity & Computational Philosophy"
-        description="A verified record of professional purpose, academic pursuit, and philosophical alignment inspired by Alexander the Great and Bucephalus."
+        description="Who I am, what I study, and where I am heading."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
@@ -37,56 +38,40 @@ export default function AboutPage() {
               {identity.displayName}
             </h2>
             <p className="text-xs text-gold-400 font-mono mb-4">
-              AI Architect & Robotics Engineer Candidate
+              {PROFILE.headline}
             </p>
 
             <div className="space-y-3 pt-4 border-t border-white/5 text-xs font-mono">
+              {identity.publicAge !== null && (
               <div className="flex items-center justify-between">
                 <span className="text-neutral-400 flex items-center space-x-1.5">
                   <Calendar className="w-3.5 h-3.5 text-gold-400" />
-                  <span>Computed Age:</span>
+                  <span>Age:</span>
                 </span>
-                <span className="text-white font-bold">{identity.computedAge} Years</span>
+                <span className="text-white font-bold">{identity.publicAge} Years</span>
               </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-neutral-400 flex items-center space-x-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-gold-400" />
-                  <span>Date of Birth:</span>
-                </span>
-                <span className="text-neutral-200">{identity.birthDateFormatted}</span>
-              </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <span className="text-neutral-400 flex items-center space-x-1.5">
                   <MapPin className="w-3.5 h-3.5 text-gold-400" />
-                  <span>Base Citadel:</span>
+                  <span>Based in:</span>
                 </span>
-                <span className="text-neutral-200">Kolkata, West Bengal, India</span>
+                <span className="text-neutral-200">{PROFILE.location}</span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-neutral-400 flex items-center space-x-1.5">
                   <GraduationCap className="w-3.5 h-3.5 text-gold-400" />
-                  <span>Class:</span>
+                  <span>Year of study:</span>
                 </span>
-                <span className="text-gold-300 font-bold">{identity.academicStatus.currentAcademicYear.split(' ')[0]} (B.Tech)</span>
+                <span className="text-gold-300 font-bold">{identity.academicStatus.currentAcademicYear} (B.Tech)</span>
               </div>
             </div>
 
-            {/* Verification Protocol Card */}
-            <div className="mt-6 p-4 rounded bg-imperial-950 border border-amber-500/30 text-xs space-y-2">
-              <div className="flex items-center space-x-2 text-amber-400 font-mono text-[11px] font-bold">
-                <ShieldAlert className="w-4 h-4" />
-                <span>Verification Checkpoint</span>
-              </div>
-              <p className="text-[11px] text-neutral-400 leading-normal">
-                Contact: <strong className="text-gold-300">{identity.contactEmail}</strong>
-              </p>
-              <p className="text-[10px] text-amber-200/80 leading-normal">
-                Discrepancy audit flagged: Display name and email identifier remain decoupled pending direct owner authorization before production deployment.
-              </p>
-            </div>
+            <p className="mt-6 text-xs text-neutral-400">
+              Contact: <a href={`mailto:${identity.contactEmail}`} className="text-gold-300 hover:underline">{identity.contactEmail}</a>
+            </p>
           </Card>
         </div>
 
@@ -98,17 +83,17 @@ export default function AboutPage() {
             </h3>
             <div className="text-neutral-300 text-sm leading-relaxed space-y-4">
               <p>
-                I am an undergraduate engineer currently in my {identity.academicStatus.currentAcademicYear.toLowerCase()} of study at{' '}
-                <strong className="text-white">University of Engineering and Management / Institute of Engineering and Management (UEM / IEM), Kolkata</strong>.
-                My major focus is <strong className="text-gold-300">Computer Science and Engineering with specialization in Artificial Intelligence and Machine Learning</strong>, complemented by a formal academic minor in <strong className="text-gold-300">Cybersecurity</strong>.
+                I am a B.Tech student in <strong className="text-gold-300">Computer Science and Engineering with a specialization in Artificial Intelligence and Machine Learning</strong> ({identity.academicStatus.enrollmentYear}–{identity.academicStatus.expectedGraduationYear}), currently in my {identity.academicStatus.currentAcademicYear.toLowerCase()}
+                {identity.academicStatus.institution && <> at <strong className="text-white">{identity.academicStatus.institution}</strong></>}.
+                I am also pursuing a minor in <strong className="text-gold-300">Cybersecurity</strong>.
               </p>
               <p>
-                Beyond standard software engineering, my deepest research drive lies in <strong className="text-white">Autonomous Robotics</strong> — specifically integrating real-time computer vision, SLAM (Simultaneous Localization and Mapping), and Robot Operating System (ROS 2) architectures with low-power physical computing units.
+                Alongside my degree I am learning and building in <strong className="text-white">Robotics</strong>, and I am aiming toward intelligent systems, research, and graduate study. This page describes where I am now; claims about skills and projects are backed by the evidence shown on the Projects, Skills and Certificates pages.
               </p>
               <p>
-                In an era dominated by superficial software prototypes and inflated credentials, Project LAMO is founded upon the iron rule of evidence: nothing is claimed that is not backed by verifiable implementation, date-derived progress, and authentic code.
+                My schooling was at {PROFILE.schools.join(' and ')}.
               </p>
-            </div>
+              </div>
           </Card>
 
           <Card variant="marble">

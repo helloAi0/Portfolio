@@ -15,19 +15,19 @@ export function ImperialEthos() {
       icon: <Compass className="w-5 h-5 text-gold-400" />,
       title: 'The Spirit of Bucephalus',
       description:
-        'Untamed forward ambition. Uncompromising exploration into autonomous robotics, SLAM navigation, and real-time physical computing.',
+        'Forward ambition: learning robotics and intelligent systems by building things that actually run.',
     },
     {
       icon: <Cpu className="w-5 h-5 text-gold-400" />,
       title: 'Rigorous Computational AI',
       description:
-        'Foundation model architectures, quantized neural pipelines, and high-performance inference algorithms operating on edge compute.',
+        'A B.Tech in AI and Machine Learning, applied through projects and steady practice.',
     },
     {
       icon: <Shield className="w-5 h-5 text-gold-400" />,
-      title: 'Zero-Trust Verification',
+      title: 'Evidence Over Claims',
       description:
-        'Uncompromising truth. Every metric, skill proficiency, and identity record is verified by evidence rather than vanity assumptions.',
+        'Every skill, statistic and credential on this site is backed by a record or left out.',
     },
   ];
 
@@ -35,9 +35,9 @@ export function ImperialEthos() {
     <section className="py-20 relative bg-imperial-950/80 border-t border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeading
-          eyebrow="The Imperial Doctrine"
-          title="Where Macedonian Monumentality Meets Futuristic Engineering"
-          description="Inspired by Alexander the Great’s conquest of the known world and the untamable spirit of Bucephalus, Project LAMO is built as a self-evolving engineering bastion."
+          eyebrow="The Idea"
+          title="Macedonian Monumentality Meets Modern Engineering"
+          description="Inspired by Alexander the Great’s conquest of the known world and the untamable spirit of Bucephalus, this portfolio is built as a living engineering record."
           centered
         />
 
