@@ -15,7 +15,7 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function EducationPage() {
-  const { records, dynamicStanding } = await getEducationHistory();
+  const { records, dynamicStanding, semesterTrack } = await getEducationHistory();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -47,7 +47,7 @@ export default async function EducationPage() {
             <div className="p-4 rounded bg-imperial-950/80 border border-gold-500/30 text-right flex flex-col justify-center min-w-[200px]">
               <span className="text-[10px] font-mono text-neutral-400 uppercase">Current year</span>
               <span className="text-lg font-serif font-bold text-gold-300">
-                {dynamicStanding.yearName}
+                {dynamicStanding.phase === 'COMPLETED' ? 'Programme completed' : `${dynamicStanding.yearName} · ${dynamicStanding.semesterLabel}`}
               </span>
               <span className="text-[10px] font-mono text-neutral-400">
                 2024 – 2028 (expected)
@@ -59,7 +59,7 @@ export default async function EducationPage() {
           <div className="mt-6 pt-4 border-t border-white/5">
             <div className="flex justify-between text-xs font-mono mb-2">
               <span className="text-neutral-400">Progress through the degree</span>
-              <span className="text-gold-400 font-bold">about {dynamicStanding.progressPercent}% of the programme elapsed</span>
+              <span className="text-gold-400 font-bold">{dynamicStanding.progressPercent}% of the programme elapsed{dynamicStanding.monthsToGraduation > 0 && <> · about {dynamicStanding.monthsToGraduation} months to go</>}</span>
             </div>
             <div className="w-full h-2 rounded-full bg-imperial-950 border border-gold-500/20 overflow-hidden">
               <div
@@ -68,6 +68,37 @@ export default async function EducationPage() {
               />
             </div>
           </div>
+
+          {semesterTrack.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-white/5">
+              <p className="text-xs font-mono text-neutral-400 mb-3">Semester journey (updates automatically with today&apos;s date)</p>
+              <ol className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {semesterTrack.map((sem) => (
+                  <li
+                    key={sem.number}
+                    aria-current={sem.status === 'CURRENT' ? 'step' : undefined}
+                    className={
+                      'rounded border px-3 py-2 text-xs ' +
+                      (sem.status === 'CURRENT'
+                        ? 'border-gold-400 bg-gold-500/10 shadow-imperial-gold'
+                        : sem.status === 'COMPLETED'
+                        ? 'border-emerald-500/30 bg-emerald-950/30'
+                        : 'border-white/10 bg-imperial-950/60')
+                    }
+                  >
+                    <span className="block font-serif font-bold text-white">{sem.label}</span>
+                    <span className="block font-mono text-[10px] text-neutral-400">{sem.window}</span>
+                    <span className={'block font-mono text-[10px] mt-1 ' + (sem.status === 'CURRENT' ? 'text-gold-300' : sem.status === 'COMPLETED' ? 'text-emerald-300' : 'text-neutral-500')}>
+                      {sem.status === 'CURRENT' ? 'In progress' : sem.status === 'COMPLETED' ? 'Completed' : 'Upcoming'}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-3 text-[10px] font-mono text-neutral-500">
+                Semesters are inferred from the standard July–December / January–June calendar and may differ slightly from the official college calendar.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -99,7 +130,10 @@ export default async function EducationPage() {
             </div>
 
             {/* Degree & Field details */}
-            {edu.degree && (
+            {edu.degree && edu.schoolType !== 'HIGHER_EDUCATION' && (
+              <p className="pt-4 border-t border-white/5 text-sm text-neutral-300">{edu.degree}</p>
+            )}
+            {edu.degree && edu.schoolType === 'HIGHER_EDUCATION' && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5 text-xs">
                 <div>
                   <span className="block text-neutral-500 font-mono uppercase text-[10px]">Degree</span>

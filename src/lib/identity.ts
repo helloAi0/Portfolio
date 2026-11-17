@@ -6,6 +6,7 @@
  */
 
 import { PROFILE } from '@/config/profile';
+import { computeAcademicStanding, type AcademicStanding } from '@/lib/academic';
 
 export interface DynamicIdentity {
   displayName: string;
@@ -20,6 +21,9 @@ export interface DynamicIdentity {
     enrollmentYear: number;
     expectedGraduationYear: number;
     currentAcademicYear: string;
+    semesterLabel: string;
+    phase: AcademicStanding['phase'];
+    monthsToGraduation: number;
     progressPercent: number;
   };
   identityVerification: {
@@ -55,21 +59,14 @@ export function calculateAge(birthDate: string, now: Date = new Date()): number 
   return age >= 0 && age < 130 ? age : null;
 }
 
-/** Derives the academic year from the enrollment window (rolls over in July). */
+/** Academic year/semester derived from today's date (Asia/Kolkata). See src/lib/academic.ts. */
 export function deriveAcademicStanding(
   startYear: number,
   endYear: number,
   now: Date = new Date()
-): { yearName: string; progressPercent: number } {
-  const { year, month } = getKolkataDateParts(now);
-  const offset = month >= 7 ? year - startYear + 1 : year - startYear;
-  const totalYears = endYear - startYear;
-  const clamped = Math.max(1, Math.min(totalYears, offset));
-  const names = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-  return {
-    yearName: names[clamped - 1] || 'Undergraduate',
-    progressPercent: Math.round(((clamped - 0.5) / totalYears) * 100),
-  };
+): AcademicStanding & { yearName: string } {
+  const { year, month, day } = getKolkataDateParts(now);
+  return computeAcademicStanding({ startYear, endYear, oddSemesterStartMonth: PROFILE.education.oddSemesterStartMonth }, year, month, day);
 }
 
 export function resolveIdentitySafety(): DynamicIdentity {
@@ -98,6 +95,9 @@ export function resolveIdentitySafety(): DynamicIdentity {
       enrollmentYear: PROFILE.education.startYear,
       expectedGraduationYear: PROFILE.education.endYear,
       currentAcademicYear: standing.yearName,
+      semesterLabel: standing.semesterLabel,
+      phase: standing.phase,
+      monthsToGraduation: standing.monthsToGraduation,
       progressPercent: standing.progressPercent,
     },
     identityVerification: {

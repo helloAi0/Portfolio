@@ -14,7 +14,7 @@ export function SectionHeading({
   centered = false,
 }: SectionHeadingProps) {
   return (
-    <div className={`mb-12 ${centered ? 'text-center max-w-3xl mx-auto' : 'max-w-2xl'}`}>
+    <div className={`reveal mb-12 ${centered ? 'text-center max-w-3xl mx-auto' : 'max-w-2xl'}`}>
       {eyebrow && (
         <div className="flex items-center space-x-2 text-xs font-mono uppercase tracking-[0.25em] text-gold-400 mb-2 justify-start">
           <span className="w-6 h-[1px] bg-gold-500/50" />

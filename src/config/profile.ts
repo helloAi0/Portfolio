@@ -30,10 +30,18 @@ export const PROFILE = {
     minor: 'Cybersecurity',
     startYear: 2024,
     endYear: 2028,
-    /** Owner-confirmed awarding institution. null => not displayed. */
-    institution: process.env.OWNER_INSTITUTION?.trim() || null,
+    /** Month (1-12) in which odd semesters begin. 7 = Jul-Dec / Jan-Jun calendar. */
+    oddSemesterStartMonth: Math.min(12, Math.max(1, Number(process.env.OWNER_ODD_SEM_START_MONTH) || 7)),
+    /** Owner-confirmed (stated by the owner, Nov 2026). Override with OWNER_INSTITUTION if the degree names a single institution. */
+    institution:
+      process.env.OWNER_INSTITUTION?.trim() ||
+      'University of Engineering & Management (UEM) / Institute of Engineering & Management (IEM), Kolkata',
   },
-  schools: ['Saini Golden Jubilee High School', 'Nischintapur Public School'],
+  /** Owner-stated schooling. Years are deliberately not asserted. */
+  schools: [
+    { name: 'Saifee Golden Jubilee High School', detail: 'Classes X, XI and XII', location: 'Kolkata' },
+    { name: 'Nischintapur Public School', detail: 'Earlier schooling', location: null },
+  ],
   timezone: 'Asia/Kolkata',
 } as const;
 

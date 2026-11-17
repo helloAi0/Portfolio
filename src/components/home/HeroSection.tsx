@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { BucephalusCanvas } from './BucephalusCanvas';
+import { HeroStage, type HeroChapter } from './HeroStage';
 import { Button } from '@/components/ui/Button';
 import { resolveIdentitySafety } from '@/lib/identity';
 import { PROFILE } from '@/config/profile';
@@ -9,15 +9,8 @@ import { Github, Linkedin, ArrowRight, ShieldCheck, Cpu, Code2, Sparkles, BookOp
 export function HeroSection() {
   const identity = resolveIdentitySafety();
 
-  return (
-    <section className="relative min-h-[90vh] flex flex-col justify-center pt-24 pb-16 overflow-hidden">
-      {/* Background radial atmosphere */}
-      <div className="absolute inset-0 bg-imperial-radial pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left Column: Imperial Identity & Typography */}
-          <div className="lg:col-span-7 space-y-6 text-left">
+  const intro = (
+          <div className="max-w-2xl space-y-6 text-left">
             {/* Imperial Identity Eyebrow */}
             <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-imperial-900/90 border border-gold-500/30 text-xs font-mono text-gold-300 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-gold-400 animate-pulse" />
@@ -35,7 +28,7 @@ export function HeroSection() {
             </div>
 
             {/* Academic summary (institution shown only once owner-confirmed) */}
-            <p className="text-sm sm:text-base text-neutral-300 leading-relaxed font-sans max-w-2xl">
+            <p className="text-sm sm:text-base text-neutral-300 leading-relaxed font-sans max-w-lg">
               B.Tech student in{' '}
               <span className="text-gold-300 font-medium">Computer Science &amp; Engineering (AI &amp; ML)</span>
               {identity.academicStatus.institution && (
@@ -58,7 +51,7 @@ export function HeroSection() {
               <div className="p-3 rounded bg-imperial-900/80 border border-gold-500/20">
                 <span className="block text-[10px] font-mono text-neutral-400 uppercase">Progression</span>
                 <span className="text-base font-serif font-bold text-gold-300">
-                  {identity.academicStatus.currentAcademicYear.split(' ')[0]}
+                  {identity.academicStatus.phase === 'COMPLETED' ? 'Completed' : `${identity.academicStatus.currentAcademicYear.split(' ')[0]} · Sem ${identity.academicStatus.semesterLabel.split(' ')[1]}`}
                 </span>
                 <span className="block text-[9px] text-neutral-400 font-mono">B.Tech 2024–2028</span>
               </div>
@@ -118,14 +111,52 @@ export function HeroSection() {
               </div>
             </div>
           </div>
+  );
 
-          {/* Right Column: 3D Bucephalus Scene */}
-          <div className="lg:col-span-5 relative flex items-center justify-center">
-            <BucephalusCanvas />
+  const chapters: HeroChapter[] = [
+    {
+      id: 'now',
+      from: 0.3,
+      to: 0.6,
+      node: (
+        <div className="max-w-xl space-y-5">
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400">Where I am now</span>
+          <h2 className="text-3xl sm:text-5xl font-serif font-black text-white leading-tight">
+            {identity.academicStatus.phase === 'COMPLETED' ? 'Programme completed' : <>{identity.academicStatus.currentAcademicYear},<br />{identity.academicStatus.semesterLabel}</>}
+          </h2>
+          <p className="text-sm sm:text-base text-neutral-300 leading-relaxed">
+            B.Tech in Computer Science &amp; Engineering (AI &amp; ML), minor in Cybersecurity
+            {identity.academicStatus.institution ? <>, at {identity.academicStatus.institution}</> : null}.
+            This status updates itself from today&apos;s date.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {['AI / ML', 'Robotics', 'Cybersecurity'].map((t) => (
+              <span key={t} className="px-3 py-1 rounded-full border border-gold-500/30 bg-imperial-900/70 text-xs font-mono text-gold-300">{t}</span>
+            ))}
           </div>
         </div>
-      </div>
-    </section>
-  );
-}
+      ),
+    },
+    {
+      id: 'enter',
+      from: 0.68,
+      to: 1.01,
+      node: (
+        <div className="max-w-xl space-y-5">
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400">The work</span>
+          <h2 className="text-3xl sm:text-5xl font-serif font-black text-white leading-tight">Enter the portfolio</h2>
+          <p className="text-sm sm:text-base text-neutral-300 leading-relaxed">
+            Projects synced from GitHub, skills backed by evidence, and an assistant, LAMO, that only answers from verified records.
+          </p>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button href="/projects" variant="primary" size="lg" icon={<ArrowRight className="w-4 h-4" />}>Projects</Button>
+            <Button href="/skills" variant="secondary" size="lg">Skills</Button>
+            <Button href="/contact" variant="outline" size="lg">Contact</Button>
+          </div>
+        </div>
+      ),
+    },
+  ];
 
+  return <HeroStage intro={intro} chapters={chapters} />;
+}

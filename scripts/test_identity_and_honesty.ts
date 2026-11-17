@@ -2,6 +2,7 @@
  * Database-free tests: identity, privacy, age logic, adapter honesty and a source scan
  * for legacy or fabricated data. Run with: npm run test:unit
  */
+import { computeAcademicStanding, buildSemesterTrack } from '../src/lib/academic';
 import fs from 'fs';
 import path from 'path';
 import { calculateAge, deriveAcademicStanding } from '../src/lib/identity';
@@ -41,6 +42,24 @@ assert('Identity object never contains the birth date', !JSON.stringify(resolveI
 delete process.env.OWNER_BIRTH_DATE;
 assert('No birth date configured => no age', resolveIdentitySafety().publicAge === null);
 
+// ---- Academic calendar (automatic semester tracking)
+console.log('\n--- Academic calendar ---');
+const cfg = { startYear: 2024, endYear: 2028, oddSemesterStartMonth: 7 };
+const at = (y: number, m: number, d = 15) => computeAcademicStanding(cfg, y, m, d);
+assert('Aug 2024 is Year 1, Semester 1', at(2024, 8).semester === 1 && at(2024, 8).yearNumber === 1);
+assert('Jan 2025 is Semester 2', at(2025, 1).semester === 2);
+assert('17 Nov 2026 is Year 3, Semester 5', at(2026, 11).semester === 5 && at(2026, 11).yearName === '3rd Year');
+assert('29 Oct 2027 is Year 4, Semester 7', at(2027, 10, 29).semester === 7 && at(2027, 10, 29).yearName === '4th Year');
+assert('Mar 2028 is the final semester (8)', at(2028, 3).semester === 8);
+assert('Jul 2028 is COMPLETED', at(2028, 7).phase === 'COMPLETED' && at(2028, 7).semester === 8 && at(2028, 7).monthsToGraduation === 0);
+assert('Before the programme is NOT_STARTED', at(2024, 3).phase === 'NOT_STARTED');
+assert('Progress is monotonic', at(2025, 1).progressPercent < at(2026, 11).progressPercent && at(2026, 11).progressPercent < at(2027, 10).progressPercent);
+const track = buildSemesterTrack(cfg, 2026, 11, 17);
+assert('Semester track has 8 entries, 4 completed, 1 current, 3 upcoming',
+  track.length === 8 && track.filter((t) => t.status === 'COMPLETED').length === 4 && track.filter((t) => t.status === 'CURRENT').length === 1 && track.filter((t) => t.status === 'UPCOMING').length === 3);
+assert('Current semester window is Jul-Dec 2026', track[4].window === 'Jul–Dec 2026', track[4].window);
+assert('Alternate calendar (Aug start) shifts the boundary', computeAcademicStanding({ ...cfg, oddSemesterStartMonth: 8 }, 2026, 7, 15).semester === 4);
+
 // ---- Source scan
 console.log('\n--- Source hygiene ---');
 const root = path.resolve(__dirname, '..');
@@ -60,7 +79,10 @@ const rel = (l: string[]) => l.map((f) => path.relative(root, f));
 
 assert('No legacy owner name in app source', scan(/sahil|depurwala/i).length === 0, rel(scan(/sahil|depurwala/i)));
 assert('No hardcoded birth date or year-of-birth in source', scan(/2 November 2006|2006-11-02|November 2006/).length === 0, rel(scan(/2 November 2006|2006-11-02|November 2006/)));
-assert('No unconfirmed UEM/IEM institution claim in source', scan(/\bUEM\b|\bIEM\b|University of Engineering and Management/).length === 0, rel(scan(/\bUEM\b|\bIEM\b/)));
+// Institution was confirmed by the owner (Nov 2026); it may appear only through the single config/seed source.
+assert('Institution named only in config and seed', scan(/\bUEM\b|\bIEM\b/).every((f) => /config[\\/]profile\.ts$|prisma[\\/]seed\.ts$/.test(String(f))), rel(scan(/\bUEM\b|\bIEM\b/)));
+// The seed keeps the old spelling only to find and correct existing rows.
+assert('Legacy misspelled school name removed from app source', scan(/Saini Golden/).every((f) => /prisma[\\/]seed\.ts$/.test(String(f))), rel(scan(/Saini Golden/)));
 assert('No placeholder LinkedIn URL', scan(/linkedin\.com\/in\/[a-z-]*depurwala|"https:\/\/linkedin\.com"|'https:\/\/linkedin\.com'/i).length === 0);
 assert('No mock data sources', scan(/dataSource: 'MOCK'|'MOCK'/).length === 0, rel(scan(/'MOCK'/)));
 assert('No known default secrets', scan(/imperial-.*-2026|imperial-lamo-dev-secret|imperial-change-me/).length === 0, rel(scan(/imperial-.*-2026|imperial-change-me/)));

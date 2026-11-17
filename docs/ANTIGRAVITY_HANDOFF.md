@@ -85,3 +85,13 @@ NOT IMPLEMENTED: certificate file upload + text extraction (needs storage backen
 CREDENTIALS NEEDED: GITHUB_TOKEN (optional, raises limit 60->5000/h), GITHUB_WEBHOOK_SECRET (required for webhooks), CRON_SECRET for scheduled reconcile.
 
 WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, approve a repo, then build LAMO. Do not rebuild sync/classification.
+
+---
+# UPDATE: Identity corrections, automatic academic tracking, cinematic 3D hero
+
+- Institution is now owner-confirmed: UEM / IEM, Kolkata (src/config/profile.ts; override with OWNER_INSTITUTION). School corrected to "Saifee Golden Jubilee High School" (Classes X, XI, XII); Nischintapur Public School listed as earlier schooling. School years are NOT asserted. Re-run `npm run db:seed` to correct existing education rows in place (non-destructive).
+- Automatic academic tracking: src/lib/academic.ts derives year, semester, progress and a semester track from today's date (Asia/Kolkata). Assumes Jul-Dec / Jan-Jun semesters; set OWNER_ODD_SEM_START_MONTH if the college calendar differs. Shown on Home, About and Education.
+- The horse model was removed. New procedural 3D scene (src/lib/three/imperialHall.ts): marble colonnade, gold laurel wreath, light shafts, gold dust, glowing temple gateway. Scroll-scrubbed fly-through (HeroStage.tsx). Fallbacks: SVG colonnade without WebGL; still frame with reduced motion; low-power mode on mobile/weak devices.
+- Scroll-reveal on every Card and SectionHeading (RevealObserver), gold scroll-progress bar. All disabled for reduced motion / no JS.
+- About bio rewritten from verified facts only; OWNER SHOULD REVIEW the wording.
+- Verified: unit tests (identity + academic calendar + Week 2), lint, type-check, and headless-browser renders of the hero at several scroll positions. NOT verified: real-GPU performance, mobile devices, Render build.

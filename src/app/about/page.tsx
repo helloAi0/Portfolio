@@ -65,7 +65,7 @@ export default function AboutPage() {
                   <GraduationCap className="w-3.5 h-3.5 text-gold-400" />
                   <span>Year of study:</span>
                 </span>
-                <span className="text-gold-300 font-bold">{identity.academicStatus.currentAcademicYear} (B.Tech)</span>
+                <span className="text-gold-300 font-bold">{identity.academicStatus.phase === 'COMPLETED' ? 'Graduated (B.Tech)' : `${identity.academicStatus.currentAcademicYear}, ${identity.academicStatus.semesterLabel}`}</span>
               </div>
             </div>
 
@@ -79,21 +79,43 @@ export default function AboutPage() {
         <div className="lg:col-span-7 space-y-6">
           <Card variant="marble">
             <h3 className="text-xl font-serif font-bold text-white mb-4">
-              The Engineering Foundation
+              Who I Am
             </h3>
             <div className="text-neutral-300 text-sm leading-relaxed space-y-4">
               <p>
-                I am a B.Tech student in <strong className="text-gold-300">Computer Science and Engineering with a specialization in Artificial Intelligence and Machine Learning</strong> ({identity.academicStatus.enrollmentYear}–{identity.academicStatus.expectedGraduationYear}), currently in my {identity.academicStatus.currentAcademicYear.toLowerCase()}
-                {identity.academicStatus.institution && <> at <strong className="text-white">{identity.academicStatus.institution}</strong></>}.
-                I am also pursuing a minor in <strong className="text-gold-300">Cybersecurity</strong>.
+                I&apos;m <strong className="text-white">{identity.displayName}</strong>, a{' '}
+                {identity.academicStatus.currentAcademicYear.toLowerCase()} B.Tech student
+                {identity.academicStatus.phase === 'IN_PROGRESS' && <> (currently {identity.academicStatus.semesterLabel.toLowerCase()})</>} in{' '}
+                <strong className="text-gold-300">Computer Science and Engineering, specializing in Artificial Intelligence and Machine Learning</strong>
+                {identity.academicStatus.institution && <> at <strong className="text-white">{identity.academicStatus.institution}</strong></>},
+                with a minor in <strong className="text-gold-300">Cybersecurity</strong>. I&apos;m from Kolkata, and I&apos;m building toward a career as an AI/ML and robotics engineer.
               </p>
               <p>
-                Alongside my degree I am learning and building in <strong className="text-white">Robotics</strong>, and I am aiming toward intelligent systems, research, and graduate study. This page describes where I am now; claims about skills and projects are backed by the evidence shown on the Projects, Skills and Certificates pages.
+                What pulls me in is the point where software meets the physical world: systems that perceive, decide and move.
+                That is why I&apos;m learning <strong className="text-white">robotics</strong> (ROS 2, SLAM and control) alongside
+                machine learning, and why security is part of how I think about every system I build, not an afterthought.
               </p>
               <p>
-                My schooling was at {PROFILE.schools.join(' and ')}.
+                I work in <strong className="text-white">C, C++, Python, Java, JavaScript, HTML and CSS</strong>. I treat this
+                portfolio as a living engineering record: projects come straight from my GitHub, skills are separated into what I
+                use, what I&apos;m learning, and what a repository merely detects, and nothing is listed without evidence.
               </p>
-              </div>
+              <p>
+                I went to <strong className="text-white">{PROFILE.schools[0].name}</strong> in Kolkata, where I completed Classes X, XI and XII,
+                and earlier attended {PROFILE.schools[1].name}.
+              </p>
+            </div>
+          </Card>
+
+          <Card variant="marble">
+            <h3 className="text-xl font-serif font-bold text-white mb-4">
+              What I&apos;m Working Toward
+            </h3>
+            <ul className="text-neutral-300 text-sm leading-relaxed space-y-3">
+              <li className="flex gap-3"><Cpu className="w-4 h-4 mt-0.5 text-gold-400 shrink-0" aria-hidden /><span>Building a solid foundation in AI and machine learning through projects, not just coursework.</span></li>
+              <li className="flex gap-3"><Compass className="w-4 h-4 mt-0.5 text-gold-400 shrink-0" aria-hidden /><span>Developing real robotics skills: ROS 2, SLAM and autonomous navigation.</span></li>
+              <li className="flex gap-3"><ShieldAlert className="w-4 h-4 mt-0.5 text-gold-400 shrink-0" aria-hidden /><span>Applying a cybersecurity mindset to the systems I design and deploy.</span></li>
+            </ul>
           </Card>
 
           <Card variant="marble">

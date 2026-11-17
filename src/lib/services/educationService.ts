@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { deriveAcademicStanding } from '@/lib/identity';
+import { deriveAcademicStanding, getKolkataDateParts } from '@/lib/identity';
+import { buildSemesterTrack } from '@/lib/academic';
+import { PROFILE } from '@/config/profile';
 
 export async function getEducationHistory() {
   try {
@@ -13,13 +15,22 @@ export async function getEducationHistory() {
       ? deriveAcademicStanding(currentHigherEd.startYear, currentHigherEd.endYear || 2028)
       : null;
 
+    const { year, month, day } = getKolkataDateParts();
+    const semesterTrack = currentHigherEd && currentHigherEd.startYear
+      ? buildSemesterTrack(
+          { startYear: currentHigherEd.startYear, endYear: currentHigherEd.endYear || PROFILE.education.endYear, oddSemesterStartMonth: PROFILE.education.oddSemesterStartMonth },
+          year, month, day
+        )
+      : [];
+
     return {
       records,
       dynamicStanding,
+      semesterTrack,
     };
   } catch (error) {
     logger.error('educationService.getEducationHistory', error as Error);
-    return { records: [], dynamicStanding: null };
+    return { records: [], dynamicStanding: null, semesterTrack: [] };
   }
 }
 

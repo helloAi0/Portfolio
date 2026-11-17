@@ -85,3 +85,29 @@ body {
   border-color: rgba(212, 175, 55, 0.45);
 }
 
+
+/* ------------------------------------------------------------------
+   Scroll-reveal (driven by RevealObserver). Content is always visible
+   without JavaScript or when the visitor prefers reduced motion.
+------------------------------------------------------------------- */
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(34px) scale(0.985); filter: blur(8px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+@media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  .reveal:not(.is-visible) { opacity: 0; }
+  .reveal.is-visible { animation: reveal-in 0.95s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: var(--d, 0ms); }
+  .reveal:nth-child(2) { --d: 90ms; }
+  .reveal:nth-child(3) { --d: 180ms; }
+  .reveal:nth-child(4) { --d: 270ms; }
+  .reveal:nth-child(5) { --d: 360ms; }
+  .reveal:nth-child(n+6) { --d: 440ms; }
+  main { animation: page-in 0.6s ease-out both; }
+}
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Hero chapter scroll hint */
+@keyframes hint-drop { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+.scroll-hint-line { position: relative; width: 1px; height: 44px; overflow: hidden; background: rgba(212,175,55,0.2); }
+.scroll-hint-line::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent, #d4af37, transparent); animation: hint-drop 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .scroll-hint-line::after { animation: none; } }

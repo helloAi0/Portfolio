@@ -9,6 +9,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { PROFILE } from '../src/config/profile';
 import { ensureTaxonomy } from '../src/lib/taxonomy';
 
 const prisma = new PrismaClient();
@@ -78,41 +79,56 @@ async function main() {
     console.warn('ADMIN_DEFAULT_PASSWORD missing or shorter than 12 characters: no admin user created.');
   }
 
-  // Education. Chronology of schools is NOT asserted: owner must verify it in the admin.
-  if ((await prisma.education.count()) === 0) {
-    const university = process.env.OWNER_INSTITUTION?.trim();
-    await prisma.education.createMany({
-      data: [
-        {
-          institution: university || 'B.Tech programme (institution to be confirmed by owner)',
-          schoolType: 'HIGHER_EDUCATION',
-          degree: 'B.Tech',
-          field: 'Computer Science and Engineering (Artificial Intelligence and Machine Learning)',
-          minor: 'Cybersecurity',
-          additionalInterest: 'Robotics',
-          startYear: 2024,
-          endYear: 2028,
-          isCurrent: true,
-          graduationStatus: 'EXPECTED_2028',
-          verificationStatus: university ? 'OWNER_CONFIRMED' : 'OWNER_REVIEW_REQUIRED',
-          orderIndex: 1,
-        },
-        {
-          institution: 'Saini Golden Jubilee High School',
-          schoolType: 'HIGH_SCHOOL',
-          graduationStatus: 'ATTENDED',
-          verificationStatus: 'OWNER_REVIEW_REQUIRED',
-          orderIndex: 2,
-        },
-        {
-          institution: 'Nischintapur Public School',
-          schoolType: 'HIGH_SCHOOL',
-          graduationStatus: 'ATTENDED',
-          verificationStatus: 'OWNER_REVIEW_REQUIRED',
-          orderIndex: 3,
-        },
-      ],
-    });
+  // Education: owner-stated facts (UEM/IEM Kolkata; Saifee Golden Jubilee classes X-XII). School years are
+  // deliberately NOT asserted. Re-running the seed corrects earlier placeholder/misspelled rows in place.
+  const educationRecords = [
+    {
+      legacy: ['B.Tech programme (institution to be confirmed by owner)'],
+      data: {
+        institution: PROFILE.education.institution,
+        institutionAcronym: 'UEM / IEM',
+        schoolType: 'HIGHER_EDUCATION',
+        degree: 'B.Tech',
+        field: 'Computer Science and Engineering (Artificial Intelligence and Machine Learning)',
+        minor: 'Cybersecurity',
+        additionalInterest: 'Robotics',
+        location: 'Kolkata, West Bengal',
+        startYear: 2024,
+        endYear: 2028,
+        isCurrent: true,
+        graduationStatus: 'EXPECTED_2028',
+        verificationStatus: 'OWNER_CONFIRMED',
+        orderIndex: 1,
+      },
+    },
+    {
+      legacy: ['Saini Golden Jubilee High School'],
+      data: {
+        institution: 'Saifee Golden Jubilee High School',
+        schoolType: 'HIGH_SCHOOL',
+        degree: 'Classes X, XI and XII',
+        location: 'Kolkata, West Bengal',
+        graduationStatus: 'COMPLETED',
+        verificationStatus: 'OWNER_CONFIRMED',
+        orderIndex: 2,
+      },
+    },
+    {
+      legacy: [],
+      data: {
+        institution: 'Nischintapur Public School',
+        schoolType: 'HIGH_SCHOOL',
+        degree: 'Earlier schooling',
+        graduationStatus: 'ATTENDED',
+        verificationStatus: 'OWNER_CONFIRMED',
+        orderIndex: 3,
+      },
+    },
+  ];
+  for (const rec of educationRecords) {
+    const existing = await prisma.education.findFirst({ where: { institution: { in: [rec.data.institution, ...rec.legacy] } } });
+    if (existing) await prisma.education.update({ where: { id: existing.id }, data: rec.data });
+    else await prisma.education.create({ data: rec.data });
   }
 
   // Project taxonomy (idempotent upsert; also re-run automatically by GitHub sync).
