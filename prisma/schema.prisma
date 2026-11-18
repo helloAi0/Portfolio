@@ -501,3 +501,16 @@ model CodingSolution {
 
   @@unique([platform, problemSlug])
 }
+
+// Owner-written goals shown on /ambitions (stated as intentions, not achievements)
+model Ambition {
+  id          String   @id @default(cuid())
+  horizon     String
+  title       String
+  description String
+  focus       String?  // JSON array of short tags
+  orderIndex  Int      @default(0)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

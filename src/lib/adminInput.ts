@@ -60,3 +60,12 @@ export function cleanProjectInput(b: any): { error: string } | { data: { title: 
   const lines = (v: unknown) => (typeof v === 'string' ? v.split('\n') : Array.isArray(v) ? v.map(String) : []).map((x) => x.trim()).filter(Boolean).slice(0, 20);
   return { data: { title, slug, tagline, description, categorySlug, problemStatement: text(b?.problemStatement, 2000) || description, solution: text(b?.solution, 2000) || description, keyFeatures: lines(b?.keyFeatures), githubRepo: gh, liveDeployment: live, skillNames: (typeof b?.skills === 'string' ? b.skills.split(',') : []).map((x: string) => x.trim()).filter(Boolean).slice(0, 15) } };
 }
+
+export function cleanAmbition(b: any): { error: string } | { data: { horizon: string; title: string; description: string; focus: string[] } } {
+  const horizon = text(b?.horizon, 80), title = text(b?.title, 150), description = text(b?.description, 1500);
+  if (!horizon || !title || !description) return { error: 'Time horizon, title and description are required.' };
+  const focus = (typeof b?.focus === 'string' ? b.focus.split(',') : []).map((x: string) => x.trim().slice(0, 40)).filter(Boolean).slice(0, 8);
+  return { data: { horizon, title, description, focus } };
+}
+
+export const ENQUIRY_STATUSES = ['UNREAD', 'READ', 'REPLIED', 'ARCHIVED'] as const;

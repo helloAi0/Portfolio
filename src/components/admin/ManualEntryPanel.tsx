@@ -22,6 +22,7 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
   const [lists, setLists] = useState<Record<string, Row[]>>({});
   const [stats, setStats] = useState({ platform: 'LEETCODE', username: '', totalSolved: '', easySolved: '', mediumSolved: '', hardSolved: '', globalRanking: '' });
   const [skill, setSkill] = useState({ name: '', domain: '', level: 'OWNER_CONFIRMED', notes: '' });
+  const [ambition, setAmbition] = useState({ horizon: '', title: '', description: '', focus: '' });
   const [project, setProject] = useState({ title: '', tagline: '', description: '', categorySlug: TAXONOMY[0]?.slug ?? '', keyFeatures: '', skills: '', githubRepo: '', liveDeployment: '' });
 
   const call = useCallback(async (url: string, method: string, body?: unknown): Promise<{ ok: boolean; data: any }> => {
@@ -37,8 +38,8 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
 
   const loadLists = useCallback(async () => {
     const get = async (url: string) => { const r = await call(url, 'GET'); return Array.isArray(r.data?.data) ? r.data.data : []; };
-    const [certs, achs, exps, posts, skills] = await Promise.all([
-      get('/api/admin/certificates'), get('/api/admin/achievements'), get('/api/admin/experience'), get('/api/admin/linkedin'), get('/api/admin/skills'),
+    const [certs, achs, exps, posts, skills, ambs] = await Promise.all([
+      get('/api/admin/certificates'), get('/api/admin/achievements'), get('/api/admin/experience'), get('/api/admin/linkedin'), get('/api/admin/skills'), get('/api/admin/ambitions'),
     ]);
     setLists({
       certificates: certs.map((c: any) => ({ id: c.id, label: c.title, sub: c.issuingOrganization })),
@@ -46,6 +47,7 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
       experience: exps.map((x: any) => ({ id: x.id, label: x.roleTitle, sub: x.organization })),
       linkedin: posts.map((p: any) => ({ id: p.id, label: (p.title || p.contentExcerpt || '').slice(0, 70), sub: new Date(p.publishedAt).toLocaleDateString('en-IN') })),
       skills: skills.map((s: any) => ({ id: s.id, label: s.name, sub: s.domain })),
+      ambitions: ambs.map((a: any) => ({ id: a.id, label: a.title, sub: a.horizon })),
     });
   }, [call]);
   useEffect(() => { loadLists(); }, [loadLists]);
@@ -63,9 +65,11 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
   const submitSkill = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/skills', 'POST', skill), 'Skill added.', () => setSkill({ ...skill, name: '', notes: '' })); };
   const submitProject = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/projects', 'POST', project), 'Project added and published.', () => setProject({ ...project, title: '', tagline: '', description: '', keyFeatures: '', skills: '', githubRepo: '', liveDeployment: '' })); };
 
+  const submitAmbition = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/ambitions', 'POST', ambition), 'Goal added to the Ambitions page.', () => setAmbition({ horizon: '', title: '', description: '', focus: '' })); };
+
   const del = (kind: string, id: string, label: string) => {
     if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
-    const url = kind === 'linkedin' || kind === 'skills' ? `/api/admin/${kind}?id=${encodeURIComponent(id)}` : `/api/admin/${kind}/${encodeURIComponent(id)}`;
+    const url = kind === 'linkedin' || kind === 'skills' || kind === 'ambitions' ? `/api/admin/${kind}?id=${encodeURIComponent(id)}` : `/api/admin/${kind}/${encodeURIComponent(id)}`;
     run(() => call(url, 'DELETE'), 'Deleted.');
   };
 
@@ -120,9 +124,21 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
         </form>
       </Card>
 
+      <Card variant="marble" className="p-5 space-y-3">
+        <h4 className="text-white font-bold text-sm">Ambitions page</h4>
+        <p className="text-xs text-neutral-400">Write your own goals. Once you add one, your goals replace the default text on the Ambitions page. Delete them all to bring the defaults back. Scholarships: add them in the Achievements tab with the category &ldquo;Scholarship&rdquo; and mark them public.</p>
+        <form onSubmit={submitAmbition} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {field('When (e.g. During my B.Tech)', <input required value={ambition.horizon} onChange={(e) => setAmbition({ ...ambition, horizon: e.target.value })} className={input} />)}
+          {field('Goal title', <input required value={ambition.title} onChange={(e) => setAmbition({ ...ambition, title: e.target.value })} className={input} />)}
+          <div className="sm:col-span-2">{field('Description', <textarea required rows={3} value={ambition.description} onChange={(e) => setAmbition({ ...ambition, description: e.target.value })} className={input} />)}</div>
+          <div className="sm:col-span-2">{field('Focus tags (comma separated, optional)', <input value={ambition.focus} onChange={(e) => setAmbition({ ...ambition, focus: e.target.value })} className={input} />)}</div>
+          <div className="sm:col-span-2"><Button type="submit" disabled={busy} size="sm" variant="primary">Add goal</Button></div>
+        </form>
+      </Card>
+
       <Card variant="marble" className="p-5 space-y-4">
         <h4 className="text-white font-bold text-sm">Review and delete entries</h4>
-        {(['certificates', 'achievements', 'experience', 'linkedin', 'skills'] as const).map((k) => (
+        {(['certificates', 'achievements', 'experience', 'linkedin', 'skills', 'ambitions'] as const).map((k) => (
           <details key={k} className="text-xs">
             <summary className="cursor-pointer text-gold-300 capitalize">{k === 'linkedin' ? 'LinkedIn posts' : k} ({lists[k]?.length ?? 0})</summary>
             {(lists[k] ?? []).length === 0 ? <p className="text-neutral-500 mt-2">Nothing here yet.</p> : (

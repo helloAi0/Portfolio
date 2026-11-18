@@ -131,3 +131,13 @@ body {
 
 .bento-tile { border-radius: 1.5rem; }
 .display-xl { font-family: var(--font-cinzel); font-weight: 900; letter-spacing: -0.01em; line-height: 0.95; }
+
+/* Print / Save as PDF (resume): clean white page, no site chrome */
+@media print {
+  header, footer, canvas { display: none !important; }
+  html, body { background: #fff !important; color: #111 !important; }
+  .marble-card { background: #fff !important; color: #111 !important; border: none !important; box-shadow: none !important; }
+  .marble-card * { color: #111 !important; border-color: #ccc !important; }
+  a { text-decoration: none !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}

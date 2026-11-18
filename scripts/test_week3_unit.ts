@@ -122,5 +122,10 @@ const proj = cleanProjectInput({ title: 'Line Follower Bot', tagline: 'x', descr
 t('project: valid and cleaned', 'data' in proj && proj.data.keyFeatures.length === 2 && proj.data.skillNames.length === 2 && proj.data.githubRepo === null);
 t('project: required fields and links', 'error' in cleanProjectInput({ title: 'x' }) && 'error' in cleanProjectInput({ title: 'x', tagline: 'y', description: 'z', categorySlug: 'robotics', liveDeployment: 'http://a.com' }));
 
+import { cleanAmbition, ENQUIRY_STATUSES } from '../src/lib/adminInput';
+t('ambition: valid + tags split', (cleanAmbition({ horizon: 'Now', title: 'T', description: 'D', focus: 'AI, Robotics,' }) as any).data.focus.length === 2);
+t('ambition: required fields', 'error' in cleanAmbition({ horizon: 'x' }));
+t('enquiry statuses', ENQUIRY_STATUSES.includes('REPLIED' as never) && !ENQUIRY_STATUSES.includes('DELETED' as never));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

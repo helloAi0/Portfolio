@@ -134,3 +134,13 @@ WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, 
 
 **Verified in the sandbox:** unit tests (71 + 8 with mocked LeetCode responses), tsc, lint, headless-browser clicks through every admin tab, error toasts, add/delete flows (API mocked).
 **NOT verified (needs the owner's machine):** real GitHub/LeetCode/GFG responses, the Prisma-backed route handlers (type-checked only), Render. Run `npm run verify:live` after `prisma db push`; it prints PASS/FAIL per source.
+
+
+## Completion pass (missing pieces closed)
+
+- **Contact Inbox** (admin tab): read, mark read/replied/archived, delete messages from the Contact form; unread badge. Spam limit now uses the trusted-proxy client IP (the left-most X-Forwarded-For entry is client-controlled).
+- **Ambitions** page is database-driven (`Ambition` model; defaults shown until the owner adds goals in Manual Entry).
+- **Scholarships** page lists public Achievements whose category contains scholarship/grant/fellowship/stipend; honest empty state otherwise.
+- **Resume**: print stylesheet (clean white page, no site chrome) so "Print / Save as PDF" produces a usable CV.
+- **Known remaining (by design / Week 4):** certificate file upload (only https links accepted; no storage backend), Education/Profile edited via config + seed (no admin editor), backups, npm audit, Render deployment checks.
+- Schema additions this pass: `Ambition` (run `npx prisma db push`).

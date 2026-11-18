@@ -2,16 +2,19 @@ import React from 'react';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { Compass, Target, Cpu, Shield, Sparkles } from 'lucide-react';
+import { Compass } from 'lucide-react';
+import { prisma } from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   title: 'Ambitions & Engineering Goals',
   description: 'Academic and professional goals of Taha Udaipurwala.',
 };
 
-export default function AmbitionsPage() {
-  // Goals are stated as intentions, not achievements.
-  const milestones = [
+export default async function AmbitionsPage() {
+  // Goals are stated as intentions, not achievements. The owner can replace these defaults in Admin > Manual Entry.
+  const defaults = [
     {
       horizon: 'During my B.Tech (2024-2028)',
       title: 'Build a strong foundation and real projects',
@@ -34,6 +37,14 @@ export default function AmbitionsPage() {
       focus: ['AI/ML engineering', 'Robotics', 'Secure systems'],
     },
   ];
+
+  const stored = await prisma.ambition.findMany({ where: { isPublic: true }, orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }] }).catch(() => []);
+  const milestones = stored.length > 0
+    ? stored.map((a) => ({
+        horizon: a.horizon, title: a.title, description: a.description,
+        focus: (() => { try { const f = a.focus ? JSON.parse(a.focus) : []; return Array.isArray(f) ? (f as string[]) : []; } catch { return [] as string[]; } })(),
+      }))
+    : defaults;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

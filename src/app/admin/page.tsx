@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import AutomationPanel from '@/components/admin/AutomationPanel';
+import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -39,6 +40,7 @@ type AdminTab =
   | 'overview'
   | 'automation'
   | 'manual'
+  | 'inbox'
   | 'github'
   | 'leetcode'
   | 'geeksforgeeks'
@@ -158,6 +160,11 @@ export default function AdminDashboardPage() {
       const bioData = bioRes.ok ? await bioRes.json().catch(() => ({ data: null })) : { data: null };
       const copilotData = copilotRes.ok ? await copilotRes.json().catch(() => ({ data: [] })) : { data: [] };
 
+      try {
+        const eq = await fetch('/api/admin/enquiries');
+        const ej = eq.ok ? await eq.json() : { data: [] };
+        setUnreadEnquiries(arr(ej.data).filter((x: any) => x.status === 'UNREAD').length);
+      } catch { /* inbox badge is optional */ }
       setGithubRepos(arr(ghData.data));
       setCodingStats(csData && typeof csData === 'object' ? csData : { leetcode: null, gfg: null });
       setLinkedinPosts(arr(liData.data));
@@ -179,6 +186,7 @@ export default function AdminDashboardPage() {
   };
 
   const [saving, setSaving] = useState(false);
+  const [unreadEnquiries, setUnreadEnquiries] = useState(0);
 
   /** Shows the server's own explanation (or a fallback); sends the owner to login if the session expired. */
   const reportFail = async (res: Response, fallback: string) => {
@@ -636,6 +644,7 @@ export default function AdminDashboardPage() {
     { id: 'overview', label: 'Citadel Overview', icon: LayoutDashboard },
     { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
     { id: 'manual', label: 'Manual Entry', icon: Settings },
+    { id: 'inbox', label: 'Contact Inbox', icon: Send, count: unreadEnquiries },
     { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length },
     { id: 'leetcode', label: 'LeetCode', icon: Code2 },
     { id: 'geeksforgeeks', label: 'GeeksforGeeks', icon: Code2 },
@@ -658,7 +667,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center space-x-2">
             <span className="font-serif font-black text-2xl text-white">CITADEL COMMAND DESK</span>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-gold-500/20 text-gold-300 border border-gold-500/40">
-              Week 2 Intelligence Engine
+              Control Room
             </span>
           </div>
           <p className="text-xs font-mono text-neutral-400 mt-1">
@@ -948,6 +957,7 @@ export default function AdminDashboardPage() {
 
           {/* TAB 3: LEETCODE */}
           {activeTab === 'automation' && <AutomationPanel onChanged={loadAllData} />}
+          {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
 
           {activeTab === 'leetcode' && (

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { submitVisitorEnquiry } from '@/lib/services/enquiryService';
+import { getClientIp } from '@/lib/lamo/security';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const forwarded = req.headers.get('x-forwarded-for');
-    const ipAddress = forwarded ? forwarded.split(',')[0].trim() : req.ip || undefined;
+    let body: any;
+    try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }); }
+    const ipAddress = getClientIp(req.headers.get('x-forwarded-for')); // trusted-proxy aware; the left-most entry is client-controlled
     const userAgent = req.headers.get('user-agent') || undefined;
 
     const result = await submitVisitorEnquiry({

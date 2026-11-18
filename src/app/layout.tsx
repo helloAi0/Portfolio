@@ -109,7 +109,7 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
-        <LamoChatWidget />
+        <div className="print:hidden"><LamoChatWidget /></div>
       </body>
     </html>
   );
