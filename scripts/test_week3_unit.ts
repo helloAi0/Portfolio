@@ -85,5 +85,24 @@ t('synthesis adds nothing outside the evidence', !/senior|expert|award/i.test(sy
 t('in-progress skills are labelled', /in progress/.test(synthesizeGroundedResponse([chunk({ id: 's', title: 'Rust', verificationStatus: 'IN_PROGRESS', content: 'Skill: Rust.' })])));
 t('nav pills come only from real paths', buildNavigationPills(ev).every((p) => p.href.startsWith('/')) && buildNavigationPills([chunk({ id: 'n', title: 'x', content: 'y' })]).length === 0);
 
+// ---- LinkedIn export importer + solution input
+import { parseCsv, parseLinkedinDate, mapCertifications, mapSkills, mapShares, detectLinkedinCsv } from '../src/lib/importers/linkedinExport';
+import { cleanSolutionInput } from '../src/lib/importers/solutionInput';
+const certCsv = 'Name,Url,Authority,Started On,Finished On,License Number\n"Intro to ML, Part 1",https://coursera.org/verify/ABC,Coursera,Mar 2025,,ABC123\nBad Link Cert,javascript:alert(1),Org,2024-01-05,,\n';
+const certs = mapCertifications(certCsv);
+t('csv: quoted comma kept', certs[0].title === 'Intro to ML, Part 1');
+t('csv: month-year date parsed', certs[0].issueDate?.toISOString().startsWith('2025-03-01') === true);
+t('csv: non-https link rejected', certs[1].credentialUrl === null && certs[0].credentialUrl !== null);
+t('csv: BOM and notes preamble tolerated', mapSkills('\uFEFFNotes: something\n\nName\nPython\npython\nC++\n').join('|') === 'Python|C++');
+const shares = mapShares('Date,ShareLink,ShareCommentary,SharedUrl,MediaUrl,Visibility\n2025-06-01 10:00:00,https://www.linkedin.com/posts/x-1,"Hello ""world""\nline2",,,MEMBER_NETWORK\n2025-06-02 10:00:00,https://evil.example/x,Spoofed,,,\n,,No date,,,\n');
+t('shares: parsed quotes and newline', shares.length === 1 && shares[0].contentExcerpt.startsWith('Hello "world"'));
+t('shares: non-linkedin link and undated rows dropped', shares.length === 1);
+t('detect: file types', detectLinkedinCsv(certCsv) === 'CERTIFICATIONS' && detectLinkedinCsv('Date,ShareLink,ShareCommentary\n') === 'SHARES' && detectLinkedinCsv('Name\nPython\n') === 'SKILLS' && detectLinkedinCsv('a,b\n1,2') === 'UNKNOWN');
+t('date: garbage is null', parseLinkedinDate('soon') === null && parseCsv('').length === 0);
+const okSol = cleanSolutionInput({ problemTitle: 'Two Sum', platform: 'leetcode', difficulty: 'easy', code: 'print(1)', problemUrl: 'https://leetcode.com/problems/two-sum/' });
+t('solution: valid input cleaned', 'data' in okSol && okSol.data.platform === 'LEETCODE' && okSol.data.difficulty === 'Easy' && okSol.data.problemSlug === 'two-sum');
+t('solution: http/js links refused', 'error' in cleanSolutionInput({ problemTitle: 'X', problemUrl: 'javascript:alert(1)' }));
+t('solution: title required', 'error' in cleanSolutionInput({ problemTitle: '  ' }));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

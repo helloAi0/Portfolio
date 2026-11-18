@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { syncGithubRepositories } from '@/lib/services/githubSyncService';
-import { syncCodingPlatforms } from '@/lib/services/codingPlatformService';
-import { logger } from '@/lib/logger';
+import { runAllSyncs } from '@/lib/services/autoSyncService';
 
 /**
  * Reconciliation & Scheduled Sync Endpoint
@@ -17,22 +15,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized reconciliation trigger' }, { status: 401 });
   }
 
-  logger.info('ReconciliationRunner', 'Starting full reconciliation sync...');
-
-  // 1. Reconcile GitHub Repositories
-  const githubResult = await syncGithubRepositories('SCHEDULED');
-
-  // 2. Reconcile Coding Platforms (LeetCode, GFG)
-  const codingResult = await syncCodingPlatforms();
-
-  const timestamp = new Date().toISOString();
-  logger.info('ReconciliationRunner', `Reconciliation completed at ${timestamp}`);
-
-  return NextResponse.json({
-    success: true,
-    reconciliationTimestamp: timestamp,
-    github: githubResult,
-    codingPlatforms: codingResult,
-  });
+  const out = await runAllSyncs('SCHEDULED');
+  return NextResponse.json({ success: !out.skipped, reconciliationTimestamp: new Date().toISOString(), ...out });
 }
-

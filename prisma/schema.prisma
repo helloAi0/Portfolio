@@ -480,3 +480,24 @@ model AdminAuditLog {
   status       String    @default("COMMITTED") // "PREVIEW" | "COMMITTED" | "ROLLED_BACK"
   createdAt    DateTime  @default(now())
 }
+
+// Solved problems (auto-collected titles from public stats, plus owner-added code and notes)
+model CodingSolution {
+  id           String   @id @default(cuid())
+  platform     String   // "LEETCODE" | "GEEKSFORGEEKS" | "OTHER"
+  problemTitle String
+  problemSlug  String
+  problemUrl   String?
+  difficulty   String?
+  topicTags    String?  // JSON array
+  language     String?
+  code         String?
+  notes        String?
+  solvedAt     DateTime
+  source       String   @default("MANUAL") // "AUTO" | "MANUAL"
+  isPublic     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([platform, problemSlug])
+}

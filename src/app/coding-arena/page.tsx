@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { getCodingStats } from '@/lib/services/codingPlatformService';
 import { ExternalLink, Calendar, AlertTriangle } from 'lucide-react';
+import { prisma } from '@/lib/prisma';
 
 export const metadata = {
   title: 'Coding Arena',
@@ -169,6 +170,9 @@ function PlatformCard({ name, profile, configured }: { name: string; profile: Pr
 
 export default async function CodingArenaPage() {
   const { leetcode, gfg } = await getCodingStats();
+  const solutions = await prisma.codingSolution
+    .findMany({ where: { isPublic: true }, orderBy: { solvedAt: 'desc' }, take: 30 })
+    .catch(() => []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -184,6 +188,38 @@ export default async function CodingArenaPage() {
         <PlatformCard name="LeetCode" profile={leetcode as Profile} configured={Boolean(process.env.LEETCODE_USERNAME)} />
         <PlatformCard name="GeeksforGeeks" profile={gfg as Profile} configured={Boolean(process.env.GFG_USERNAME)} />
       </div>
+
+      {solutions.length > 0 && (
+        <section className="mt-14" aria-labelledby="solved-heading">
+          <h2 id="solved-heading" className="font-serif text-2xl text-white mb-1">Solved problems</h2>
+          <p className="text-xs font-mono text-neutral-400 mb-6">Collected automatically from the public LeetCode profile. Code and notes are added by the owner.</p>
+          <div className="space-y-4">
+            {solutions.map((s) => {
+              const tags: string[] = (() => { try { return s.topicTags ? JSON.parse(s.topicTags) : []; } catch { return []; } })();
+              return (
+                <Card key={s.id} className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-white font-bold text-sm">
+                      {s.problemUrl ? <a href={s.problemUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gold-300">{s.problemTitle}</a> : s.problemTitle}
+                    </h3>
+                    <span className="text-[11px] font-mono text-neutral-500">
+                      {s.platform.toLowerCase()}{s.difficulty ? ` · ${s.difficulty}` : ''}{s.language ? ` · ${s.language}` : ''} · {new Date(s.solvedAt).toLocaleDateString('en-IN')}
+                    </span>
+                  </div>
+                  {tags.length > 0 && <p className="text-[11px] text-neutral-400 mt-1">{tags.join(', ')}</p>}
+                  {s.notes && <p className="text-xs text-neutral-300 mt-2">{s.notes}</p>}
+                  {s.code && (
+                    <details className="mt-3">
+                      <summary className="text-xs text-gold-300 cursor-pointer">View solution code</summary>
+                      <pre className="mt-2 p-3 rounded bg-imperial-950 border border-white/10 text-[11px] text-neutral-200 overflow-x-auto"><code>{s.code}</code></pre>
+                    </details>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

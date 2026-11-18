@@ -144,3 +144,56 @@ export async function fetchLeetCodeStats(): Promise<LeetCodeStats> {
   }
 }
 
+
+
+export interface LeetCodeSolvedItem {
+  title: string;
+  slug: string;
+  solvedAt: Date;
+  difficulty: string | null;
+  topicTags: string[];
+}
+
+async function gql(query: string, variables: Record<string, unknown>) {
+  const res = await fetch(LEETCODE_GRAPHQL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Referer: 'https://leetcode.com', 'User-Agent': 'Mozilla/5.0 (compatible; ProjectLAMO/2.0)' },
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json())?.data;
+}
+
+/**
+ * Recently ACCEPTED problems from the public profile (titles and times only; LeetCode does not
+ * expose submitted code without a login, and this project never stores credentials).
+ * Returns { ok:false } on any failure; callers must not invent data.
+ */
+export async function fetchRecentAcceptedLeetCode(limit = 20): Promise<{ ok: boolean; items: LeetCodeSolvedItem[]; error?: string }> {
+  const username = process.env.LEETCODE_USERNAME;
+  if (!username) return { ok: false, items: [], error: 'LEETCODE_USERNAME not configured.' };
+  try {
+    const data = await gql(
+      `query recent($username: String!, $limit: Int!) { recentAcSubmissionList(username: $username, limit: $limit) { title titleSlug timestamp } }`,
+      { username, limit },
+    );
+    const list: Array<{ title: string; titleSlug: string; timestamp: string }> = data?.recentAcSubmissionList ?? [];
+    const items: LeetCodeSolvedItem[] = list.map((x) => ({
+      title: x.title, slug: x.titleSlug, solvedAt: new Date(Number(x.timestamp) * 1000), difficulty: null, topicTags: [],
+    })).filter((x) => x.slug && !isNaN(x.solvedAt.getTime()));
+    return { ok: true, items };
+  } catch (err) {
+    return { ok: false, items: [], error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function fetchLeetCodeProblemMeta(slug: string): Promise<{ difficulty: string | null; topicTags: string[] }> {
+  try {
+    const data = await gql(`query q($slug: String!) { question(titleSlug: $slug) { difficulty topicTags { name } } }`, { slug });
+    const q = data?.question;
+    return { difficulty: q?.difficulty ?? null, topicTags: (q?.topicTags ?? []).map((t: { name: string }) => t.name) };
+  } catch {
+    return { difficulty: null, topicTags: [] };
+  }
+}

@@ -108,3 +108,13 @@ WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, 
 **Tests:** `npm run test:unit` (49 Week 3 checks, no DB). `scripts/test_week3_lamo.ts` is DB-backed (run after db push + seed).
 
 **Not verified in this sandbox:** live Gemini calls, real Resend delivery, DB-backed flow, browser UI of the admin changes. Test these locally with real keys.
+
+
+## Automatic ingestion and manual fallback
+
+- **Scheduler:** `src/instrumentation.ts` runs `runAllSyncs` (GitHub, coding stats, new LeetCode solves) every `AUTO_SYNC_INTERVAL_HOURS` in production. External cron can call `POST /api/sync/reconcile` with `CRON_SECRET`. Admin tab "Auto-Sync & Quick Add" has "Sync everything now".
+- **LinkedIn:** no scraping or login automation (policy and master rule). The owner uploads Certifications.csv, Skills.csv and Shares.csv from LinkedIn's official data export; file type is auto-detected and re-uploads are deduplicated. Imported certificates are public but `PENDING_VERIFICATION`; skills are `OWNER_CONFIRMED` (not "demonstrated").
+- **LeetCode:** stats plus recently accepted problems (title, difficulty, topics, time) are automatic. Submitted code needs a login, so code is added manually (same panel) and shown under "Solved problems" on /coding-arena.
+- **GeeksforGeeks:** stats adapter exists but is best-effort (no official API); manual entry remains the fallback.
+- **Not verified here:** live LeetCode GraphQL, real LinkedIn export files, scheduler on Render. Test with your own data.
+- **Schema:** new `CodingSolution` model (run `npx prisma db push`).
