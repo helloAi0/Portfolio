@@ -12,7 +12,8 @@
     "db:push": "node node_modules/prisma/build/index.js db push",
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:seed": "node node_modules/tsx/dist/cli.mjs prisma/seed.ts",
-    "test:unit": "node node_modules/tsx/dist/cli.mjs scripts/test_identity_and_honesty.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week2_sync.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week3_unit.ts"
+    "verify:live": "node node_modules/tsx/dist/cli.mjs scripts/verify_live.ts",
+    "test:unit": "node node_modules/tsx/dist/cli.mjs scripts/test_identity_and_honesty.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week2_sync.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week3_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_automation_mocked.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

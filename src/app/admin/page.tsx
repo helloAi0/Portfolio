@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import AutomationPanel from '@/components/admin/AutomationPanel';
+import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import {
@@ -37,6 +38,7 @@ import {
 type AdminTab =
   | 'overview'
   | 'automation'
+  | 'manual'
   | 'github'
   | 'leetcode'
   | 'geeksforgeeks'
@@ -633,6 +635,7 @@ export default function AdminDashboardPage() {
   const navTabs: { id: AdminTab; label: string; icon: any; count?: number }[] = [
     { id: 'overview', label: 'Citadel Overview', icon: LayoutDashboard },
     { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
+    { id: 'manual', label: 'Manual Entry', icon: Settings },
     { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length },
     { id: 'leetcode', label: 'LeetCode', icon: Code2 },
     { id: 'geeksforgeeks', label: 'GeeksforGeeks', icon: Code2 },
@@ -945,6 +948,7 @@ export default function AdminDashboardPage() {
 
           {/* TAB 3: LEETCODE */}
           {activeTab === 'automation' && <AutomationPanel onChanged={loadAllData} />}
+          {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
 
           {activeTab === 'leetcode' && (
             <div className="space-y-6">

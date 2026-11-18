@@ -110,5 +110,17 @@ t('admin: blank text is null', text('   ') === null && text(5 as any) === null &
 t('admin: dates', dateOrNull('') === null && dateOrNull('abc') === 'invalid' && dateOrNull('1850-01-01') === 'invalid' && dateOrNull('2025-03-01') instanceof Date);
 t('admin: https links', httpsOrNull('') === null && httpsOrNull('http://x.com') === 'invalid' && httpsOrNull('javascript:alert(1)') === 'invalid' && httpsOrNull('https://x.com/a') === 'https://x.com/a');
 
+// ---- Manual entry validators
+import { cleanManualStats, cleanSkillInput, cleanProjectInput, slugifyName } from '../src/lib/adminInput';
+t('stats: valid', 'data' in cleanManualStats({ platform: 'leetcode', username: 'taha_u', totalSolved: '120', easySolved: 60, mediumSolved: 50, hardSolved: 10 }));
+t('stats: parts exceeding total refused', 'error' in cleanManualStats({ platform: 'LEETCODE', username: 'a', totalSolved: 10, easySolved: 8, mediumSolved: 5, hardSolved: 1 }));
+t('stats: negative / decimal / text refused', ['-1', '1.5', 'abc'].every((v) => 'error' in cleanManualStats({ platform: 'LEETCODE', username: 'a', totalSolved: v })));
+t('stats: bad username / platform refused', 'error' in cleanManualStats({ platform: 'LEETCODE', username: 'a b!', totalSolved: 1 }) && 'error' in cleanManualStats({ platform: 'X', username: 'a', totalSolved: 1 }));
+t('skill: slugs and levels', slugifyName('C++') === 'cpp' && slugifyName('C#') === 'csharp' && (cleanSkillInput({ name: 'ROS 2', level: 'DEMONSTRATED' }) as any).data.level === 'OWNER_CONFIRMED');
+t('skill: name required', 'error' in cleanSkillInput({ name: '  ' }));
+const proj = cleanProjectInput({ title: 'Line Follower Bot', tagline: 'x', description: 'y', categorySlug: 'robotics', keyFeatures: 'a\n\n b ', skills: 'C++, Arduino,', githubRepo: '' });
+t('project: valid and cleaned', 'data' in proj && proj.data.keyFeatures.length === 2 && proj.data.skillNames.length === 2 && proj.data.githubRepo === null);
+t('project: required fields and links', 'error' in cleanProjectInput({ title: 'x' }) && 'error' in cleanProjectInput({ title: 'x', tagline: 'y', description: 'z', categorySlug: 'robotics', liveDeployment: 'http://a.com' }));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

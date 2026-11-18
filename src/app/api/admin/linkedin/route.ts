@@ -77,3 +77,11 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
+
+export async function DELETE(req: NextRequest) {
+  if (!getAdminFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const id = new URL(req.url).searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  await prisma.linkedinPost.deleteMany({ where: { id } });
+  return NextResponse.json({ success: true });
+}

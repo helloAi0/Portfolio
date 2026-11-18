@@ -118,3 +118,19 @@ WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, 
 - **GeeksforGeeks:** stats adapter exists but is best-effort (no official API); manual entry remains the fallback.
 - **Not verified here:** live LeetCode GraphQL, real LinkedIn export files, scheduler on Render. Test with your own data.
 - **Schema:** new `CodingSolution` model (run `npx prisma db push`).
+
+
+## Manual entry coverage and verification status
+
+| Area | Automatic | Manual fallback (admin) |
+|---|---|---|
+| GitHub projects | scheduler + webhook + "Sync everything now" | Manual Entry > Add a project; GitHub tab approve/edit |
+| Skills | detected from repos, LinkedIn export | Manual Entry > Add a skill (stated or learning, never "demonstrated") |
+| Certificates | LinkedIn export | Certificates tab (add); Manual Entry (delete) |
+| Achievements / Experience | none (no source) | their tabs (add); Manual Entry (delete) |
+| LinkedIn posts | LinkedIn export | LinkedIn tab (add); Manual Entry (delete) |
+| LeetCode / GFG stats | scheduler | Manual Entry > Coding statistics (marked "entered manually"; replaced by the next successful live sync) |
+| Solved problems + code | LeetCode recent accepted (titles) | Auto-Sync tab > paste code |
+
+**Verified in the sandbox:** unit tests (71 + 8 with mocked LeetCode responses), tsc, lint, headless-browser clicks through every admin tab, error toasts, add/delete flows (API mocked).
+**NOT verified (needs the owner's machine):** real GitHub/LeetCode/GFG responses, the Prisma-backed route handlers (type-checked only), Render. Run `npm run verify:live` after `prisma db push`; it prints PASS/FAIL per source.
