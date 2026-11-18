@@ -20,7 +20,7 @@ export interface SkillSuggestion {
   name: string;
   category: string;
   derivedFromProjects: string[];
-  suggestedProficiency: number;
+  evidenceProjectCount: number; // how many approved projects use it. NOT a proficiency score.
   existsInDatabase: boolean;
   isVerified: boolean;
 }
@@ -192,6 +192,7 @@ export async function auditPortfolioCompleteness(): Promise<CompletenessAuditRes
 export async function suggestSkillsFromProjects(): Promise<SkillSuggestion[]> {
   const [projects, existingSkills] = await Promise.all([
     prisma.project.findMany({
+      where: { approvalStatus: 'APPROVED' }, // never derive skills from unreviewed repositories
       include: {
         skills: { include: { skill: true } },
         category: true,
@@ -292,7 +293,7 @@ export async function suggestSkillsFromProjects(): Promise<SkillSuggestion[]> {
       name: displayName,
       category,
       derivedFromProjects: info.projects,
-      suggestedProficiency: Math.min(60 + info.count * 10, 95),
+      evidenceProjectCount: info.projects.length,
       existsInDatabase: !!existing,
       isVerified: existing ? existing.verified : false,
     });
@@ -323,13 +324,21 @@ export async function draftProjectEnhancement(projectId: string): Promise<{
     throw new Error(`Project with ID ${projectId} not found.`);
   }
 
+  // Grounded draft: only re-arranges text the project already contains. No adjectives or capabilities are added.
   const techNames = project.skills.map((ps) => ps.skill.name).join(', ');
-  const categoryName = project.category?.name || 'Engineering Architecture';
-
-  // Compose an elevated, imperial-standard technical description grounded strictly in its features
-  const proposedDescription = `${project.title} is an advanced ${categoryName.toLowerCase()} system engineered for high reliability, algorithmic rigor, and architectural clarity. Built utilizing ${techNames || 'modern distributed technologies'}, the system delivers robust execution under real-world constraints. Key capabilities include high-throughput pipeline execution, deterministic state evaluation, and modular component integration engineered to enterprise and research standards.`;
-
-  const changeExplanation = `Refined technical vocabulary, highlighted underlying architectural design principles using verified stack (${techNames || 'core architecture'}), and aligned with imperial engineering standards without introducing unverified claims.`;
+  let features: string[] = [];
+  try { const f = JSON.parse(project.keyFeatures || '[]'); if (Array.isArray(f)) features = f.map(String).filter(Boolean).slice(0, 4); } catch {}
+  const parts = [
+    project.tagline?.trim() && (/[.!?]$/.test(project.tagline.trim()) ? project.tagline.trim() : `${project.tagline.trim()}.`),
+    project.problemStatement?.trim() && `Problem: ${project.problemStatement.trim()}`,
+    project.solution?.trim() && `Approach: ${project.solution.trim()}`,
+    features.length ? `Key features: ${features.join('; ')}.` : '',
+    techNames ? `Technologies: ${techNames}.` : '',
+  ].filter(Boolean) as string[];
+  const proposedDescription = parts.join(' ');
+  const changeExplanation = parts.length >= 2
+    ? 'Combined the existing tagline, problem, approach, features and technologies into one description. No new claims were added; review before applying.'
+    : 'This project has too little recorded detail for a useful draft. Add a problem statement, solution and features first.';
 
   return {
     projectId: project.id,
@@ -388,8 +397,17 @@ export async function rollbackAuditAction(auditId: string): Promise<{ success: b
   if (!log || !log.previousState) {
     return { success: false, message: 'Audit log record or previous state not found.' };
   }
+  if (log.action.startsWith('ROLLBACK_')) {
+    return { success: false, message: 'A rollback entry cannot itself be rolled back.' };
+  }
+  const already = await prisma.adminAuditLog.findFirst({ where: { action: `ROLLBACK_${log.action}`, explanation: { contains: auditId } } });
+  if (already) return { success: false, message: 'This action was already rolled back.' };
+  if (log.action !== 'COPILOT_PROJECT_DESCRIPTION' && log.action !== 'BIOGRAPHY_UPDATE') {
+    return { success: false, message: `Rollback is not supported for ${log.action}.` };
+  }
 
-  const prevState = JSON.parse(log.previousState);
+  let prevState: any;
+  try { prevState = JSON.parse(log.previousState); } catch { return { success: false, message: 'Stored previous state is unreadable.' }; }
 
   if (log.action === 'COPILOT_PROJECT_DESCRIPTION') {
     const slugOrId = log.target.replace('Project:', '');

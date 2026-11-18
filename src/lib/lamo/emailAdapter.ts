@@ -1,272 +1,132 @@
 /**
- * LAMO Owner Email Notification Adapter
- * Dispatches secure notifications when unanswered questions are recorded.
+ * LAMO email adapter (server-only; the Resend key never reaches the browser).
+ * Honest results: when no provider is configured or the provider fails, success is FALSE and the
+ * reason is returned so the admin dashboard can show "not delivered" instead of pretending.
  */
-
 import { logger } from '@/lib/logger';
+import { PROFILE } from '@/config/profile';
+import { escapeHtml } from './security';
+
+export interface EmailResult { success: boolean; provider: 'RESEND' | 'NOT_CONFIGURED'; messageId?: string; error?: string }
+
+export const ownerRecipient = () => process.env.OWNER_NOTIFICATION_EMAIL || PROFILE.contactEmail;
+const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const oneLine = (s: string) => s.replace(/[\r\n]+/g, ' ').slice(0, 200); // prevents header injection via subject
+
+export async function sendEmail(opts: { to: string; subject: string; text: string; html?: string; replyTo?: string; from?: string }): Promise<EmailResult> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    logger.warn('EmailAdapter', 'RESEND_API_KEY not set; email was NOT sent.', { subject: oneLine(opts.subject) });
+    return { success: false, provider: 'NOT_CONFIGURED', error: 'Email provider is not configured (RESEND_API_KEY missing).' };
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: opts.from || process.env.EMAIL_FROM || 'LAMO <onboarding@resend.dev>',
+        to: [opts.to],
+        subject: oneLine(opts.subject),
+        text: opts.text,
+        ...(opts.html ? { html: opts.html } : {}),
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = String(data?.message || `HTTP ${res.status}`).slice(0, 300);
+      logger.warn('EmailAdapter', `Resend rejected the message: ${msg}`);
+      return { success: false, provider: 'RESEND', error: msg };
+    }
+    return { success: true, provider: 'RESEND', messageId: data.id };
+  } catch (err) {
+    logger.error('EmailAdapter.Resend', err as Error);
+    return { success: false, provider: 'RESEND', error: 'Email provider unreachable or timed out.' };
+  }
+}
 
 export interface UnansweredQuestionEmailPayload {
   questionId: string;
   question: string;
   category: string;
   reason: string;
+  askCount?: number;
   visitorName?: string | null;
   visitorEmail?: string | null;
 }
 
-export async function sendOwnerUnansweredQuestionNotification(
-  payload: UnansweredQuestionEmailPayload
-): Promise<{ success: boolean; provider: string; messageId?: string; error?: string }> {
-  const recipient =
-    process.env.OWNER_NOTIFICATION_EMAIL ||
-    process.env.OWNER_CONTACT_EMAIL ||
-    'tahaudaipurwala68@gmail.com';
+export async function sendOwnerUnansweredQuestionNotification(p: UnansweredQuestionEmailPayload): Promise<EmailResult> {
+  const review = `${siteUrl()}/admin`;
+  const visitor = p.visitorEmail ? `${p.visitorName || 'Visitor'} <${p.visitorEmail}>` : 'Anonymous (no follow-up requested)';
+  const text = `A visitor asked something LAMO could not answer from verified portfolio information.
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const adminReviewUrl = `${siteUrl}/admin`;
+Question: "${p.question}"
+Question ID: ${p.questionId}
+Category: ${p.category}
+Times asked: ${p.askCount ?? 1}
+Reason: ${p.reason}
+Visitor: ${visitor}
 
-  const subject = `LAMO — New Unanswered Portfolio Question [${payload.questionId}]`;
+Answer it, ask the visitor for more context, or mark it private here:
+${review}
 
-  const plaintextBody = `Hello Portfolio Owner,
-
-A visitor asked a question that I could not answer using verified portfolio information.
-
-Question:
-"${payload.question}"
-
-Question ID:
-${payload.questionId}
-
-Category:
-${payload.category}
-
-Reason:
-${payload.reason}
-
-${payload.visitorEmail ? `Visitor Contact: ${payload.visitorName || 'Anonymous'} <${payload.visitorEmail}>` : 'Visitor Contact: Anonymous (no follow-up requested)'}
-
-Suggested action:
-Review and provide an approved answer.
-
-Review in Admin Dashboard:
-${adminReviewUrl}
-
-Thank you,
-LAMO (Personal AI Portfolio Manager)`;
-
-  const htmlBody = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0c0e12; color: #e2e8f0; padding: 24px; border: 1px solid #d4af37; border-radius: 6px;">
-      <div style="border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 12px; margin-bottom: 20px;">
-        <h2 style="color: #d4af37; margin: 0; font-size: 20px; letter-spacing: 1px;">LAMO • Unanswered Portfolio Question</h2>
-        <p style="color: #a0aec0; margin: 4px 0 0 0; font-size: 12px; font-family: monospace;">Question ID: ${payload.questionId}</p>
-      </div>
-
-      <p style="font-size: 14px; line-height: 1.6; color: #cbd5e0;">Hello Portfolio Owner,</p>
-      <p style="font-size: 14px; line-height: 1.6; color: #cbd5e0;">A visitor asked a question that I could not answer using verified portfolio information.</p>
-
-      <div style="background: #161a22; border-left: 3px solid #d4af37; padding: 14px; margin: 18px 0; border-radius: 4px;">
-        <span style="font-size: 10px; color: #d4af37; text-transform: uppercase; font-family: monospace; display: block; margin-bottom: 4px;">Visitor Question:</span>
-        <blockquote style="margin: 0; font-size: 15px; font-weight: bold; color: #ffffff;">"${payload.question}"</blockquote>
-      </div>
-
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 16px 0; font-family: monospace;">
-        <tr>
-          <td style="color: #a0aec0; padding: 6px 0; width: 120px;">Category:</td>
-          <td style="color: #ffffff; font-weight: bold;">${payload.category}</td>
-        </tr>
-        <tr>
-          <td style="color: #a0aec0; padding: 6px 0;">Reason:</td>
-          <td style="color: #f6ad55;">${payload.reason}</td>
-        </tr>
-        <tr>
-          <td style="color: #a0aec0; padding: 6px 0;">Visitor:</td>
-          <td style="color: #ffffff;">${payload.visitorEmail ? `${payload.visitorName || 'Visitor'} (${payload.visitorEmail})` : 'Anonymous (No email supplied)'}</td>
-        </tr>
-      </table>
-
-      <div style="margin: 28px 0 16px 0; text-align: center;">
-        <a href="${adminReviewUrl}" style="background: linear-gradient(135deg, #d4af37 0%, #aa7c11 100%); color: #08090c; text-decoration: none; padding: 12px 24px; font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-radius: 3px; display: inline-block;">
-          Review in Admin Dashboard
-        </a>
-      </div>
-
-      <div style="border-top: 1px solid #2d3748; padding-top: 16px; margin-top: 24px; font-size: 11px; color: #718096; font-family: monospace;">
-        Thank you,<br/>
-        <strong>LAMO</strong> — Personal AI Portfolio Manager for Taha Udaipurwala
-      </div>
-    </div>
-  `;
-
-  // 1. Resend Provider (if configured in production)
-  if (process.env.RESEND_API_KEY) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'LAMO AI <lamo@projectlamo.dev>',
-          to: [recipient],
-          subject,
-          text: plaintextBody,
-          html: htmlBody,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Resend API failed');
-      }
-
-      logger.info('EmailAdapter', `Resend notification dispatched to ${recipient}`, {
-        questionId: payload.questionId,
-        id: data.id,
-      });
-
-      return { success: true, provider: 'RESEND', messageId: data.id };
-    } catch (err) {
-      logger.error('EmailAdapter.Resend', err as Error);
-    }
-  }
-
-  // 2. Structured Audit Log & Console Transport (Guaranteed zero-drop delivery for dev & self-hosted)
-  logger.info('EmailAdapter.ConsoleTransport', `[EMAIL TO: ${recipient}] ${subject}`, {
-    questionId: payload.questionId,
-    question: payload.question,
-    category: payload.category,
-    reason: payload.reason,
-    adminReviewUrl,
+LAMO will not publish any answer until you approve it.`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #d4af37">
+<h2 style="color:#8a6d1a;margin:0 0 4px">LAMO &middot; Unanswered question</h2>
+<p style="font:12px monospace;color:#666">ID ${escapeHtml(p.questionId)} &middot; asked ${p.askCount ?? 1}&times;</p>
+<blockquote style="border-left:3px solid #d4af37;margin:16px 0;padding:8px 12px;background:#faf6e8">${escapeHtml(p.question)}</blockquote>
+<p><b>Category:</b> ${escapeHtml(p.category)}<br/><b>Reason:</b> ${escapeHtml(p.reason)}<br/><b>Visitor:</b> ${escapeHtml(visitor)}</p>
+<p><a href="${escapeHtml(review)}">Open the admin dashboard</a></p>
+<p style="font-size:12px;color:#666">LAMO will not publish any answer until you approve it.</p></div>`;
+  return sendEmail({
+    to: ownerRecipient(),
+    subject: `LAMO: unanswered question [${p.questionId}]`,
+    text, html,
+    replyTo: p.visitorEmail || undefined,
   });
-
-  return {
-    success: true,
-    provider: 'CONSOLE_AUDIT_TRANSPORT',
-    messageId: `local-audit-${Date.now()}`,
-  };
 }
 
-export async function sendVisitorAnswerNotification(payload: {
-  visitorEmail: string;
-  visitorName?: string | null;
-  question: string;
-  answer: string;
-}): Promise<{ success: boolean; provider: string; error?: string }> {
-  const subject = 'Taha Udaipurwala — Answer to your Portfolio Question via LAMO';
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+export async function sendVisitorAnswerNotification(p: { visitorEmail: string; visitorName?: string | null; question: string; answer: string }): Promise<EmailResult> {
+  const text = `Hello ${p.visitorName || 'there'},
 
-  const plaintext = `Hello ${payload.visitorName || 'Visitor'},
+Thank you for your question on ${PROFILE.displayName}'s portfolio.
 
-Thank you for your question on Taha Udaipurwala's engineering portfolio.
+Your question:
+"${p.question}"
 
-Your Question:
-"${payload.question}"
+Answer from the portfolio owner:
+"${p.answer}"
 
-Owner Answer:
-"${payload.answer}"
-
-You can view the full portfolio and projects here:
-${siteUrl}
-
-Best regards,
-Taha Udaipurwala & LAMO AI
-`;
-
-  if (process.env.RESEND_API_KEY) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'Taha Udaipurwala <lamo@projectlamo.dev>',
-          to: [payload.visitorEmail],
-          subject,
-          text: plaintext,
-        }),
-      });
-      if (res.ok) {
-        return { success: true, provider: 'RESEND' };
-      }
-    } catch (err) {
-      logger.error('EmailAdapter.VisitorNotification', err as Error);
-    }
-  }
-
-  logger.info('EmailAdapter.VisitorAnswer', `[REPLY TO: ${payload.visitorEmail}]`, {
-    question: payload.question,
-    answer: payload.answer,
-  });
-
-  return { success: true, provider: 'CONSOLE_AUDIT_TRANSPORT' };
+Portfolio: ${siteUrl()}`;
+  return sendEmail({ to: p.visitorEmail, subject: `Your question to ${PROFILE.displayName}'s portfolio`, text, replyTo: ownerRecipient() });
 }
 
-export async function sendOwnerEnquiryNotification(payload: {
-  enquiryId: string;
-  senderName: string;
-  senderEmail: string;
-  senderPhone?: string | null;
-  subject: string;
-  message: string;
-}): Promise<{ success: boolean; provider: string; error?: string }> {
-  const recipient =
-    process.env.OWNER_NOTIFICATION_EMAIL ||
-    process.env.OWNER_CONTACT_EMAIL ||
-    'tahaudaipurwala68@gmail.com';
+export async function sendVisitorContextRequest(p: { visitorEmail: string; visitorName?: string | null; question: string; request: string }): Promise<EmailResult> {
+  const text = `Hello ${p.visitorName || 'there'},
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const emailSubject = `Citadel Transmission — New Direct Enquiry: ${payload.subject}`;
+About your question: "${p.question}"
 
-  const plaintext = `Hello Taha,
+The portfolio owner needs a little more context before answering:
+"${p.request}"
 
-You have received a new communication transmission through the Project LAMO contact portal.
+Please reply to this email with the details.`;
+  return sendEmail({ to: p.visitorEmail, subject: `A quick question about your question`, text, replyTo: ownerRecipient() });
+}
 
-Transmission ID: ${payload.enquiryId}
-From: ${payload.senderName} <${payload.senderEmail}>
-Phone: ${payload.senderPhone || 'Not provided'}
-Subject: ${payload.subject}
+export async function sendOwnerEnquiryNotification(p: {
+  enquiryId: string; senderName: string; senderEmail: string; senderPhone?: string | null; subject: string; message: string;
+}): Promise<EmailResult> {
+  const text = `New enquiry through the portfolio contact form.
+
+ID: ${p.enquiryId}
+From: ${p.senderName} <${p.senderEmail}>
+Phone: ${p.senderPhone || 'Not provided'}
+Subject: ${p.subject}
 
 Message:
-"${payload.message}"
+${p.message}
 
-Review in Admin Dashboard:
-${siteUrl}/admin
-
-Best regards,
-Project LAMO Transmission Gateway
-`;
-
-  if (process.env.RESEND_API_KEY) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'LAMO Portal <lamo@projectlamo.dev>',
-          to: [recipient],
-          subject: emailSubject,
-          text: plaintext,
-        }),
-      });
-      if (res.ok) {
-        return { success: true, provider: 'RESEND' };
-      }
-    } catch (err) {
-      logger.error('EmailAdapter.EnquiryNotification', err as Error);
-    }
-  }
-
-  logger.info('EmailAdapter.EnquiryNotification', `[NEW ENQUIRY TO: ${recipient}]`, {
-    enquiryId: payload.enquiryId,
-    senderEmail: payload.senderEmail,
-    subject: payload.subject,
-  });
-
-  return { success: true, provider: 'CONSOLE_AUDIT_TRANSPORT' };
+Admin: ${siteUrl()}/admin`;
+  return sendEmail({ to: ownerRecipient(), subject: `Portfolio enquiry: ${p.subject}`, text, replyTo: p.senderEmail });
 }

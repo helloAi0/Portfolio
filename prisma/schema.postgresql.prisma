@@ -446,6 +446,13 @@ model UnansweredQuestion {
   emailNotified       Boolean   @default(false)
   notifiedAt          DateTime?
   answeredAt          DateTime?
+  questionKey         String?   // normalised form, used to merge repeated questions
+  askCount            Int       @default(1)
+  followUpTokenHash   String?   // sha256 of the secret the asking visitor holds; never the token itself
+  answerVisibility    String    @default("PRIVATE") // "PUBLIC" (LAMO may reuse the answer) | "PRIVATE" (only for this visitor)
+  ownerContextRequest String?   // what the owner needs from the visitor before answering
+  visitorEmailedAt    DateTime?
+  emailError          String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { PROFILE } from '@/config/profile';
+import { resolveIdentitySafety } from '@/lib/identity';
 
 export interface MilestoneItem {
   type: 'PROJECT' | 'SKILL' | 'CERTIFICATE' | 'CODING' | 'ACHIEVEMENT';
@@ -29,7 +29,7 @@ export async function generateBiographyReview(forceRefresh = false): Promise<Bio
   // 1. Get profile
   const profile = await prisma.profile.findFirst();
 
-  const currentBio = profile?.bio || 'Undergraduate engineering student specializing in Artificial Intelligence, Machine Learning, and Robotics.';
+  const currentBio = profile?.bio || '';
 
   // 2. Check latest review
   const latestReview = await prisma.biographyReview.findFirst({
@@ -40,8 +40,9 @@ export async function generateBiographyReview(forceRefresh = false): Promise<Bio
   const lastReviewDate = latestReview ? new Date(latestReview.reviewDate) : new Date(0);
   const diffDays = Math.floor((now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24));
 
-  // If there is an existing pending review and we are not forcing refresh, return it
-  if (!forceRefresh && latestReview && latestReview.status === 'PENDING_APPROVAL') {
+  // Not forced: reuse the latest review while it is pending, or while it is younger than 60 days.
+  // (Previously every admin page load created a new review row.)
+  if (!forceRefresh && latestReview && (latestReview.status === 'PENDING_APPROVAL' || diffDays < 60)) {
     return {
       reviewId: latestReview.id,
       reviewDate: latestReview.reviewDate,
@@ -69,6 +70,7 @@ export async function generateBiographyReview(forceRefresh = false): Promise<Bio
     prisma.skill.findMany({
       where: {
         verified: true,
+        level: { notIn: ['DETECTED', 'REPOSITORY_DETECTED'] },
       },
       take: 12,
       orderBy: { confidenceScore: 'desc' },
@@ -76,6 +78,7 @@ export async function generateBiographyReview(forceRefresh = false): Promise<Bio
     prisma.certificate.findMany({
       where: {
         isPublic: true,
+        ownerApproved: true,
       },
       take: 5,
       orderBy: { issueDate: 'desc' },
@@ -148,11 +151,30 @@ export async function generateBiographyReview(forceRefresh = false): Promise<Bio
     reasons.push(`LeetCode statistics show ${totalLeetCodeSolved} solved problems.`);
   }
 
-  // 4. Synthesize proposed biography based on verified ground-truth facts
-  const degreeStr = 'B.Tech in Computer Science and Engineering (AI & ML) with a Minor in Cybersecurity (expected 2028)';
-  const highlightStack = topSkillNames.length > 0 ? topSkillNames.join(', ') : 'AI/ML, robotics and software engineering';
+  // 4. Nothing new to report -> do not create an empty review.
+  if (supportingEvidence.length === 0) {
+    return {
+      reviewId: '',
+      reviewDate: now,
+      currentBio,
+      proposedBio: currentBio,
+      reasons: ['No new approved projects, verified skills, public certificates or synced coding statistics since the last review.'],
+      supportingEvidence: [],
+      status: 'NO_CHANGES',
+      daysSinceLastReview: diffDays,
+    };
+  }
 
-  const proposedBio = `${PROFILE.displayName} is pursuing a ${degreeStr}, with additional learning and project work in robotics. His current work covers ${highlightStack}. He is aiming toward research and graduate study in intelligent systems.`;
+  // 5. Proposal built ONLY from records that exist. No goals, ambitions or adjectives are invented;
+  //    the owner reviews and may edit the result before it is applied.
+  const id = resolveIdentitySafety().academicStatus;
+  const sentences: string[] = [
+    `${resolveIdentitySafety().displayName} is pursuing a ${id.degree} in ${id.field}${id.minor ? ` with a minor in ${id.minor}` : ''}${id.institution ? ` at ${id.institution}` : ''}.`,
+  ];
+  if (topSkillNames.length > 0) sentences.push(`Skills demonstrated or confirmed so far include ${topSkillNames.join(', ')}.`);
+  if (recentProjects.length > 0) sentences.push(`Recent projects: ${recentProjects.map((p) => p.title).join(', ')}.`);
+  if (certificates.length > 0) sentences.push(`Certificates: ${certificates.map((c) => c.title).join(', ')}.`);
+  const proposedBio = sentences.join(' ');
 
   // 5. Store in database
   const createdReview = await prisma.biographyReview.create({

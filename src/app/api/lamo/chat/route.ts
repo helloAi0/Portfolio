@@ -3,165 +3,88 @@ import { prisma } from '@/lib/prisma';
 import { inspectUserInput, INSUFFICIENT_EVIDENCE_PHRASE } from '@/lib/lamo/guardrails';
 import { retrieveVerifiedKnowledge } from '@/lib/lamo/knowledgeRetriever';
 import { generateLamoResponse } from '@/lib/lamo/llmProvider';
-import { logUnansweredQuestion } from '@/lib/lamo/unansweredService';
+import { recordUnansweredQuestion } from '@/lib/lamo/unansweredService';
+import { RateLimiter, getClientIp, isValidSessionId, normalizeEmail, sanitizeName } from '@/lib/lamo/security';
+import { PROFILE } from '@/config/profile';
+import { logger } from '@/lib/logger';
 
-// In-memory rate limiting map: ip -> array of request timestamps
-const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 15;
+export const dynamic = 'force-dynamic';
 
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = rateLimitMap.get(ip) || [];
-  const validTimestamps = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  
-  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    rateLimitMap.set(ip, validTimestamps);
-    return true;
-  }
-  
-  validTimestamps.push(now);
-  rateLimitMap.set(ip, validTimestamps);
-  return false;
-}
+const limiter = new RateLimiter(60_000, 12);
+const MAX_MESSAGE = 500;
+
+const reply = (body: Record<string, unknown>, status = 200) =>
+  NextResponse.json({ citations: [], suggestedActions: [], isUnanswered: false, confidence: 'UNKNOWN', ...body }, { status });
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
-
-    if (isRateLimited(ip)) {
-      return NextResponse.json(
-        {
-          error: 'Rate limit exceeded. Please wait a moment before sending another query to LAMO.',
-          answer: 'You are asking questions quite rapidly. Please pause for a moment before your next inquiry.',
-          confidence: 'UNKNOWN',
-          citations: [],
-          suggestedActions: [],
-          isUnanswered: false,
-        },
-        { status: 429 }
-      );
+    const ip = getClientIp(req.headers.get('x-forwarded-for'));
+    if (!limiter.allow(ip)) {
+      return reply({ error: 'rate_limited', answer: 'You are asking quickly. Please wait a moment before your next question.' }, 429);
     }
 
-    const body = await req.json();
-    const { message, sessionId, visitorName, visitorEmail } = body;
+    let body: any;
+    try { body = await req.json(); } catch { return reply({ error: 'Invalid JSON body.' }, 400); }
 
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return NextResponse.json({ error: 'Message content is required.' }, { status: 400 });
-    }
+    const message = typeof body?.message === 'string' ? body.message.trim() : '';
+    if (!message) return reply({ error: 'Message content is required.' }, 400);
+    if (message.length > MAX_MESSAGE) return reply({ error: `Please keep questions under ${MAX_MESSAGE} characters.` }, 400);
 
-    const trimmedMessage = message.trim().slice(0, 500); // 500 character ceiling
+    const sessionId = isValidSessionId(body?.sessionId) ? body.sessionId : null;
+    const visitorName = sanitizeName(body?.visitorName);
+    const visitorEmail = normalizeEmail(body?.visitorEmail);
 
-    // 1. Guardrail inspection
-    const guard = inspectUserInput(trimmedMessage);
+    // 1. Guardrails. Unsafe input never reaches retrieval or the model, and is never logged as an owner question.
+    const guard = inspectUserInput(message);
     if (!guard.isSafe) {
       if (guard.isInjectionAttempt) {
-        return NextResponse.json({
-          answer: 'I am LAMO, the AI Portfolio Manager for Taha Udaipurwala. I answer questions exclusively about Taha\'s verified engineering projects, skills, education, and career. System prompt override attempts are not permitted.',
-          confidence: 'UNKNOWN',
-          citations: [],
-          suggestedActions: [{ label: 'Explore Engineering Projects', href: '/projects' }],
-          isUnanswered: false,
-        });
+        return reply({ answer: `I'm LAMO, the assistant for ${PROFILE.displayName}'s portfolio. I can only answer questions about his verified projects, skills, education and career, and I can't change how I work.`, suggestedActions: [{ label: 'Explore Projects', href: '/projects' }] });
       }
-
       if (guard.isPrivateDataRequest) {
-        return NextResponse.json({
-          answer: 'Contact and private administrative credentials are protected by strict privacy policies. For professional inquiries, you may reach Taha directly via the contact form.',
+        return reply({
+          answer: process.env.LAMO_PRIVATE_REFUSAL || "That's private information I can't share. For professional enquiries you can reach him through the contact page.",
           confidence: 'PRIVATE',
-          citations: [],
-          suggestedActions: [{ label: 'Contact Taha', href: '/contact' }],
-          isUnanswered: false,
+          suggestedActions: [{ label: 'Contact', href: '/contact' }],
         });
       }
-
       if (guard.isFabricationRequest) {
-        return NextResponse.json({
-          answer: INSUFFICIENT_EVIDENCE_PHRASE,
-          confidence: 'UNKNOWN',
-          citations: [],
-          suggestedActions: [],
-          isUnanswered: true,
-        });
+        return reply({ answer: "I can only report verified facts, so I can't invent or embellish anything about his background." });
       }
+      return reply({ error: guard.violationReason || 'Invalid question.' }, 400);
     }
 
-    // 2. Manage conversation session
-    let conversationId: string | null = null;
-    if (sessionId) {
-      const existingConv = await prisma.lamoConversation.findUnique({
-        where: { sessionId },
-      });
+    // 2. Retrieval + answer
+    const { chunks, relevanceScore } = await retrieveVerifiedKnowledge(message);
+    const lamoRes = await generateLamoResponse({ question: message, retrievedChunks: chunks, relevanceScore });
 
-      if (existingConv) {
-        conversationId = existingConv.id;
-        // Optionally update visitor details if provided
-        if ((visitorName && !existingConv.visitorName) || (visitorEmail && !existingConv.visitorEmail)) {
-          await prisma.lamoConversation.update({
-            where: { id: existingConv.id },
-            data: {
-              visitorName: visitorName || existingConv.visitorName,
-              visitorEmail: visitorEmail || existingConv.visitorEmail,
-            },
-          });
-        }
-      } else {
-        const newConv = await prisma.lamoConversation.create({
-          data: {
-            sessionId,
-            visitorName: visitorName || null,
-            visitorEmail: visitorEmail || null,
-          },
-        });
-        conversationId = newConv.id;
-      }
-
-      // Record visitor message
-      await prisma.lamoMessage.create({
-        data: {
-          conversationId,
-          role: 'USER',
-          content: trimmedMessage,
-        },
-      });
-    }
-
-    // 3. Knowledge Retrieval (RAG)
-    const { chunks, relevanceScore } = await retrieveVerifiedKnowledge(trimmedMessage);
-
-    // 4. Synthesize Answer using Grounded LLM Provider
-    const lamoRes = await generateLamoResponse({
-      question: trimmedMessage,
-      retrievedChunks: chunks,
-      relevanceScore,
-    });
-
-    // 5. Handle Unanswered Question Workflow
-    let questionId: string | undefined = undefined;
+    // 3. Unanswered workflow (single place that records it)
+    let questionId: string | undefined;
+    let followUpToken: string | undefined;
     if (lamoRes.isUnanswered) {
-      const logged = await logUnansweredQuestion({
-        question: trimmedMessage,
-        reason: lamoRes.missingInformationReason || 'Insufficient verified evidence found in database.',
-        visitorEmail: visitorEmail || undefined,
-        visitorName: visitorName || undefined,
-        context: lamoRes.answer,
-      });
-      questionId = logged.questionId;
-      lamoRes.questionId = questionId;
+      const logged = await recordUnansweredQuestion({ question: message, reason: lamoRes.missingInformationReason, visitorEmail, visitorName });
+      if (logged) {
+        questionId = logged.questionId;
+        followUpToken = logged.followUpToken; // only given to the visitor who created it
+      }
     }
 
-    // 6. Record Assistant message
-    if (conversationId) {
-      await prisma.lamoMessage.create({
-        data: {
-          conversationId,
-          role: 'ASSISTANT',
-          content: lamoRes.answer,
-          retrievedContext: JSON.stringify(lamoRes.citations),
-          confidence: lamoRes.confidence,
-          suggestedActions: JSON.stringify(lamoRes.suggestedActions),
-        },
-      });
+    // 4. Conversation log (best effort; never fails the answer)
+    if (sessionId) {
+      try {
+        const conv = await prisma.lamoConversation.upsert({
+          where: { sessionId },
+          update: {},
+          create: { sessionId, visitorName, visitorEmail },
+        });
+        await prisma.lamoMessage.createMany({
+          data: [
+            { conversationId: conv.id, role: 'USER', content: message },
+            { conversationId: conv.id, role: 'ASSISTANT', content: lamoRes.answer, retrievedContext: JSON.stringify(lamoRes.citations), confidence: lamoRes.confidence, suggestedActions: JSON.stringify(lamoRes.suggestedActions) },
+          ],
+        });
+      } catch (e) {
+        logger.error('LamoChat.ConversationLog', e as Error);
+      }
     }
 
     return NextResponse.json({
@@ -171,19 +94,10 @@ export async function POST(req: NextRequest) {
       suggestedActions: lamoRes.suggestedActions,
       isUnanswered: lamoRes.isUnanswered,
       questionId,
-      missingInformationReason: lamoRes.missingInformationReason,
+      followUpToken,
     });
   } catch (error) {
-    console.error('Error in LAMO chat API:', error);
-    return NextResponse.json(
-      {
-        answer: INSUFFICIENT_EVIDENCE_PHRASE,
-        confidence: 'UNKNOWN',
-        citations: [],
-        suggestedActions: [{ label: 'View Portfolio Projects', href: '/projects' }],
-        isUnanswered: true,
-      },
-      { status: 500 }
-    );
+    logger.error('LamoChat', error as Error);
+    return reply({ answer: INSUFFICIENT_EVIDENCE_PHRASE, error: 'server_error' }, 500);
   }
 }

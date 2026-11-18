@@ -25,7 +25,15 @@ interface ChatMessage {
   suggestedActions?: NavigationPill[];
   isUnanswered?: boolean;
   questionId?: string;
+  followUpToken?: string;
   timestamp: string;
+}
+
+function newSessionId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return 'ses_' + crypto.randomUUID().replace(/-/g, '');
+  } catch {}
+  return 'ses_' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -48,12 +56,12 @@ export default function LamoChatWidget() {
 
   // Initialize session ID
   useEffect(() => {
-    let sid = typeof window !== 'undefined' ? localStorage.getItem('lamo_session_id') : null;
+    let sid: string | null = null;
+    try { sid = typeof window !== 'undefined' ? localStorage.getItem('lamo_session_id') : null; } catch {}
+    if (sid && !/^[A-Za-z0-9_-]{16,64}$/.test(sid)) sid = null;
     if (!sid) {
-      sid = 'ses_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('lamo_session_id', sid);
-      }
+      sid = newSessionId();
+      try { if (typeof window !== 'undefined') localStorage.setItem('lamo_session_id', sid); } catch {}
     }
     setSessionId(sid);
 
@@ -121,6 +129,7 @@ export default function LamoChatWidget() {
         suggestedActions: data.suggestedActions || [],
         isUnanswered: !!data.isUnanswered,
         questionId: data.questionId,
+        followUpToken: data.followUpToken,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -147,6 +156,11 @@ export default function LamoChatWidget() {
   const handleFollowupSubmit = async (qId: string) => {
     const email = followupEmail[qId]?.trim();
     if (!email) return;
+    const followUpToken = messages.find((m) => m.questionId === qId && m.followUpToken)?.followUpToken;
+    if (!followUpToken) {
+      setFollowupStatus((prev) => ({ ...prev, [qId]: 'error' }));
+      return;
+    }
 
     setFollowupStatus((prev) => ({ ...prev, [qId]: 'sending' }));
 
@@ -156,6 +170,7 @@ export default function LamoChatWidget() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           questionId: qId,
+          followUpToken,
           visitorEmail: email,
         }),
       });
@@ -171,7 +186,7 @@ export default function LamoChatWidget() {
   };
 
   const clearChat = () => {
-    const sid = 'ses_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
+    const sid = newSessionId();
     setSessionId(sid);
     if (typeof window !== 'undefined') {
       localStorage.setItem('lamo_session_id', sid);

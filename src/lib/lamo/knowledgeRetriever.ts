@@ -8,24 +8,12 @@ import { resolveIdentitySafety } from '@/lib/identity';
 import { PROFILE } from '@/config/profile';
 import { RetrievedKnowledgeChunk, VerificationTier } from './types';
 import { logger } from '@/lib/logger';
-
-const STOP_WORDS = new Set([
-  'taha', 'udaipurwala', 'does', 'has', 'have', 'had', 'what', 'tell', 'about',
-  'with', 'for', 'from', 'this', 'that', 'they', 'his', 'him', 'her', 'how',
-  'can', 'could', 'would', 'should', 'are', 'was', 'were', 'been', 'being',
-  'show', 'give', 'any', 'all', 'some', 'the', 'and', 'not', 'but', 'you', 'your'
-]);
+import { rankChunks, MIN_EVIDENCE_SCORE } from './ranking';
 
 export async function retrieveVerifiedKnowledge(query: string): Promise<{
   chunks: RetrievedKnowledgeChunk[];
   relevanceScore: number;
 }> {
-  const queryLower = query.toLowerCase();
-  const queryTokens = queryLower
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length > 2 && !STOP_WORDS.has(t));
-
   const chunks: RetrievedKnowledgeChunk[] = [];
 
   try {
@@ -241,7 +229,7 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
     }
 
     const answeredQuestions = await prisma.unansweredQuestion.findMany({
-      where: { status: 'ANSWERED' },
+      where: { status: 'ANSWERED', answerVisibility: 'PUBLIC', ownerAnswer: { not: null } },
     });
     for (const aq of answeredQuestions) {
       if (aq.ownerAnswer) {
@@ -262,88 +250,9 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
     logger.error('KnowledgeRetriever', error as Error);
   }
 
-  // Rank chunks by relevance score against the query
-  const scoredChunks = chunks.map((chunk) => {
-    let score = 0;
-    const chunkText = `${chunk.title} ${chunk.content} ${chunk.category} ${chunk.source}`.toLowerCase();
-
-    // Exact phrase match
-    if (chunkText.includes(queryLower)) {
-      score += 15;
-    }
-
-    // Token matches
-    for (const token of queryTokens) {
-      if (chunk.title.toLowerCase().includes(token)) {
-        score += 8;
-      }
-      if (chunk.category.toLowerCase().includes(token)) {
-        score += 5;
-      }
-      if (chunkText.includes(token)) {
-        score += 2;
-      }
-    }
-
-    // Domain-specific keyword boosts
-    if (queryLower.includes('robot') || queryLower.includes('ros') || queryLower.includes('slam')) {
-      if (chunk.category.toLowerCase().includes('robot') || chunk.title.toLowerCase().includes('slam') || chunk.title.toLowerCase().includes('ros')) {
-        score += 10;
-      }
-    }
-    if (queryLower.includes('ai') || queryLower.includes('intelligence') || queryLower.includes('machine learning')) {
-      if (chunk.category.toLowerCase().includes('artificial') || chunk.category.toLowerCase().includes('machine')) {
-        score += 10;
-      }
-    }
-    if (queryLower.includes('cyber') || queryLower.includes('security')) {
-      if (chunk.category.toLowerCase().includes('cyber') ) {
-        score += 10;
-      }
-    }
-    if (queryLower.includes('education') || queryLower.includes('college') || queryLower.includes('school') || queryLower.includes('degree')) {
-      if (chunk.category === 'Education') {
-        score += 12;
-      }
-    }
-    if (queryLower.includes('contact') || queryLower.includes('email') || queryLower.includes('hire') || queryLower.includes('reach')) {
-      if (chunk.category === 'Identity') {
-        score += 10;
-      }
-    }
-    if (
-      queryLower.includes('who is') ||
-      queryLower.includes('about this engineer') ||
-      queryLower.includes('tell me about') ||
-      queryLower.includes('profile') ||
-      queryLower.includes('background') ||
-      queryLower.includes('introduce')
-    ) {
-      if (chunk.category === 'Identity') {
-        score += 20;
-      }
-    }
-
-    // Grounding tier precedence: Owner-confirmed and verified evidence takes priority only if relevant
-    if (score > 0) {
-      if (chunk.verificationStatus === 'OWNER_CONFIRMED') {
-        score += 6;
-      } else if (chunk.verificationStatus === 'VERIFIED') {
-        score += 4;
-      }
-    }
-
-    return { chunk, score };
-  });
-
-  scoredChunks.sort((a, b) => b.score - a.score);
-
-  const topScored = scoredChunks.filter((sc) => sc.score > 0).slice(0, 8);
-  const topChunks = topScored.map((sc) => sc.chunk);
-  const maxScore = topScored.length > 0 ? topScored[0].score : 0;
-
+  const ranked = rankChunks(chunks, query).filter((sc) => sc.score >= MIN_EVIDENCE_SCORE).slice(0, 8);
   return {
-    chunks: topChunks,
-    relevanceScore: maxScore,
+    chunks: ranked.map((sc) => sc.chunk),
+    relevanceScore: ranked.length > 0 ? ranked[0].score : 0,
   };
 }

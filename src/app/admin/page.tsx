@@ -71,6 +71,8 @@ export default function AdminDashboardPage() {
   const [answeringQId, setAnsweringQId] = useState<string | null>(null);
   const [ownerAnswerInput, setOwnerAnswerInput] = useState('');
   const [notifyVisitorOnApprove, setNotifyVisitorOnApprove] = useState(true);
+  const [answerVisibility, setAnswerVisibility] = useState<'PRIVATE' | 'PUBLIC'>('PRIVATE');
+  const [contextRequestInput, setContextRequestInput] = useState('');
 
   // Copilot & Bio Review States
   const [bioReview, setBioReview] = useState<any | null>(null);
@@ -325,10 +327,15 @@ export default function AdminDashboardPage() {
           action: 'APPROVE_ANSWER',
           ownerAnswer: ownerAnswerInput.trim(),
           notifyVisitor: notifyVisitorOnApprove,
+          visibility: answerVisibility,
         }),
       });
       if (res.ok) {
-        showMsg('success', 'Question approved and converted to permanent AI knowledge record.');
+        {
+          const out = await res.json().catch(() => ({}));
+          const mail = out?.email;
+          showMsg('success', (answerVisibility === 'PUBLIC' ? 'Answer saved and LAMO may reuse it. ' : 'Answer saved privately (LAMO will not reuse it). ') + (mail?.attempted ? (mail.success ? 'Visitor emailed.' : `Visitor email NOT sent: ${mail.error}`) : ''));
+        }
         setAnsweringQId(null);
         setOwnerAnswerInput('');
         loadAllData();
@@ -358,6 +365,25 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRequestContext = async (qId: string) => {
+    const text = contextRequestInput.trim();
+    if (!text) { showMsg('error', 'Write what context you need from the visitor.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/lamo/questions/${qId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'REQUEST_CONTEXT', contextRequest: text }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showMsg('success', out?.email?.attempted ? (out.email.success ? 'Context request emailed to the visitor.' : `Saved, but email NOT sent: ${out.email.error}`) : 'Saved. The visitor left no email, so nothing was sent.');
+        setContextRequestInput('');
+        loadAllData();
+      } else showMsg('error', out.error || 'Failed to request context.');
+    } catch { showMsg('error', 'Network error.'); } finally { setLoading(false); }
   };
 
   const handleMarkPrivateQuestion = async (qId: string) => {
@@ -1351,29 +1377,37 @@ export default function AdminDashboardPage() {
                             Owner Approved Answer:
                           </span>
                           <p className="text-white text-xs font-sans whitespace-pre-wrap">{q.ownerAnswer}</p>
-                          {q.approvedKnowledgeId && (
-                            <span className="text-[10px] text-emerald-400 block mt-1">
-                              ✓ Converted to permanent AI Knowledge Record ({q.approvedKnowledgeId})
-                            </span>
-                          )}
+                          <span className="text-[10px] text-emerald-400 block mt-1">
+                            {q.answerVisibility === 'PUBLIC' ? '✓ Public: LAMO may reuse this answer' : '🔒 Private: not used by LAMO'}
+                          </span>
                         </div>
                       )}
 
                       {/* Action Controls for Pending Questions */}
-                      {q.status === 'PENDING_OWNER' && (
+                      {(q.status === 'PENDING_OWNER' || q.status === 'NEEDS_CONTEXT') && (
                         <div className="pt-2">
                           {answeringQId === q.id ? (
                             <div className="space-y-3 bg-imperial-900/60 p-4 rounded-lg border border-gold-500/30">
                               <label className="text-[11px] text-gold-300 font-bold block">
-                                Provide Approved Answer for LAMO Knowledge Base:
+                                Provide your answer:
                               </label>
                               <textarea
                                 value={ownerAnswerInput}
                                 onChange={(e) => setOwnerAnswerInput(e.target.value)}
                                 rows={3}
-                                placeholder="Enter verified response. This will be taught to LAMO for all future queries..."
+                                placeholder="Write the answer. It becomes public only if you tick the box below."
                                 className="w-full bg-imperial-950 border border-neutral-700 rounded p-2.5 text-xs text-white focus:outline-none focus:border-gold-500"
                               />
+
+                              <label className="flex items-center space-x-2 text-[11px] text-neutral-300 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={answerVisibility === 'PUBLIC'}
+                                  onChange={(e) => setAnswerVisibility(e.target.checked ? 'PUBLIC' : 'PRIVATE')}
+                                  className="rounded border-neutral-700 bg-imperial-950 text-gold-500 focus:ring-0"
+                                />
+                                <span>Let LAMO reuse this answer publicly for other visitors (off = only for this visitor)</span>
+                              </label>
 
                               {q.visitorEmail && (
                                 <label className="flex items-center space-x-2 text-[11px] text-neutral-300 cursor-pointer">
@@ -1394,7 +1428,7 @@ export default function AdminDashboardPage() {
                                   variant="primary"
                                   icon={<CheckCircle2 className="w-3.5 h-3.5" />}
                                 >
-                                  Confirm & Add to Knowledge
+                                  Save answer
                                 </Button>
                                 <Button
                                   onClick={() => {
@@ -1419,6 +1453,15 @@ export default function AdminDashboardPage() {
                                 variant="primary"
                               >
                                 Answer & Approve
+                              </Button>
+                              <input
+                                value={contextRequestInput}
+                                onChange={(e) => setContextRequestInput(e.target.value)}
+                                placeholder="Need more context from the visitor?"
+                                className="bg-imperial-950 border border-neutral-700 rounded px-2 py-1 text-xs text-white w-56"
+                              />
+                              <Button onClick={() => handleRequestContext(q.id)} size="sm" variant="secondary">
+                                Ask for context
                               </Button>
                               <Button
                                 onClick={() => handleMarkPrivateQuestion(q.id)}
@@ -1677,7 +1720,7 @@ export default function AdminDashboardPage() {
                       >
                         <div className="flex justify-between items-center">
                           <span className="font-bold text-white text-xs">{skill.name}</span>
-                          <span className="text-[10px] text-gold-400 font-bold">{skill.suggestedProficiency}%</span>
+                          <span className="text-[10px] text-gold-400 font-bold">used in {skill.evidenceProjectCount} approved project(s)</span>
                         </div>
                         <div className="text-[10px] text-neutral-400">Category: {skill.category}</div>
                         <div className="text-[10px] text-neutral-500">

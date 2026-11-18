@@ -95,3 +95,16 @@ WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, 
 - Scroll-reveal on every Card and SectionHeading (RevealObserver), gold scroll-progress bar. All disabled for reduced motion / no JS.
 - About bio rewritten from verified facts only; OWNER SHOULD REVIEW the wording.
 - Verified: unit tests (identity + academic calendar + Week 2), lint, type-check, and headless-browser renders of the hero at several scroll positions. NOT verified: real-GPU performance, mobile devices, Render build.
+
+
+## Week 3: LAMO AI manager
+
+**Pipeline:** request -> rate limit (per IP, trusted-proxy aware) -> input validation -> guardrails (`guardrails.ts`) -> retrieval of PUBLIC verified chunks (`knowledgeRetriever.ts` + whole-word `ranking.ts`) -> optional Gemini (`llmProvider.ts`, system instruction + delimited evidence, no tools) -> output validation (`synthesis.ts`: any number/link/email not in the evidence rejects the answer) -> deterministic grounded fallback.
+
+**Unanswered questions:** recorded once, by the chat route. Repeats merge (`askCount`). The visitor gets a secret follow-up token (only its hash is stored). Owner can answer (PUBLIC = LAMO may reuse it, PRIVATE = only emailed to the visitor), ask for context, mark private or reject. Nothing becomes public without the owner choosing PUBLIC. Email results are stored honestly (`emailNotified` / `emailError`); with no `RESEND_API_KEY` nothing is sent and the dashboard says so.
+
+**Schema change (run `npx prisma db push`):** UnansweredQuestion gained questionKey, askCount, followUpTokenHash, answerVisibility, ownerContextRequest, visitorEmailedAt, emailError; status NEEDS_CONTEXT.
+
+**Tests:** `npm run test:unit` (49 Week 3 checks, no DB). `scripts/test_week3_lamo.ts` is DB-backed (run after db push + seed).
+
+**Not verified in this sandbox:** live Gemini calls, real Resend delivery, DB-backed flow, browser UI of the admin changes. Test these locally with real keys.

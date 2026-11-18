@@ -1,7 +1,7 @@
 import { retrieveVerifiedKnowledge } from '../src/lib/lamo/knowledgeRetriever';
 import { generateLamoResponse } from '../src/lib/lamo/llmProvider';
 import { inspectUserInput, INSUFFICIENT_EVIDENCE_PHRASE } from '../src/lib/lamo/guardrails';
-import { recordUnansweredQuestion, attachVisitorContact } from '../src/lib/lamo/unansweredService';
+import { recordUnansweredQuestion, attachVisitorFollowUp } from '../src/lib/lamo/unansweredService';
 import { generateBiographyReview } from '../src/lib/lamo/biographyService';
 import { auditPortfolioCompleteness, suggestSkillsFromProjects } from '../src/lib/lamo/copilotService';
 import { prisma } from '../src/lib/prisma';
@@ -28,6 +28,7 @@ async function runTestSuite() {
   await prisma.aiKnowledgeRecord.deleteMany({
     where: { source: { contains: 'TestRun' } },
   });
+  await prisma.unansweredQuestion.deleteMany({ where: { question: { contains: 'Neuromorphic Spiking Hardware' } } });
 
   // 1. Guardrails Test: Prompt Injection Defense
   console.log('--- 1. Guardrails & Injection Defense ---');
@@ -78,17 +79,22 @@ async function runTestSuite() {
 
   // 5. Unanswered Question Logging & ID Format
   console.log('\n--- 5. Unanswered Question Logging & ID Format ---');
-  const logged = await recordUnansweredQuestion({
+  const logged = (await recordUnansweredQuestion({
     question: unknownQuestion,
     reason: resUnknown.missingInformationReason || 'No verified evidence found in database.',
     category: 'Hardware & Neuromorphic',
-  });
-  assert('Question ID matches LQ-YYYY-XXXX format', /^LQ-\d{4}-\d{4}$/.test(logged.questionId), logged.questionId);
+  }))!;
+  assert('Question was recorded', !!logged && !!logged.followUpToken);
+  assert('Question ID matches LQ-YYYY-XXXX format', /^LQ-\d{4}-[A-Z0-9]{6}$/.test(logged.questionId), logged.questionId);
 
   // 6. Visitor Follow-Up Attachment
   console.log('\n--- 6. Visitor Optional Follow-up Attachment ---');
-  const attached = await attachVisitorContact(logged.questionId, 'recruiter@techfirm.example.com', 'Jane Recruiter');
-  assert('Successfully attached visitor contact to logged question', attached === true);
+  const wrong = await attachVisitorFollowUp(logged.questionId, 'not-the-token', 'Mallory', 'mallory@example.com');
+  assert('Follow-up with a wrong token is refused', wrong.success === false);
+  const attached = await attachVisitorFollowUp(logged.questionId, logged.followUpToken, 'Jane Recruiter', 'recruiter@techfirm.example.com');
+  assert('Successfully attached visitor contact to logged question', attached.success === true);
+  const dup = await recordUnansweredQuestion({ question: unknownQuestion.toUpperCase() });
+  assert('Repeated question is merged, not duplicated', !!dup && dup.duplicate === true && dup.questionId === logged.questionId);
 
   const checkDbQuestion = await prisma.unansweredQuestion.findUnique({
     where: { questionId: logged.questionId },
@@ -99,30 +105,16 @@ async function runTestSuite() {
   console.log('\n--- 7. Owner Question Approval Workflow ---');
   const answerContent = `The owner has studied neuromorphic architecture theoretically, but has not completed formal fabrication on ${uniqueUnknownTopic}.`;
 
-  const knowledge = await prisma.aiKnowledgeRecord.create({
-    data: {
-      topic: checkDbQuestion?.category || 'Hardware Architecture',
-      category: 'Research & Hardware',
-      content: `Question: ${checkDbQuestion?.question}\nVerified Answer: ${answerContent}`,
-      source: `TestRun:Owner Approval: ${logged.questionId}`,
-      verificationStatus: 'OWNER_CONFIRMED',
-      visibility: 'PUBLIC',
-      ownerApproved: true,
-      isActive: true,
-    },
-  });
-
-  await prisma.unansweredQuestion.update({
+  const privateAnswered = await prisma.unansweredQuestion.update({
     where: { id: checkDbQuestion!.id },
-    data: {
-      status: 'ANSWERED',
-      ownerAnswer: answerContent,
-      approvedKnowledgeId: knowledge.id,
-      answeredAt: new Date(),
-    },
+    data: { status: 'ANSWERED', ownerAnswer: answerContent, answerVisibility: 'PRIVATE', answeredAt: new Date() },
   });
+  const ragPrivate = await retrieveVerifiedKnowledge(unknownQuestion);
+  assert('A PRIVATE owner answer is NOT used by LAMO', !ragPrivate.chunks.some((c) => c.id === `answered:${privateAnswered.id}`));
 
-  assert('Knowledge record created with status OWNER_CONFIRMED', knowledge.verificationStatus === 'OWNER_CONFIRMED');
+  await prisma.unansweredQuestion.update({ where: { id: checkDbQuestion!.id }, data: { answerVisibility: 'PUBLIC' } });
+  const knowledge = { id: privateAnswered.id, verificationStatus: 'OWNER_CONFIRMED' };
+  assert('Public approved answer is OWNER_CONFIRMED', knowledge.verificationStatus === 'OWNER_CONFIRMED');
 
   // Verify that LAMO now uses this newly approved knowledge record!
   const ragLearned = await retrieveVerifiedKnowledge(unknownQuestion);

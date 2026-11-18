@@ -437,7 +437,7 @@ model UnansweredQuestion {
   context             String?
   category            String    @default("General") // "Robotics", "AI/ML", "Cybersecurity", "Experience", "Education"
   reason              String    // e.g. "No verified evidence found in database"
-  status              String    @default("PENDING_OWNER") // "PENDING_OWNER" | "ANSWERED" | "REJECTED" | "PRIVATE_DECLINED"
+  status              String    @default("PENDING_OWNER") // "PENDING_OWNER" | "NEEDS_CONTEXT" | "ANSWERED" | "REJECTED" | "PRIVATE_DECLINED"
   visitorName         String?
   visitorEmail        String?
   ownerAnswer         String?
@@ -445,6 +445,13 @@ model UnansweredQuestion {
   emailNotified       Boolean   @default(false)
   notifiedAt          DateTime?
   answeredAt          DateTime?
+  questionKey         String?   // normalised form, used to merge repeated questions
+  askCount            Int       @default(1)
+  followUpTokenHash   String?   // sha256 of the secret the asking visitor holds; never the token itself
+  answerVisibility    String    @default("PRIVATE") // "PUBLIC" (LAMO may reuse the answer) | "PRIVATE" (only for this visitor)
+  ownerContextRequest String?   // what the owner needs from the visitor before answering
+  visitorEmailedAt    DateTime?
+  emailError          String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }

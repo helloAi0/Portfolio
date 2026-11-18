@@ -1,151 +1,117 @@
 /**
- * LAMO Unanswered Question Management Service
- * Detects missing knowledge, records private question logs, generates IDs, and dispatches owner notifications.
+ * Unanswered-question workflow.
+ * - Repeated questions are merged (askCount) instead of creating duplicate owner emails.
+ * - The visitor receives a secret follow-up token (only its hash is stored) so strangers cannot
+ *   attach their email to someone else's question by guessing a question ID.
+ * - Email delivery outcome is recorded honestly (emailNotified / emailError).
  */
-
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { sendOwnerUnansweredQuestionNotification } from './emailAdapter';
+import { generateQuestionId, newFollowUpToken, normalizeQuestionKey, tokenMatches, normalizeEmail, sanitizeName } from './security';
+import { tokenize } from '@/lib/text/terms';
 
-export interface RecordUnansweredQuestionInput {
+export function classifyQuestionCategory(question: string): string {
+  const t = new Set(tokenize(question));
+  const has = (...w: string[]) => w.some((x) => t.has(x));
+  if (has('robot', 'robotics', 'ros', 'ros2', 'slam', 'sensor', 'lidar', 'hardware')) return 'Robotics & Autonomous Systems';
+  if (has('security', 'cybersecurity', 'cyber', 'crypto', 'cryptography', 'vulnerability', 'pentest')) return 'Cybersecurity & Defense';
+  if (has('ai', 'ml', 'neural', 'gpt', 'llm', 'vision', 'learning')) return 'Artificial Intelligence & Machine Learning';
+  if (has('work', 'internship', 'intern', 'job', 'experience', 'company', 'salary', 'employed')) return 'Work Experience & Employment';
+  if (has('college', 'school', 'degree', 'grade', 'gpa', 'cgpa', 'education', 'university', 'semester')) return 'Education & Academic History';
+  if (has('award', 'hackathon', 'rank', 'scholarship', 'certificate', 'certification')) return 'Achievements & Accreditations';
+  return 'General Inquiry';
+}
+
+export interface RecordInput {
   question: string;
   context?: string;
   category?: string;
   reason?: string;
-  visitorName?: string;
-  visitorEmail?: string;
+  visitorName?: string | null;
+  visitorEmail?: string | null;
 }
+export interface RecordResult { questionId: string; followUpToken?: string; duplicate: boolean }
 
-export function classifyQuestionCategory(question: string): string {
-  const q = question.toLowerCase();
-  if (q.includes('robot') || q.includes('ros') || q.includes('slam') || q.includes('sensor') || q.includes('lidar') || q.includes('hardware')) {
-    return 'Robotics & Autonomous Systems';
-  }
-  if (q.includes('ai') || q.includes('machine learning') || q.includes('model') || q.includes('neural') || q.includes('gpt') || q.includes('vision')) {
-    return 'Artificial Intelligence & Machine Learning';
-  }
-  if (q.includes('security') || q.includes('cyber') || q.includes('crypto') || q.includes('vulnerability') || q.includes('auth')) {
-    return 'Cybersecurity & Defense';
-  }
-  if (q.includes('work') || q.includes('intern') || q.includes('job') || q.includes('experience') || q.includes('company') || q.includes('salary')) {
-    return 'Work Experience & Employment';
-  }
-  if (q.includes('college') || q.includes('school') || q.includes('degree') || q.includes('grade') || q.includes('gpa') || q.includes('cgpa') || q.includes('education')) {
-    return 'Education & Academic History';
-  }
-  if (q.includes('award') || q.includes('hackathon') || q.includes('rank') || q.includes('scholarship') || q.includes('certif')) {
-    return 'Achievements & Accreditations';
-  }
-  return 'General Technical Inquiry';
-}
-
-export function generateQuestionId(): string {
-  const year = new Date().getFullYear();
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  return `LQ-${year}-${randomSuffix}`;
-}
-
-export async function recordUnansweredQuestion(
-  input: RecordUnansweredQuestionInput
-): Promise<{ questionId: string; recordId: string }> {
-  const category = input.category || classifyQuestionCategory(input.question);
-  const reason = input.reason || 'No verified evidence found in portfolio database.';
-  const questionId = generateQuestionId();
+export async function recordUnansweredQuestion(input: RecordInput): Promise<RecordResult | null> {
+  const question = input.question.trim().slice(0, 1000);
+  const key = normalizeQuestionKey(question);
+  const category = input.category || classifyQuestionCategory(question);
+  const reason = (input.reason || 'No verified evidence found in the portfolio database.').slice(0, 500);
+  const email = normalizeEmail(input.visitorEmail);
+  const name = sanitizeName(input.visitorName);
 
   try {
-    const record = await prisma.unansweredQuestion.create({
-      data: {
-        questionId,
-        question: input.question.trim(),
-        context: input.context ? input.context.slice(0, 1000) : null,
-        category,
-        reason,
-        status: 'PENDING_OWNER',
-        visitorName: input.visitorName?.trim() || null,
-        visitorEmail: input.visitorEmail?.trim().toLowerCase() || null,
-        emailNotified: false,
-      },
+    // Merge with an open identical question.
+    const open = await prisma.unansweredQuestion.findFirst({
+      where: { questionKey: key, status: { in: ['PENDING_OWNER', 'NEEDS_CONTEXT'] } },
     });
-
-    // Dispatch owner notification asynchronously
-    sendOwnerUnansweredQuestionNotification({
-      questionId,
-      question: input.question,
-      category,
-      reason,
-      visitorName: input.visitorName,
-      visitorEmail: input.visitorEmail,
-    })
-      .then(async (res) => {
-        if (res.success) {
-          await prisma.unansweredQuestion.update({
-            where: { id: record.id },
-            data: { emailNotified: true, notifiedAt: new Date() },
-          });
-        }
-      })
-      .catch((err) => {
-        logger.error('recordUnansweredQuestion.NotificationError', err as Error);
+    if (open) {
+      await prisma.unansweredQuestion.update({
+        where: { id: open.id },
+        data: { askCount: { increment: 1 }, ...(email && !open.visitorEmail ? { visitorEmail: email, visitorName: name } : {}) },
       });
-
-    logger.info('UnansweredQuestionService', `Logged unanswered question ${questionId}`, {
-      category,
-      reason,
-    });
-
-    return { questionId, recordId: record.id };
-  } catch (error) {
-    logger.error('recordUnansweredQuestion', error as Error);
-    return { questionId, recordId: '' };
-  }
-}
-
-export async function attachVisitorFollowUp(
-  questionId: string,
-  name: string,
-  email: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const record = await prisma.unansweredQuestion.findUnique({
-      where: { questionId },
-    });
-
-    if (!record) {
-      return { success: false, error: 'Question record not found.' };
+      return { questionId: open.questionId, duplicate: true };
     }
 
-    await prisma.unansweredQuestion.update({
-      where: { questionId },
-      data: {
-        visitorName: name.trim() || 'Visitor',
-        visitorEmail: email.trim().toLowerCase(),
-      },
-    });
+    const { token, hash } = newFollowUpToken();
+    let questionId = generateQuestionId();
+    let record = null as Awaited<ReturnType<typeof prisma.unansweredQuestion.create>> | null;
+    for (let attempt = 0; attempt < 3 && !record; attempt++) {
+      try {
+        record = await prisma.unansweredQuestion.create({
+          data: {
+            questionId, question, questionKey: key,
+            context: input.context ? input.context.slice(0, 1000) : null,
+            category, reason, status: 'PENDING_OWNER',
+            visitorName: name, visitorEmail: email, followUpTokenHash: hash,
+          },
+        });
+      } catch (e: any) {
+        if (e?.code === 'P2002') questionId = generateQuestionId(); else throw e;
+      }
+    }
+    if (!record) return null;
 
-    // Re-dispatch or log notification with updated visitor info
-    sendOwnerUnansweredQuestionNotification({
-      questionId: record.questionId,
-      question: record.question,
-      category: record.category,
-      reason: record.reason,
-      visitorName: name,
-      visitorEmail: email,
-    }).catch((err) => logger.error('attachVisitorFollowUp.Notification', err as Error));
-
-    return { success: true };
+    void notifyOwner(record.id);
+    logger.info('UnansweredQuestionService', `Logged ${record.questionId}`, { category });
+    return { questionId: record.questionId, followUpToken: token, duplicate: false };
   } catch (error) {
-    logger.error('attachVisitorFollowUp', error as Error);
-    return { success: false, error: 'Database update failed.' };
+    logger.error('recordUnansweredQuestion', error as Error);
+    return null;
   }
 }
 
-// Aliases for seamless imports across services
-export const logUnansweredQuestion = recordUnansweredQuestion;
-export const attachVisitorContact = async (
-  questionId: string,
-  email: string,
-  name?: string
-): Promise<boolean> => {
-  const res = await attachVisitorFollowUp(questionId, name || 'Visitor', email);
-  return res.success;
-};
+/** Sends the owner email and records the REAL outcome. Never throws. */
+export async function notifyOwner(recordId: string): Promise<void> {
+  try {
+    const r = await prisma.unansweredQuestion.findUnique({ where: { id: recordId } });
+    if (!r) return;
+    const res = await sendOwnerUnansweredQuestionNotification({
+      questionId: r.questionId, question: r.question, category: r.category, reason: r.reason,
+      askCount: r.askCount, visitorName: r.visitorName, visitorEmail: r.visitorEmail,
+    });
+    await prisma.unansweredQuestion.update({
+      where: { id: r.id },
+      data: res.success ? { emailNotified: true, notifiedAt: new Date(), emailError: null } : { emailNotified: false, emailError: (res.error || 'Unknown error').slice(0, 300) },
+    });
+  } catch (err) {
+    logger.error('notifyOwner', err as Error);
+  }
+}
+
+export async function attachVisitorFollowUp(questionId: string, token: unknown, rawName: unknown, rawEmail: unknown): Promise<{ success: boolean; status: number; error?: string }> {
+  const email = normalizeEmail(rawEmail);
+  if (!email) return { success: false, status: 400, error: 'Please provide a valid email address.' };
+  try {
+    const record = await prisma.unansweredQuestion.findUnique({ where: { questionId } });
+    // Same response for "missing" and "wrong token" so IDs cannot be probed.
+    if (!record || !tokenMatches(token, record.followUpTokenHash)) return { success: false, status: 404, error: 'Unable to attach contact to that question.' };
+    await prisma.unansweredQuestion.update({ where: { id: record.id }, data: { visitorEmail: email, visitorName: sanitizeName(rawName) } });
+    void notifyOwner(record.id);
+    return { success: true, status: 200 };
+  } catch (error) {
+    logger.error('attachVisitorFollowUp', error as Error);
+    return { success: false, status: 500, error: 'Could not save your contact details.' };
+  }
+}

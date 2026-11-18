@@ -1,45 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { attachVisitorContact } from '@/lib/lamo/unansweredService';
+import { attachVisitorFollowUp } from '@/lib/lamo/unansweredService';
+import { RateLimiter, getClientIp } from '@/lib/lamo/security';
+
+export const dynamic = 'force-dynamic';
+const limiter = new RateLimiter(60_000, 5);
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { questionId, visitorEmail, visitorName } = body;
-
-    if (!questionId || !visitorEmail) {
-      return NextResponse.json(
-        { error: 'Question reference ID and visitor email are required.' },
-        { status: 400 }
-      );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(visitorEmail.trim())) {
-      return NextResponse.json(
-        { error: 'Please provide a valid email address.' },
-        { status: 400 }
-      );
-    }
-
-    const success = await attachVisitorContact(questionId, visitorEmail.trim(), visitorName?.trim());
-
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Unable to attach contact to the specified question ID.' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Your contact has been linked to this query. Taha will receive your question and can follow up directly.',
-    });
-  } catch (error) {
-    console.error('Error in LAMO followup API:', error);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred while saving your contact details.' },
-      { status: 500 }
-    );
+  if (!limiter.allow(getClientIp(req.headers.get('x-forwarded-for')))) {
+    return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 });
   }
-}
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 }); }
 
+  const { questionId, followUpToken, visitorEmail, visitorName } = body ?? {};
+  if (typeof questionId !== 'string' || !/^LQ-\d{4}-[A-Z0-9]{6}$/.test(questionId) || typeof followUpToken !== 'string') {
+    return NextResponse.json({ error: 'A valid question reference is required.' }, { status: 400 });
+  }
+  const res = await attachVisitorFollowUp(questionId, followUpToken, visitorName, visitorEmail);
+  if (!res.success) return NextResponse.json({ error: res.error }, { status: res.status });
+  return NextResponse.json({ success: true, message: 'Thanks. Your email is linked to this question so the owner can follow up.' });
+}
