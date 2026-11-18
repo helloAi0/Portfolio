@@ -14,7 +14,7 @@ export function Card({ children, variant = 'marble', className = '', ...props }:
   };
 
   return (
-    <div className={`${variants[variant]} ${className}`} {...props}>
+    <div suppressHydrationWarning className={`${variants[variant]} ${className}`} {...props}>
       {children}
     </div>
   );

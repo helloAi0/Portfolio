@@ -1,3 +1,4 @@
+import { text, dateOrNull, httpsOrNull } from '@/lib/adminInput';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { suggestSkillsFromText } from '@/lib/skills/suggest';
@@ -22,9 +23,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, issuingOrganization, issueDate, expiryDate, credentialId, credentialUrl, description, skillsCovered, filePath, fileType, isPublic, ownerApproved } = body;
 
-    if (!title || !issuingOrganization) {
+    if (!text(title, 200) || !text(issuingOrganization, 200)) {
       return NextResponse.json({ error: 'Title and issuing organization are required.' }, { status: 400 });
     }
+    const issued = dateOrNull(issueDate), expires = dateOrNull(expiryDate), credUrl = httpsOrNull(credentialUrl);
+    if (issued === 'invalid' || expires === 'invalid') return NextResponse.json({ error: 'Please enter a valid date.' }, { status: 400 });
+    if (credUrl === 'invalid') return NextResponse.json({ error: 'The credential link must start with https://' }, { status: 400 });
 
     // Suggest skills (whole-word, owner confirms) when none were provided.
     const suggestedSkills = skillsCovered ?? JSON.stringify(suggestSkillsFromText(`${title} ${description ?? ''}`));
@@ -34,13 +38,13 @@ export async function POST(req: NextRequest) {
 
     const certificate = await prisma.certificate.create({
       data: {
-        title: title.trim(),
-        issuingOrganization: issuingOrganization.trim(),
-        issueDate: issueDate ? new Date(issueDate) : null,
-        expiryDate: expiryDate ? new Date(expiryDate) : null,
-        credentialId: credentialId ? credentialId.trim() : null,
-        credentialUrl: credentialUrl ? credentialUrl.trim() : null,
-        description: description ? description.trim() : null,
+        title: text(title, 200)!,
+        issuingOrganization: text(issuingOrganization, 200)!,
+        issueDate: issued,
+        expiryDate: expires,
+        credentialId: text(credentialId, 120),
+        credentialUrl: credUrl,
+        description: text(description, 2000),
         skillsCovered: suggestedSkills || null,
         filePath: safeFilePath,
         fileType: fileType || null,

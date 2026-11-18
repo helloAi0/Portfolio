@@ -28,7 +28,7 @@ export function FeaturedProjects({ projects }: FeaturedProjectsProps) {
         </div>
 
         {projects.length === 0 && (
-          <div className="reveal marble-card rounded-3xl p-10 text-center">
+          <div suppressHydrationWarning className="reveal marble-card rounded-3xl p-10 text-center">
             <p className="font-serif text-xl text-white mb-2">Projects will appear here</p>
             <p className="text-sm text-neutral-400 max-w-lg mx-auto">
               They are pulled from GitHub and published only after I review them, so nothing shows up that I haven&apos;t approved.

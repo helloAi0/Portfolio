@@ -93,7 +93,7 @@ export default function AdminDashboardPage() {
 
   const showMsg = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 5000);
+    setTimeout(() => setMessage(null), 9000);
   };
 
   // Initial data loading
@@ -131,36 +131,58 @@ export default function AdminDashboardPage() {
         return;
       }
 
-      const ghData = await ghRes.json();
-      const csData = await csRes.json();
-      const liData = await liRes.json();
-      const skData = await skRes.json();
-      const certData = await certRes.json();
-      const achData = await achRes.json();
-      const expData = await expRes.json();
-      const logData = await logRes.json();
-      const intData = await intRes.json();
-      const lamoQData = lamoQRes.ok ? await lamoQRes.json() : { data: [] };
-      const bioData = bioRes.ok ? await bioRes.json() : { data: null };
-      const copilotData = copilotRes.ok ? await copilotRes.json() : { data: [] };
+      if ([csRes, liRes, skRes, certRes, achRes, expRes, logRes, intRes].some((r) => r.status === 401)) {
+        router.push('/admin/login');
+        return;
+      }
 
-      setGithubRepos(ghData.data || []);
-      setCodingStats(csData || { leetcode: null, gfg: null });
-      setLinkedinPosts(liData.data || []);
-      setSkills(skData.data || []);
-      setCertificates(certData.data || []);
-      setAchievements(achData.data || []);
-      setExperiences(expData.data || []);
-      setSyncLogs(logData.data || []);
-      setIntegrations(intData.data || []);
-      setLamoQuestions(lamoQData.data || []);
+      // One failing endpoint must never blank the whole dashboard: read each response defensively.
+      const failed: string[] = [];
+      const read = async (res: Response, name: string, fallback: any) => {
+        if (!res.ok) { failed.push(name); return fallback; }
+        try { return await res.json(); } catch { failed.push(name); return fallback; }
+      };
+      const arr = (v: any) => (Array.isArray(v) ? v : []);
+      const ghData = await read(ghRes, 'GitHub', {});
+      const csData = await read(csRes, 'Coding stats', null);
+      const liData = await read(liRes, 'LinkedIn', {});
+      const skData = await read(skRes, 'Skills', {});
+      const certData = await read(certRes, 'Certificates', {});
+      const achData = await read(achRes, 'Achievements', {});
+      const expData = await read(expRes, 'Experience', {});
+      const logData = await read(logRes, 'Sync logs', {});
+      const intData = await read(intRes, 'Integrations', {});
+      const lamoQData = lamoQRes.ok ? await lamoQRes.json().catch(() => ({ data: [] })) : { data: [] };
+      const bioData = bioRes.ok ? await bioRes.json().catch(() => ({ data: null })) : { data: null };
+      const copilotData = copilotRes.ok ? await copilotRes.json().catch(() => ({ data: [] })) : { data: [] };
+
+      setGithubRepos(arr(ghData.data));
+      setCodingStats(csData && typeof csData === 'object' ? csData : { leetcode: null, gfg: null });
+      setLinkedinPosts(arr(liData.data));
+      setSkills(arr(skData.data));
+      setCertificates(arr(certData.data));
+      setAchievements(arr(achData.data));
+      setExperiences(arr(expData.data));
+      setSyncLogs(arr(logData.data));
+      setIntegrations(arr(intData.data));
+      setLamoQuestions(arr(lamoQData.data));
       if (bioData.data) setBioReview(bioData.data);
-      if (copilotData.data) setRecentAuditLogs(copilotData.data);
+      if (copilotData.data) setRecentAuditLogs(arr(copilotData.data));
+      if (failed.length) showMsg('error', `Could not load: ${failed.join(', ')}. The rest is shown. Try Refresh.`);
     } catch (err) {
       showMsg('error', 'Failed to load citadel dashboard data.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const [saving, setSaving] = useState(false);
+
+  /** Shows the server's own explanation (or a fallback); sends the owner to login if the session expired. */
+  const reportFail = async (res: Response, fallback: string) => {
+    if (res.status === 401) { router.push('/admin/login'); return; }
+    const e = await res.json().catch(() => ({}));
+    showMsg('error', e?.error || fallback);
   };
 
   const handleLogout = async () => {
@@ -236,6 +258,8 @@ export default function AdminDashboardPage() {
       if (res.ok) {
         showMsg('success', 'Skill updated in knowledge graph.');
         loadAllData();
+      } else {
+        await reportFail(res, 'Could not update the skill.');
       }
     } catch {
       showMsg('error', 'Failed to update skill.');
@@ -244,6 +268,8 @@ export default function AdminDashboardPage() {
 
   const handleAddPost = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       const res = await fetch('/api/admin/linkedin', {
         method: 'POST',
@@ -254,14 +280,20 @@ export default function AdminDashboardPage() {
         showMsg('success', 'LinkedIn post imported.');
         setNewPost({ title: '', contentExcerpt: '', postUrl: '', isPublic: true, isApproved: true });
         loadAllData();
+      } else {
+        await reportFail(res, 'Could not import the post.');
       }
     } catch {
       showMsg('error', 'Failed to import post.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleAddCert = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       const res = await fetch('/api/admin/certificates', {
         method: 'POST',
@@ -272,14 +304,20 @@ export default function AdminDashboardPage() {
         showMsg('success', 'Certificate recorded.');
         setNewCert({ title: '', issuingOrganization: '', issueDate: '', credentialId: '', credentialUrl: '', description: '', isPublic: true, ownerApproved: true });
         loadAllData();
+      } else {
+        await reportFail(res, 'Could not save the certificate.');
       }
     } catch {
       showMsg('error', 'Failed to create certificate.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleAddAchievement = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       const res = await fetch('/api/admin/achievements', {
         method: 'POST',
@@ -290,14 +328,20 @@ export default function AdminDashboardPage() {
         showMsg('success', 'Achievement recorded.');
         setNewAch({ title: '', category: 'Competition', organization: '', date: '', rankOrAward: '', description: '', proofUrl: '', isPublic: true, ownerApproved: true });
         loadAllData();
+      } else {
+        await reportFail(res, 'Could not save the achievement.');
       }
     } catch {
       showMsg('error', 'Failed to create achievement.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleAddExperience = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       const res = await fetch('/api/admin/experience', {
         method: 'POST',
@@ -308,9 +352,13 @@ export default function AdminDashboardPage() {
         showMsg('success', 'Experience record created.');
         setNewExp({ roleTitle: '', organization: '', organizationType: 'Research Lab', startDate: '', endDate: '', isCurrent: false, description: '', keyContributions: '', isPublic: true, verified: true });
         loadAllData();
+      } else {
+        await reportFail(res, 'Could not save the experience.');
       }
     } catch {
       showMsg('error', 'Failed to create experience.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -633,7 +681,9 @@ export default function AdminDashboardPage() {
       {/* Notification Toast */}
       {message && (
         <div
-          className={`p-4 rounded-md mb-6 text-xs font-mono flex items-center space-x-2 ${
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 z-50 max-w-md shadow-2xl p-4 rounded-md text-xs font-mono flex items-center space-x-2 ${
             message.type === 'success'
               ? 'bg-emerald-950/80 border border-emerald-500/40 text-emerald-300'
               : 'bg-red-950/80 border border-red-500/40 text-red-300'

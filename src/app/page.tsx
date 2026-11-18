@@ -28,7 +28,7 @@ export default async function HomePage() {
       {/* 4. Imperial Call to Arms / Contact CTA */}
       <section className="py-20 relative bg-imperial-950 border-t border-gold-500/10">
         <div className="max-w-5xl mx-auto px-4 text-center">
-          <div className="reveal marble-card p-10 sm:p-16 rounded-3xl relative overflow-hidden">
+          <div suppressHydrationWarning className="reveal marble-card p-10 sm:p-16 rounded-3xl relative overflow-hidden">
             <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400 mb-2 block">
               Contact
             </span>

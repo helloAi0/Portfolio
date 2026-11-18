@@ -104,5 +104,11 @@ t('solution: valid input cleaned', 'data' in okSol && okSol.data.platform === 'L
 t('solution: http/js links refused', 'error' in cleanSolutionInput({ problemTitle: 'X', problemUrl: 'javascript:alert(1)' }));
 t('solution: title required', 'error' in cleanSolutionInput({ problemTitle: '  ' }));
 
+// ---- Admin form validators
+import { text, dateOrNull, httpsOrNull } from '../src/lib/adminInput';
+t('admin: blank text is null', text('   ') === null && text(5 as any) === null && text(' a ') === 'a');
+t('admin: dates', dateOrNull('') === null && dateOrNull('abc') === 'invalid' && dateOrNull('1850-01-01') === 'invalid' && dateOrNull('2025-03-01') instanceof Date);
+t('admin: https links', httpsOrNull('') === null && httpsOrNull('http://x.com') === 'invalid' && httpsOrNull('javascript:alert(1)') === 'invalid' && httpsOrNull('https://x.com/a') === 'https://x.com/a');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

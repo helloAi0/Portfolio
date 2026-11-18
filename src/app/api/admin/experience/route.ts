@@ -1,3 +1,4 @@
+import { text, dateOrNull, httpsOrNull } from '@/lib/adminInput';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
@@ -21,23 +22,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { roleTitle, organization, organizationType, location, startDate, endDate, isCurrent, description, keyContributions, skills, evidenceUrl, isPublic, verified } = body;
 
-    if (!roleTitle || !organization || !startDate || !description) {
+    if (!text(roleTitle, 200) || !text(organization, 200) || !startDate || !text(description, 4000)) {
       return NextResponse.json({ error: 'Role title, organization, start date, and description are required.' }, { status: 400 });
     }
+    const start = dateOrNull(startDate), end = dateOrNull(endDate), evidence = httpsOrNull(evidenceUrl);
+    if (start === 'invalid' || end === 'invalid') return NextResponse.json({ error: 'Please enter valid dates.' }, { status: 400 });
+    if (start && end && !isCurrent && end < start) return NextResponse.json({ error: 'The end date is before the start date.' }, { status: 400 });
+    if (evidence === 'invalid') return NextResponse.json({ error: 'The evidence link must start with https://' }, { status: 400 });
 
     const experience = await prisma.experience.create({
       data: {
-        roleTitle: roleTitle.trim(),
-        organization: organization.trim(),
+        roleTitle: text(roleTitle, 200)!,
+        organization: text(organization, 200)!,
         organizationType: organizationType || 'Organization',
-        location: location ? location.trim() : null,
-        startDate: new Date(startDate),
-        endDate: endDate && !isCurrent ? new Date(endDate) : null,
+        location: text(location, 200),
+        startDate: start as Date,
+        endDate: isCurrent ? null : end,
         isCurrent: Boolean(isCurrent),
-        description: description.trim(),
-        keyContributions: keyContributions ? keyContributions.trim() : null,
+        description: text(description, 4000)!,
+        keyContributions: text(keyContributions, 4000),
         skills: skills ? JSON.stringify(skills) : null,
-        evidenceUrl: evidenceUrl ? evidenceUrl.trim() : null,
+        evidenceUrl: evidence,
         isPublic: isPublic !== undefined ? Boolean(isPublic) : true,
         verified: Boolean(verified),
       },
