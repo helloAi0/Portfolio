@@ -1,3 +1,4 @@
+import { FILE_URL_RE } from '@/lib/fileUpload';
 import { text, dateOrNull, httpsOrNull } from '@/lib/adminInput';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
@@ -33,8 +34,18 @@ export async function POST(req: NextRequest) {
     // Suggest skills (whole-word, owner confirms) when none were provided.
     const suggestedSkills = skillsCovered ?? JSON.stringify(suggestSkillsFromText(`${title} ${description ?? ''}`));
 
-    // File upload is NOT IMPLEMENTED: no storage backend yet. Only an https link to an externally hosted file is accepted.
-    const safeFilePath = typeof filePath === 'string' && /^https:\/\//i.test(filePath) ? filePath : null;
+    // File: either an https link, or a file previously uploaded through /api/admin/uploads (stored in the database).
+    let safeFilePath: string | null = null;
+    let safeFileType: string | null = null;
+    if (typeof filePath === 'string' && filePath) {
+      const m = filePath.match(FILE_URL_RE);
+      if (m) {
+        const stored = await prisma.storedFile.findUnique({ where: { id: m[1] }, select: { mimeType: true } });
+        if (!stored) return NextResponse.json({ error: 'The uploaded file was not found. Please upload it again.' }, { status: 400 });
+        safeFilePath = filePath; safeFileType = stored.mimeType;
+      } else if (/^https:\/\//i.test(filePath)) safeFilePath = filePath;
+      else return NextResponse.json({ error: 'The file link must start with https://' }, { status: 400 });
+    }
 
     const certificate = await prisma.certificate.create({
       data: {
@@ -47,10 +58,10 @@ export async function POST(req: NextRequest) {
         description: text(description, 2000),
         skillsCovered: suggestedSkills || null,
         filePath: safeFilePath,
-        fileType: fileType || null,
+        fileType: safeFileType,
         isPublic: Boolean(isPublic),
         ownerApproved: Boolean(ownerApproved),
-        verificationStatus: ownerApproved ? 'VERIFIED' : 'PENDING_VERIFICATION',
+        verificationStatus: 'PENDING_VERIFICATION', // owner approval is not independent verification
       },
     });
 

@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import AutomationPanel from '@/components/admin/AutomationPanel';
+import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import { Badge } from '@/components/ui/Badge';
@@ -41,6 +42,7 @@ type AdminTab =
   | 'automation'
   | 'manual'
   | 'inbox'
+  | 'profile'
   | 'github'
   | 'leetcode'
   | 'geeksforgeeks'
@@ -186,6 +188,7 @@ export default function AdminDashboardPage() {
   };
 
   const [saving, setSaving] = useState(false);
+  const [certFile, setCertFile] = useState<File | null>(null);
   const [unreadEnquiries, setUnreadEnquiries] = useState(0);
 
   /** Shows the server's own explanation (or a fallback); sends the owner to login if the session expired. */
@@ -305,13 +308,22 @@ export default function AdminDashboardPage() {
     if (saving) return;
     setSaving(true);
     try {
+      let filePath: string | undefined;
+      if (certFile) {
+        const fd = new FormData();
+        fd.append('file', certFile);
+        const up = await fetch('/api/admin/uploads', { method: 'POST', body: fd });
+        if (!up.ok) { await reportFail(up, 'The file could not be uploaded. Nothing was saved.'); return; }
+        filePath = (await up.json()).url;
+      }
       const res = await fetch('/api/admin/certificates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCert),
+        body: JSON.stringify({ ...newCert, filePath }),
       });
       if (res.ok) {
         showMsg('success', 'Certificate recorded.');
+        setCertFile(null);
         setNewCert({ title: '', issuingOrganization: '', issueDate: '', credentialId: '', credentialUrl: '', description: '', isPublic: true, ownerApproved: true });
         loadAllData();
       } else {
@@ -645,6 +657,7 @@ export default function AdminDashboardPage() {
     { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
     { id: 'manual', label: 'Manual Entry', icon: Settings },
     { id: 'inbox', label: 'Contact Inbox', icon: Send, count: unreadEnquiries },
+    { id: 'profile', label: 'Profile & Education', icon: Settings },
     { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length },
     { id: 'leetcode', label: 'LeetCode', icon: Code2 },
     { id: 'geeksforgeeks', label: 'GeeksforGeeks', icon: Code2 },
@@ -957,6 +970,7 @@ export default function AdminDashboardPage() {
 
           {/* TAB 3: LEETCODE */}
           {activeTab === 'automation' && <AutomationPanel onChanged={loadAllData} />}
+          {activeTab === 'profile' && <ProfileEditorPanel onChanged={loadAllData} />}
           {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
 
@@ -1212,6 +1226,17 @@ export default function AdminDashboardPage() {
                       onChange={(e) => setNewCert({ ...newCert, description: e.target.value })}
                       placeholder="Neural networks, CNNs, Transformers..."
                       className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-neutral-400 block mb-1">Certificate file (PDF, PNG or JPG, up to 3 MB, optional)</label>
+                    <input
+                      key={certFile ? 'has-file' : 'no-file'}
+                      type="file"
+                      accept="application/pdf,image/png,image/jpeg"
+                      onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
+                      className="text-xs text-neutral-300"
                     />
                   </div>
 

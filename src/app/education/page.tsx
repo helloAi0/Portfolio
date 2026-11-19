@@ -113,7 +113,7 @@ export default async function EducationPage() {
                     {edu.schoolType === 'HIGHER_EDUCATION' ? 'University Level' : 'Schooling Foundation'}
                   </Badge>
                   <span className="text-xs font-mono text-gold-400">
-                    {edu.graduationStatus === 'EXPECTED_2028' ? 'Expected graduation: 2028' : edu.graduationStatus === 'COMPLETED' ? 'Completed' : 'Attended'}
+                    {edu.graduationStatus.startsWith('EXPECTED') ? `Expected graduation: ${edu.endYear ?? edu.graduationStatus.replace('EXPECTED_', '')}` : edu.graduationStatus === 'COMPLETED' ? 'Completed' : 'Attended'}
                   </span>
                 </div>
                 <h3 className="text-xl font-serif font-bold text-white">

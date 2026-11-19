@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { resolveIdentitySafety } from '@/lib/identity';
 import { PROFILE } from '@/config/profile';
+import { getPublicProfile } from '@/lib/services/publicProfile';
 import { User, ShieldAlert, Cpu, Compass, BookOpen, GraduationCap, MapPin, Calendar, Terminal } from 'lucide-react';
 
 export const metadata = {
@@ -13,8 +14,9 @@ export const metadata = {
   description: 'Verified professional identity, philosophical ethos, and academic background of Taha Udaipurwala.',
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
   const identity = resolveIdentitySafety();
+  const profile = await getPublicProfile();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -38,7 +40,7 @@ export default function AboutPage() {
               {identity.displayName}
             </h2>
             <p className="text-xs text-gold-400 font-mono mb-4">
-              {PROFILE.headline}
+              {profile.headline}
             </p>
 
             <div className="space-y-3 pt-4 border-t border-white/5 text-xs font-mono">
@@ -57,7 +59,7 @@ export default function AboutPage() {
                   <MapPin className="w-3.5 h-3.5 text-gold-400" />
                   <span>Based in:</span>
                 </span>
-                <span className="text-neutral-200">{PROFILE.location}</span>
+                <span className="text-neutral-200">{profile.location}</span>
               </div>
 
               <div className="flex items-center justify-between">
@@ -82,6 +84,7 @@ export default function AboutPage() {
               Who I Am
             </h3>
             <div className="text-neutral-300 text-sm leading-relaxed space-y-4">
+              {profile.bio && <p className="text-neutral-100">{profile.bio}</p>}
               <p>
                 I&apos;m <strong className="text-white">{identity.displayName}</strong>, a{' '}
                 {identity.academicStatus.currentAcademicYear.toLowerCase()} B.Tech student

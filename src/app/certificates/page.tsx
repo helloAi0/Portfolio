@@ -44,7 +44,7 @@ export default async function CertificatesPage() {
           {certificates.map((cert) => (
             <Card key={cert.id} variant="marble" className="p-6 flex flex-col justify-between">
               <div>
-                <Badge variant="verified" size="xs" className="mb-2">Verified Credential</Badge>
+                <Badge variant={cert.verificationStatus === 'VERIFIED' ? 'verified' : 'neutral'} size="xs" className="mb-2">{cert.verificationStatus === 'VERIFIED' ? 'Verified Credential' : 'Listed by owner'}</Badge>
                 <h3 className="font-serif font-bold text-lg text-white mb-1">{cert.title}</h3>
                 <p className="text-xs text-gold-300 font-mono mb-2">{cert.issuingOrganization}</p>
                 {cert.description && <p className="text-xs text-neutral-400 font-sans mb-3">{cert.description}</p>}
@@ -52,17 +52,23 @@ export default async function CertificatesPage() {
                   <p className="text-[10px] font-mono text-neutral-500 mb-2">ID: {cert.credentialId}</p>
                 )}
               </div>
-              {cert.credentialUrl && (
-                <div className="pt-3 border-t border-white/5">
+              {(cert.credentialUrl || cert.filePath) && (
+                <div className="pt-3 border-t border-white/5 flex flex-wrap gap-x-5 gap-y-2">
+                  {cert.filePath && (
+                    <a href={cert.filePath} target="_blank" rel="noopener noreferrer" className="inline-flex items-center space-x-1 text-xs font-mono text-gold-400 hover:text-gold-200">
+                      <span>View certificate</span><ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  {cert.credentialUrl && (
                   <a
                     href={cert.credentialUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center space-x-1 text-xs font-mono text-gold-400 hover:text-gold-200"
                   >
-                    <span>Verify Credential Authority</span>
+                    <span>Verify with issuer</span>
                     <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  </a>)}
                 </div>
               )}
             </Card>

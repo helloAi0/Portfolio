@@ -144,3 +144,15 @@ WEEK 3 FIRST STEPS: run the local verification commands above, run a real sync, 
 - **Resume**: print stylesheet (clean white page, no site chrome) so "Print / Save as PDF" produces a usable CV.
 - **Known remaining (by design / Week 4):** certificate file upload (only https links accepted; no storage backend), Education/Profile edited via config + seed (no admin editor), backups, npm audit, Render deployment checks.
 - Schema additions this pass: `Ambition` (run `npx prisma db push`).
+
+
+## Remaining items closed: uploads, profile/education editor, backups, deploy checks
+
+- **Certificate file upload:** PDF/PNG/JPG up to 3 MB, content type checked from the file's real bytes (not the name), stored in the database (`StoredFile`) so it survives Render redeploys. Served at `/api/files/<id>` with `nosniff` + sandbox CSP; public only while attached to a public AND owner-approved certificate, otherwise admin-only. Deleting a certificate deletes its file.
+- **Honesty fixes found on the way:** certificates are no longer labelled "Verified Credential" just because the owner approved them (badge says "Listed by owner" unless status is VERIFIED); Render build no longer runs `db push --accept-data-loss`; `prisma/seed.ts` no longer overwrites education rows the owner edited.
+- **Profile & Education editor** (admin tab): headline, bio, location, contact email, GitHub/LinkedIn links, education history. The public Hero, About, Resume and Footer now actually read the database profile (before this change the DB profile was never read by any public page). Name and date of birth remain private server settings (`OWNER_DISPLAY_NAME`, `OWNER_BIRTH_DATE`). Bio edits are audit-logged and can be rolled back from the Copilot tab.
+- **Backups:** Admin > Auto-Sync > Download backup, or `npm run backup` (writes `backups/`, git-ignored). `npm run restore -- <file>` is a dry run; `--apply` restores only into EMPTY tables; `--replace` is the explicit destructive mode. Admin accounts and sessions are never exported. Works on SQLite and PostgreSQL (schema is read from the generated client or, failing that, from the schema file).
+- **Deploy checks:** `npm run check:deploy` and an automatic check at the start of `scripts/render-build.mjs` (fails the build on SQLite-in-production, missing/placeholder secrets, non-https site URL, bad birth-date format; warns on missing email/GitHub token/Gemini). Secret values are never printed.
+- **Render facts to act on:** free PostgreSQL on Render is deleted after 30 days; choose a paid plan before first deploy and download backups regularly. Remove `ADMIN_DEFAULT_PASSWORD` from Render after the admin account exists. Verify a sending domain in Resend before trusting email delivery.
+- **Schema additions:** `StoredFile` (run `npx prisma db push`).
+- **Still unverified outside the owner's machine:** Prisma-backed route handlers (file serving, backup download, restore), real Render build, real email delivery, live GitHub/LeetCode.

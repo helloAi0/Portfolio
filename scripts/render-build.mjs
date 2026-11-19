@@ -25,6 +25,15 @@ const schemaPath = isPostgres
 
 console.log(`Using Schema: ${schemaPath}`);
 
+// Configuration check: stop the deploy early on unsafe settings (missing secrets, SQLite in production...).
+const { checkDeployEnv, summarize } = await import('./deploy-check.mjs');
+const checks = checkDeployEnv({ ...process.env, NODE_ENV: 'production' });
+for (const c of checks.filter((c) => c.level !== 'PASS')) console.log(`[${c.level}] ${c.name}: ${c.msg}`);
+if (summarize(checks).fail > 0) {
+  console.error('\nDeploy configuration has failures (see above). Fix them in the Render dashboard and redeploy.');
+  process.exit(1);
+}
+
 try {
   // 1. Prisma Client Generation
   console.log('\n[1/3] Generating Prisma Client...');
@@ -33,7 +42,8 @@ try {
   // 2. Database Migration / Schema Sync
   if (isPostgres) {
     console.log('\n[2/3] Synchronizing PostgreSQL schema on Render...');
-    execSync(`npx prisma db push --schema=${schemaPath} --accept-data-loss`, { stdio: 'inherit' });
+    // No --accept-data-loss: if a schema change would delete data, the deploy stops instead of silently dropping it.
+    execSync(`npx prisma db push --schema=${schemaPath}`, { stdio: 'inherit' });
 
     // Seed database if requested or if tables are empty
     if (process.env.AUTO_SEED === 'true') {

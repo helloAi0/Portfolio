@@ -2,10 +2,11 @@ import React from 'react';
 import Link from 'next/link';
 import { resolveIdentitySafety } from '@/lib/identity';
 import { Github, ArrowUpRight, Cpu } from 'lucide-react';
-import { PROFILE } from '@/config/profile';
+import { getPublicProfile } from '@/lib/services/publicProfile';
 
-export function Footer() {
+export async function Footer() {
   const identity = resolveIdentitySafety();
+  const profile = await getPublicProfile();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -110,8 +111,8 @@ export function Footer() {
               Get in touch
             </h4>
             <p className="text-xs leading-relaxed">
-              <a href={`mailto:${identity.contactEmail}`} className="text-gold-300 hover:underline break-all">
-                {identity.contactEmail}
+              <a href={`mailto:${profile.contactEmail}`} className="text-gold-300 hover:underline break-all">
+                {profile.contactEmail}
               </a>
               <br />
               <Link href="/contact" className="hover:text-gold-300">Send an enquiry &rarr;</Link>
@@ -119,7 +120,7 @@ export function Footer() {
 
             <div className="flex items-center space-x-3 pt-1">
               <Link
-                href={PROFILE.github.url}
+                href={profile.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center space-x-1 text-xs text-neutral-400 hover:text-gold-300"
@@ -128,9 +129,9 @@ export function Footer() {
                 <span>GitHub</span>
                 <ArrowUpRight className="w-3 h-3" />
               </Link>
-              {PROFILE.linkedinUrl && (
+              {profile.linkedinUrl && (
                 <Link
-                  href={PROFILE.linkedinUrl}
+                  href={profile.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center space-x-1 text-xs text-neutral-400 hover:text-gold-300"

@@ -126,8 +126,12 @@ async function main() {
     },
   ];
   for (const rec of educationRecords) {
-    const existing = await prisma.education.findFirst({ where: { institution: { in: [rec.data.institution, ...rec.legacy] } } });
-    if (existing) await prisma.education.update({ where: { id: existing.id }, data: rec.data });
+    // A row that already has the correct name is the owner's (possibly edited in Admin > Profile & Education):
+    // never overwrite it. Only rows still carrying an old placeholder/misspelled name are corrected.
+    const current = await prisma.education.findFirst({ where: { institution: rec.data.institution } });
+    if (current) continue;
+    const legacyRow = rec.legacy.length ? await prisma.education.findFirst({ where: { institution: { in: rec.legacy } } }) : null;
+    if (legacyRow) await prisma.education.update({ where: { id: legacyRow.id }, data: rec.data });
     else await prisma.education.create({ data: rec.data });
   }
 

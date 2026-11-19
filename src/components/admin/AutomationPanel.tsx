@@ -102,6 +102,12 @@ export default function AutomationPanel({ onChanged }: { onChanged?: () => void 
       </Card>
 
       <Card variant="marble" className="p-5 space-y-3">
+        <h4 className="text-white font-bold text-sm">Backup</h4>
+        <p className="text-xs text-neutral-400">Downloads everything you entered (projects, skills, certificates, messages and so on) as one file. Passwords and login sessions are never included. Keep the file somewhere private; do this before any big change.</p>
+        <a href="/api/admin/backup" download className="inline-block px-3 py-1.5 rounded border border-gold-500/40 text-xs text-gold-300 hover:border-gold-400">Download backup</a>
+      </Card>
+
+      <Card variant="marble" className="p-5 space-y-3">
         <h4 className="text-white font-bold text-sm">2. LinkedIn: certificates, skills and posts</h4>
         <p className="text-xs text-neutral-400">
           LinkedIn does not allow websites to read your profile automatically, and this project never logs in as you or scrapes. The official way is

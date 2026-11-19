@@ -1,3 +1,4 @@
+import { getPublicProfile } from '@/lib/services/publicProfile';
 import React from 'react';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { SectionHeading } from '@/components/ui/SectionHeading';
@@ -29,6 +30,7 @@ function Section({ n, title, children }: { n: string; title: string; children: R
 
 export default async function ResumePage() {
   const identity = resolveIdentitySafety();
+  const profile = await getPublicProfile();
 
   let skills: any[] = [], projects: any[] = [], certs: any[] = [], achievements: any[] = [], experiences: any[] = [], education: any[] = [];
   let loadedAt = new Date();
@@ -71,12 +73,12 @@ export default async function ResumePage() {
         <header className="border-b border-gold-500/20 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="text-3xl sm:text-4xl font-serif font-black text-white tracking-tight">{identity.displayName.toUpperCase()}</h1>
-            <p className="text-sm font-mono text-gold-400 mt-1">{PROFILE.headline}</p>
+            <p className="text-sm font-mono text-gold-400 mt-1">{profile.headline}</p>
           </div>
           <div className="text-xs font-mono space-y-1 text-neutral-300 md:text-right">
             <div className="flex items-center md:justify-end space-x-1.5"><Mail className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>{identity.contactEmail}</span></div>
-            <div className="flex items-center md:justify-end space-x-1.5"><Github className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>github.com/{PROFILE.github.username}</span></div>
-            <div className="flex items-center md:justify-end space-x-1.5"><MapPin className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>{PROFILE.location}</span></div>
+            <div className="flex items-center md:justify-end space-x-1.5"><Github className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>github.com/{profile.githubUsername}</span></div>
+            <div className="flex items-center md:justify-end space-x-1.5"><MapPin className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>{profile.location}</span></div>
           </div>
         </header>
 

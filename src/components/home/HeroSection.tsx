@@ -3,11 +3,12 @@ import Link from 'next/link';
 import { HeroStage, type HeroChapter } from './HeroStage';
 import { Button } from '@/components/ui/Button';
 import { resolveIdentitySafety } from '@/lib/identity';
-import { PROFILE } from '@/config/profile';
+import { getPublicProfile } from '@/lib/services/publicProfile';
 import { Github, Linkedin, ArrowRight, ShieldCheck, Cpu, Code2, Sparkles, BookOpen } from 'lucide-react';
 
-export function HeroSection() {
+export async function HeroSection() {
   const identity = resolveIdentitySafety();
+  const profile = await getPublicProfile();
 
   const intro = (
           <div className="max-w-2xl space-y-6 text-left">
@@ -23,7 +24,7 @@ export function HeroSection() {
                 {identity.displayName.toUpperCase()}
               </h1>
               <p className="text-lg sm:text-2xl font-serif italic text-gold-300 font-light tracking-wide">
-                {PROFILE.headline}
+                {profile.headline}
               </p>
             </div>
 
@@ -96,9 +97,9 @@ export function HeroSection() {
                   <Github className="w-5 h-5" />
                 </a>
 
-                {PROFILE.linkedinUrl && (
+                {profile.linkedinUrl && (
                 <a
-                  href={PROFILE.linkedinUrl}
+                  href={profile.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-3 rounded bg-imperial-900 text-neutral-300 hover:text-gold-300 border border-gold-500/20 hover:border-gold-500/60 transition-all shadow-sm"

@@ -69,3 +69,57 @@ export function cleanAmbition(b: any): { error: string } | { data: { horizon: st
 }
 
 export const ENQUIRY_STATUSES = ['UNREAD', 'READ', 'REPLIED', 'ARCHIVED'] as const;
+
+const EMAIL_RE = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/;
+
+/** Partial profile update: only fields that are present are validated and returned. */
+export function cleanProfileUpdate(b: any): { error: string } | { data: Record<string, string | null> } {
+  const out: Record<string, string | null> = {};
+  const set = (k: string, max: number, required = false) => {
+    if (!(k in (b ?? {}))) return null;
+    const v = text(b[k], max);
+    if (required && !v) return `${k} cannot be empty.`;
+    out[k] = v; return null;
+  };
+  for (const [k, max, req] of [['displayName', 100, true], ['headline', 160, true], ['bio', 4000, true], ['location', 120, false]] as const) {
+    const e = set(k, max, req); if (e) return { error: e.replace('displayName', 'Name').replace('headline', 'Headline').replace('bio', 'Bio') };
+  }
+  if ('contactEmail' in (b ?? {})) {
+    const e = text(b.contactEmail, 254)?.toLowerCase();
+    if (!e || !EMAIL_RE.test(e)) return { error: 'Enter a valid contact email.' };
+    out.contactEmail = e;
+  }
+  for (const k of ['githubUrl', 'linkedinUrl']) {
+    if (!(k in (b ?? {}))) continue;
+    const u = httpsOrNull(b[k]);
+    if (u === 'invalid') return { error: `${k === 'githubUrl' ? 'GitHub' : 'LinkedIn'} link must start with https://` };
+    if (k === 'githubUrl' && !u) return { error: 'GitHub link cannot be empty.' };
+    out[k] = u;
+  }
+  if (Object.keys(out).length === 0) return { error: 'Nothing to update.' };
+  return { data: out };
+}
+
+export const SCHOOL_TYPES = ['HIGHER_EDUCATION', 'HIGH_SCHOOL'] as const;
+export const GRAD_STATUSES = ['EXPECTED', 'COMPLETED', 'ATTENDED'] as const;
+
+export function cleanEducation(b: any): { error: string } | { data: { institution: string; institutionAcronym: string | null; schoolType: string; degree: string | null; field: string | null; minor: string | null; location: string | null; startYear: number | null; endYear: number | null; isCurrent: boolean; graduationStatus: string; orderIndex: number } } {
+  const institution = text(b?.institution, 200);
+  if (!institution) return { error: 'Institution name is required.' };
+  const schoolType = String(b?.schoolType);
+  if (!(SCHOOL_TYPES as readonly string[]).includes(schoolType)) return { error: 'Choose a level (university or school).' };
+  const status = String(b?.graduationStatus);
+  if (!(GRAD_STATUSES as readonly string[]).includes(status)) return { error: 'Choose a status.' };
+  const yr = (v: unknown): number | null | 'invalid' => { if (v === undefined || v === null || v === '') return null; const n = Number(v); return Number.isInteger(n) && n >= 1990 && n <= 2100 ? n : 'invalid'; };
+  const start = yr(b?.startYear), end = yr(b?.endYear);
+  if (start === 'invalid' || end === 'invalid') return { error: 'Years must be between 1990 and 2100.' };
+  if (start && end && end < start) return { error: 'The end year is before the start year.' };
+  if (status === 'EXPECTED' && !end) return { error: 'Enter the expected graduation year.' };
+  const order = Number(b?.orderIndex);
+  return { data: {
+    institution, institutionAcronym: text(b?.institutionAcronym, 20), schoolType, degree: text(b?.degree, 200), field: text(b?.field, 200),
+    minor: text(b?.minor, 200), location: text(b?.location, 200), startYear: start, endYear: end,
+    isCurrent: Boolean(b?.isCurrent), graduationStatus: status === 'EXPECTED' ? `EXPECTED_${end}` : status,
+    orderIndex: Number.isInteger(order) && order >= 0 && order < 100 ? order : 0,
+  } };
+}

@@ -70,3 +70,13 @@ node node_modules/tsx/dist/cli.mjs prisma/seed.ts
 
 Your imperial citadel will now be live at `https://[your-service-name].onrender.com`.
 
+
+
+## Pre-deploy checklist (added)
+
+1. `npm run check:deploy` locally with your production values exported: fix every FAIL.
+2. Use a PAID Render PostgreSQL plan (free databases are deleted after 30 days).
+3. Set in Render: `NEXT_PUBLIC_SITE_URL` (https), `GITHUB_TOKEN`, `LEETCODE_USERNAME`, `RESEND_API_KEY`, `EMAIL_FROM` (verified domain), `OWNER_BIRTH_DATE`, `ADMIN_DEFAULT_PASSWORD` (12+ chars, first deploy only, then delete it).
+4. After the first deploy: open `/api/health`, log in at `/admin/login`, press "Sync everything now", download a backup.
+5. Register the GitHub webhook (`/api/webhooks/github`, content type JSON, secret = `GITHUB_WEBHOOK_SECRET`).
+6. The build runs `prisma db push` WITHOUT `--accept-data-loss`: if a future schema change would delete data, the deploy stops. Download a backup, then decide.

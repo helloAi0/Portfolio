@@ -12,8 +12,11 @@
     "db:push": "node node_modules/prisma/build/index.js db push",
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:seed": "node node_modules/tsx/dist/cli.mjs prisma/seed.ts",
+    "backup": "node node_modules/tsx/dist/cli.mjs scripts/backup.ts",
+    "restore": "node node_modules/tsx/dist/cli.mjs scripts/restore_backup.ts",
+    "check:deploy": "node scripts/deploy-check.mjs",
     "verify:live": "node node_modules/tsx/dist/cli.mjs scripts/verify_live.ts",
-    "test:unit": "node node_modules/tsx/dist/cli.mjs scripts/test_identity_and_honesty.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week2_sync.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week3_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_automation_mocked.ts"
+    "test:unit": "node node_modules/tsx/dist/cli.mjs scripts/test_identity_and_honesty.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week2_sync.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week3_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_automation_mocked.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week4_unit.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

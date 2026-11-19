@@ -34,7 +34,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    const cert = await prisma.certificate.findUnique({ where: { id: params.id }, select: { filePath: true } });
     await prisma.certificate.delete({ where: { id: params.id } });
+    const m = cert?.filePath?.match(/^\/api\/files\/([a-z0-9]{20,40})$/);
+    if (m) await prisma.storedFile.deleteMany({ where: { id: m[1] } }); // do not leave orphaned uploads
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete certificate' }, { status: 500 });

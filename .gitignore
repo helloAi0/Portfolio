@@ -39,3 +39,7 @@ next-env.d.ts
 /prisma/*.db-journal
 dev.db
 
+
+# Database backups contain private data
+backups/
+*.backup.json
