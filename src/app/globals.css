@@ -170,3 +170,14 @@ body {
 .resume-paper .text-gold-400, .resume-paper .text-gold-300 { color: #8a6a12 !important; }
 .resume-paper [class*='bg-imperial'] { background: #f6f6f4 !important; border-color: #e5e5e5 !important; }
 .resume-paper header, .resume-paper footer { border-color: #e5e5e5 !important; }
+
+/* Home: big outlined marquee + kinetic hero words */
+.bm-outline { color: transparent; -webkit-text-stroke: 1.5px rgba(224,181,80,.55); }
+.bm-left { animation: bm-l 55s linear infinite; }
+.bm-right { animation: bm-r 65s linear infinite; }
+@keyframes bm-l { to { transform: translateX(-50%); } }
+@keyframes bm-r { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+.kw { display: inline-block; overflow: hidden; vertical-align: bottom; }
+.kw > span { display: inline-block; transform: translateY(105%); animation: kw-up 900ms cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i, 0) * 110ms + 200ms); }
+@keyframes kw-up { to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .bm-left, .bm-right { animation: none; } .kw > span { animation: none; transform: none; } }

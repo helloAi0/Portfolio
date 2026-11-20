@@ -1,9 +1,10 @@
 import React from 'react';
 import { HeroSection } from '@/components/home/HeroSection';
-import { BentoGrid } from '@/components/home/BentoGrid';
-import { Marquee } from '@/components/motion/Marquee';
+import { PinnedStory } from '@/components/home/PinnedStory';
+import { BigMarquee } from '@/components/home/BigMarquee';
+import { DomainTiles } from '@/components/home/DomainTiles';
 import { FeaturedProjects } from '@/components/home/FeaturedProjects';
-import { getProjects } from '@/lib/services/projectService';
+import { getProjects, getProjectCategories } from '@/lib/services/projectService';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ArrowRight, Terminal, Cpu, ShieldAlert, Award } from 'lucide-react';
@@ -12,15 +13,19 @@ export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const projects = await getProjects({ featuredOnly: true });
+  const cats = (await getProjectCategories()).map((c: any) => ({ slug: c.slug, name: c.name, count: c._count?.projects ?? 0 }));
 
   return (
     <div className="w-full">
       {/* 1. Scroll-driven cinematic 3D hero */}
       <HeroSection />
 
-      {/* 2. Imperial Architectural Tenets & Ethos */}
-      <Marquee ariaLabel="Focus areas and languages" items={['Artificial Intelligence', 'Machine Learning', 'Robotics', 'ROS 2', 'SLAM', 'Cybersecurity', 'Python', 'C++', 'Java', 'JavaScript']} />
-      <BentoGrid />
+      {/* 2. Big moving type, then the pinned 3D story */}
+      <BigMarquee rows={[['Agentic AI', 'Robotics', 'Full-stack', 'Simulation'], ['LLMs', 'Cybersecurity', 'ROS 2', 'Isaac Sim']]} />
+      <PinnedStory />
+
+      {/* 2b. Domains */}
+      <DomainTiles cats={cats} />
 
       {/* 3. Featured Flagship Projects from Database */}
       <FeaturedProjects projects={projects} />
@@ -32,8 +37,8 @@ export default async function HomePage() {
             <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400 mb-2 block">
               Contact
             </span>
-            <h2 className="text-2xl sm:text-4xl font-serif font-black text-white mb-4">
-              Let&apos;s Talk
+            <h2 className="text-5xl sm:text-8xl font-serif font-black text-white mb-6 leading-[0.95]">
+              Let&apos;s build<br /><span className="text-gold-300">something.</span>
             </h2>
             <p className="text-sm text-neutral-300 max-w-xl mx-auto leading-relaxed mb-8">
               Interested in AI/ML, robotics and secure systems. Questions, collaboration ideas and opportunities are welcome.

@@ -43,7 +43,11 @@ export function FeaturedProjects({ projects }: FeaturedProjectsProps) {
               variant="marble"
               className="tilt !rounded-3xl !p-0 flex flex-col justify-between group hover:border-gold-500/50"
             >
-              <div className="relative h-40 overflow-hidden bg-gradient-to-br from-imperial-800 via-imperial-900 to-imperial-950 border-b border-gold-500/15" aria-hidden>
+              <div className="relative h-56 overflow-hidden bg-gradient-to-br from-imperial-800 via-imperial-900 to-imperial-950 border-b border-gold-500/15" aria-hidden>
+                {project.coverImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={project.coverImage} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                )}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(212,175,55,0.22),transparent_55%)]" />
                 <span className="absolute -bottom-6 -right-2 display-xl text-[7rem] text-gold-500/10 select-none">{(project.category?.name || 'E').charAt(0)}</span>
                 <span className="absolute left-5 top-5 px-3 py-1 rounded-full border border-gold-500/40 bg-imperial-950/70 text-[10px] font-mono uppercase tracking-wider text-gold-300">{project.category?.name || 'Engineering'}</span>
