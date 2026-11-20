@@ -1,4 +1,5 @@
 import React from 'react';
+import { CountUp, ScrollDepth, TiltCard } from '@/components/motion/Depth';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -95,7 +96,7 @@ function PlatformCard({ name, profile, configured }: { name: string; profile: Pr
         <>
           <div className="p-6 rounded bg-imperial-950 border border-gold-500/20 mb-4">
             <span className="text-[10px] font-mono uppercase text-neutral-400 block mb-1">Problems solved</span>
-            <span className="text-4xl font-serif font-black text-white">{profile!.totalSolved}</span>
+            <CountUp value={profile!.totalSolved as number} className="text-5xl font-serif font-black text-white" />
           </div>
 
           {profile!.easySolved !== null && profile!.mediumSolved !== null && profile!.hardSolved !== null && (
@@ -109,7 +110,7 @@ function PlatformCard({ name, profile, configured }: { name: string; profile: Pr
                 ].map(([label, value, color]) => (
                   <div key={label as string} className="p-3 rounded bg-imperial-900 border border-white/10 text-center">
                     <span className={`text-[10px] font-mono block uppercase ${color}`}>{label}</span>
-                    <span className="text-xl font-serif font-bold text-white">{value}</span>
+                    <CountUp value={Number(value)} className="text-xl font-serif font-bold text-white" />
                   </div>
                 ))}
               </div>
@@ -185,8 +186,8 @@ export default async function CodingArenaPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <PlatformCard name="LeetCode" profile={leetcode as Profile} configured={Boolean(process.env.LEETCODE_USERNAME)} />
-        <PlatformCard name="GeeksforGeeks" profile={gfg as Profile} configured={Boolean(process.env.GFG_USERNAME)} />
+        <ScrollDepth strength={0.6}><TiltCard><PlatformCard name="LeetCode" profile={leetcode as Profile} configured={Boolean(process.env.LEETCODE_USERNAME)} /></TiltCard></ScrollDepth>
+        <ScrollDepth strength={0.6}><TiltCard><PlatformCard name="GeeksforGeeks" profile={gfg as Profile} configured={Boolean(process.env.GFG_USERNAME)} /></TiltCard></ScrollDepth>
       </div>
 
       {solutions.length > 0 && (

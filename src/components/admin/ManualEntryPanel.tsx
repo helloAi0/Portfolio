@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { TAXONOMY } from '@/lib/taxonomy';
 
 type Msg = { type: 'ok' | 'err'; text: string } | null;
 type Row = { id: string; label: string; sub?: string };
@@ -21,9 +20,7 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
   const [busy, setBusy] = useState(false);
   const [lists, setLists] = useState<Record<string, Row[]>>({});
   const [stats, setStats] = useState({ platform: 'LEETCODE', username: '', totalSolved: '', easySolved: '', mediumSolved: '', hardSolved: '', globalRanking: '' });
-  const [skill, setSkill] = useState({ name: '', domain: '', level: 'OWNER_CONFIRMED', notes: '' });
   const [ambition, setAmbition] = useState({ horizon: '', title: '', description: '', focus: '' });
-  const [project, setProject] = useState({ title: '', tagline: '', description: '', categorySlug: TAXONOMY[0]?.slug ?? '', keyFeatures: '', skills: '', githubRepo: '', liveDeployment: '' });
 
   const call = useCallback(async (url: string, method: string, body?: unknown): Promise<{ ok: boolean; data: any }> => {
     try {
@@ -62,8 +59,6 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
   };
 
   const submitStats = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/coding-stats/manual', 'PUT', stats), 'Statistics saved (shown as "entered manually"). A later successful automatic sync will replace them with live numbers.'); };
-  const submitSkill = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/skills', 'POST', skill), 'Skill added.', () => setSkill({ ...skill, name: '', notes: '' })); };
-  const submitProject = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/projects', 'POST', project), 'Project added and published.', () => setProject({ ...project, title: '', tagline: '', description: '', keyFeatures: '', skills: '', githubRepo: '', liveDeployment: '' })); };
 
   const submitAmbition = (e: React.FormEvent) => { e.preventDefault(); run(() => call('/api/admin/ambitions', 'POST', ambition), 'Goal added to the Ambitions page.', () => setAmbition({ horizon: '', title: '', description: '', focus: '' })); };
 
@@ -97,32 +92,7 @@ export default function ManualEntryPanel({ onChanged }: { onChanged?: () => void
         </form>
       </Card>
 
-      <Card variant="marble" className="p-5 space-y-3">
-        <h4 className="text-white font-bold text-sm">Add a skill</h4>
-        <p className="text-xs text-neutral-400">Shown as &ldquo;stated by the owner&rdquo; or &ldquo;learning&rdquo;. It only becomes &ldquo;demonstrated&rdquo; when a project uses it.</p>
-        <form onSubmit={submitSkill} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {field('Skill name', <input required value={skill.name} onChange={(e) => setSkill({ ...skill, name: e.target.value })} className={input} />)}
-          {field('Area (e.g. Robotics, Web)', <input value={skill.domain} onChange={(e) => setSkill({ ...skill, domain: e.target.value })} className={input} />)}
-          {field('Status', <select value={skill.level} onChange={(e) => setSkill({ ...skill, level: e.target.value })} className={input}><option value="OWNER_CONFIRMED">I know this</option><option value="LEARNING">I am learning this</option></select>)}
-          {field('Note (optional)', <input value={skill.notes} onChange={(e) => setSkill({ ...skill, notes: e.target.value })} className={input} />)}
-          <div className="sm:col-span-2"><Button type="submit" disabled={busy} size="sm" variant="primary">Add skill</Button></div>
-        </form>
-      </Card>
-
-      <Card variant="marble" className="p-5 space-y-3">
-        <h4 className="text-white font-bold text-sm">Add a project (not on GitHub, or GitHub sync missed it)</h4>
-        <form onSubmit={submitProject} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {field('Title', <input required value={project.title} onChange={(e) => setProject({ ...project, title: e.target.value })} className={input} />)}
-          {field('Category', <select value={project.categorySlug} onChange={(e) => setProject({ ...project, categorySlug: e.target.value })} className={input}>{TAXONOMY.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}</select>)}
-          <div className="sm:col-span-2">{field('One-line summary', <input required value={project.tagline} onChange={(e) => setProject({ ...project, tagline: e.target.value })} className={input} />)}</div>
-          <div className="sm:col-span-2">{field('Description (what it is and what you did)', <textarea required rows={4} value={project.description} onChange={(e) => setProject({ ...project, description: e.target.value })} className={input} />)}</div>
-          <div className="sm:col-span-2">{field('Key features (one per line, optional)', <textarea rows={3} value={project.keyFeatures} onChange={(e) => setProject({ ...project, keyFeatures: e.target.value })} className={input} />)}</div>
-          {field('Technologies (comma separated, optional)', <input value={project.skills} onChange={(e) => setProject({ ...project, skills: e.target.value })} className={input} />)}
-          {field('GitHub link (optional)', <input value={project.githubRepo} onChange={(e) => setProject({ ...project, githubRepo: e.target.value })} className={input} placeholder="https://" />)}
-          {field('Live link (optional)', <input value={project.liveDeployment} onChange={(e) => setProject({ ...project, liveDeployment: e.target.value })} className={input} placeholder="https://" />)}
-          <div className="sm:col-span-2"><Button type="submit" disabled={busy} size="sm" variant="primary">Add project</Button></div>
-        </form>
-      </Card>
+      <p className="text-xs text-neutral-400">Skills and projects now have their own tabs: <strong>Skill Graph Engine</strong> and <strong>Projects Studio</strong>.</p>
 
       <Card variant="marble" className="p-5 space-y-3">
         <h4 className="text-white font-bold text-sm">Ambitions page</h4>

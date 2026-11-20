@@ -102,11 +102,15 @@ async function main() {
       },
     },
     {
-      legacy: ['Saini Golden Jubilee High School'],
+      legacy: ['Saini Golden Jubilee High School', 'Saifee Golden Jubilee High School'],
       data: {
-        institution: 'Saifee Golden Jubilee High School',
+        institution: 'Saifee Golden Jubilee English Public High School',
         schoolType: 'HIGH_SCHOOL',
-        degree: 'Classes X, XI and XII',
+        // Owner stated: Classes X-XII in Kolkata, ISC/ICSE boards, Class XII passed in 2024.
+        // Dates are calculated from that: ICSE (Class X) 2022, ISC (Class XII) 2024, so the three years ran 2021-2024.
+        degree: 'ICSE (Class X, 2022) and ISC (Class XII, 2024)',
+        startYear: 2021,
+        endYear: 2024,
         location: 'Kolkata, West Bengal',
         graduationStatus: 'COMPLETED',
         verificationStatus: 'OWNER_CONFIRMED',

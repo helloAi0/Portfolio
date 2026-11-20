@@ -33,7 +33,7 @@ export interface GFGStats {
 
 const UNAVAILABLE_GFG_STATS: GFGStats = {
   username: GFG_USERNAME,
-  profileUrl: GFG_USERNAME ? `https://www.geeksforgeeks.org/user/${GFG_USERNAME}` : '',
+  profileUrl: GFG_USERNAME ? `https://www.geeksforgeeks.org/profile/${GFG_USERNAME}` : '',
   totalSolved: null,
   school: null,
   basic: null,
@@ -85,7 +85,7 @@ export async function fetchGFGStats(): Promise<GFGStats> {
 
     const result: GFGStats = {
       username,
-      profileUrl: `https://www.geeksforgeeks.org/user/${username}`,
+      profileUrl: `https://www.geeksforgeeks.org/profile/${username}`,
       totalSolved: info.totalProblemsSolved ?? null,
       school: solved?.SCHOOL?.count ?? null,
       basic: solved?.BASIC?.count ?? null,

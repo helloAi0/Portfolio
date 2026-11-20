@@ -9,6 +9,9 @@ import AutomationPanel from '@/components/admin/AutomationPanel';
 import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
+import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
+import SkillsPanel from '@/components/admin/SkillsPanel';
+import ResumeStudioPanel from '@/components/admin/ResumeStudioPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import {
@@ -34,6 +37,7 @@ import {
   AlertTriangle,
   Send,
   Eye,
+  Layers,
   EyeOff,
 } from 'lucide-react';
 
@@ -48,6 +52,7 @@ type AdminTab =
   | 'geeksforgeeks'
   | 'linkedin'
   | 'projects'
+  | 'resume'
   | 'skills'
   | 'certificates'
   | 'achievements'
@@ -655,6 +660,8 @@ export default function AdminDashboardPage() {
   const navTabs: { id: AdminTab; label: string; icon: any; count?: number }[] = [
     { id: 'overview', label: 'Citadel Overview', icon: LayoutDashboard },
     { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
+    { id: 'projects', label: 'Projects Studio', icon: Layers },
+    { id: 'resume', label: 'Resume Studio', icon: Award },
     { id: 'manual', label: 'Manual Entry', icon: Settings },
     { id: 'inbox', label: 'Contact Inbox', icon: Send, count: unreadEnquiries },
     { id: 'profile', label: 'Profile & Education', icon: Settings },
@@ -973,6 +980,8 @@ export default function AdminDashboardPage() {
           {activeTab === 'profile' && <ProfileEditorPanel onChanged={loadAllData} />}
           {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
+          {activeTab === 'projects' && <ProjectsStudioPanel onChanged={loadAllData} />}
+          {activeTab === 'resume' && <ResumeStudioPanel onChanged={loadAllData} />}
 
           {activeTab === 'leetcode' && (
             <div className="space-y-6">
@@ -1111,55 +1120,7 @@ export default function AdminDashboardPage() {
           )}
 
           {/* TAB 6: SKILLS GRAPH ENGINE */}
-          {activeTab === 'skills' && (
-            <div className="space-y-6">
-              <h3 className="font-serif font-bold text-xl text-white">Dynamic Skill Graph & Evidence Hierarchy</h3>
-              <div className="space-y-3">
-                {skills.map((skill) => (
-                  <Card key={skill.id} variant="marble" className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-white text-base">{skill.name}</span>
-                        <Badge variant={skill.verified ? 'verified' : 'detected'} size="xs">
-                          {skill.verified ? 'VERIFIED' : 'DETECTED'}
-                        </Badge>
-                        <span className="text-xs font-mono text-gold-400">Level: {skill.level}</span>
-                      </div>
-                      <p className="text-xs text-neutral-400 font-mono mt-1">
-                        Domain: {skill.domain} • Category: {skill.category}
-                      </p>
-                    </div>
-
-                    {/* Change Tier Controls */}
-                    <div className="flex items-center space-x-2">
-                      <select
-                        value={skill.level}
-                        onChange={(e) => handleUpdateSkill(skill.id, { level: e.target.value })}
-                        className="px-2.5 py-1 rounded bg-imperial-900 border border-gold-500/20 text-xs font-mono text-gold-300"
-                      >
-                        <option value="DEMONSTRATED">Demonstrated in Projects</option>
-                        <option value="OWNER_CONFIRMED">Owner Confirmed</option>
-                        <option value="PRACTICING">Practicing</option>
-                        <option value="LEARNING">Active Learning</option>
-                        <option value="DETECTED">Detected Baseline</option>
-                      </select>
-
-                      <button
-                        onClick={() => handleUpdateSkill(skill.id, { verified: !skill.verified })}
-                        className={`px-3 py-1 rounded text-xs font-mono ${
-                          skill.verified
-                            ? 'bg-emerald-950 border border-emerald-500/40 text-emerald-300'
-                            : 'bg-imperial-800 text-neutral-300'
-                        }`}
-                      >
-                        {skill.verified ? 'Verified ✓' : 'Mark Verified'}
-                      </button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
+          {activeTab === 'skills' && <SkillsPanel onChanged={loadAllData} />}
 
           {/* TAB 7: CERTIFICATES */}
           {activeTab === 'certificates' && (
@@ -1230,7 +1191,7 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div>
-                    <label className="text-neutral-400 block mb-1">Certificate file (PDF, PNG or JPG, up to 3 MB, optional)</label>
+                    <label className="text-neutral-400 block mb-1">Certificate file (PDF, PNG, JPG, GIF or WEBP, up to 8 MB, optional)</label>
                     <input
                       key={certFile ? 'has-file' : 'no-file'}
                       type="file"

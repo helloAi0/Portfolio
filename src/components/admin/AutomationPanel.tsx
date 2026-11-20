@@ -102,6 +102,20 @@ export default function AutomationPanel({ onChanged }: { onChanged?: () => void 
       </Card>
 
       <Card variant="marble" className="p-5 space-y-3">
+        <h4 className="text-white font-bold text-sm">Email test</h4>
+        <p className="text-xs text-neutral-400">New contact-form messages and LAMO questions are emailed to you (they are always saved in the inbox too). Press the button to send a real test email and see whether it was delivered.</p>
+        <button type="button" disabled={busy} onClick={async () => {
+          setBusy(true); setMsg(null);
+          try {
+            const r = await fetch('/api/admin/email-test', { method: 'POST' });
+            const d = await r.json().catch(() => ({}));
+            setMsg(r.ok ? { type: 'ok', text: `Test email accepted by the provider for ${d.to}. Check that inbox (and spam).` } : { type: 'err', text: `Email NOT sent: ${d.error || 'unknown error'}` });
+          } catch { setMsg({ type: 'err', text: 'Could not reach the server.' }); }
+          setBusy(false);
+        }} className="px-3 py-1.5 rounded border border-gold-500/40 text-xs text-gold-300 hover:border-gold-400 disabled:opacity-50">Send test email</button>
+      </Card>
+
+      <Card variant="marble" className="p-5 space-y-3">
         <h4 className="text-white font-bold text-sm">Backup</h4>
         <p className="text-xs text-neutral-400">Downloads everything you entered (projects, skills, certificates, messages and so on) as one file. Passwords and login sessions are never included. Keep the file somewhere private; do this before any big change.</p>
         <a href="/api/admin/backup" download className="inline-block px-3 py-1.5 rounded border border-gold-500/40 text-xs text-gold-300 hover:border-gold-400">Download backup</a>

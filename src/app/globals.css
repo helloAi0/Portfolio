@@ -141,3 +141,32 @@ body {
   a { text-decoration: none !important; }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* ---------- 3D scroll / orbit helpers ---------- */
+.tilt-card { position: relative; }
+.tilt-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 200ms;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(224,181,80,0.14), transparent 60%);
+}
+.tilt-card:hover::after { opacity: 1; }
+.orbit-scene { position: relative; height: 320px; perspective: 900px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.orbit-ring { position: relative; width: 0; height: 0; transform-style: preserve-3d; transform: rotateX(-14deg); animation: orbit-spin 28s linear infinite; }
+.orbit-item {
+  position: absolute; left: 0; top: 0; translate: -50% -50%; white-space: nowrap;
+  font-family: ui-monospace, Menlo, monospace; font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+  color: #f0d78c; padding: 6px 14px; border: 1px solid rgba(224,181,80,.35); border-radius: 999px; background: rgba(12,12,16,.75);
+  box-shadow: 0 0 22px rgba(224,181,80,.18);
+}
+.orbit-core { position: absolute; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, rgba(255,226,150,.9), rgba(255,170,60,.15) 60%, transparent 70%); animation: orbit-pulse 3s ease-in-out infinite; }
+@keyframes orbit-spin { to { transform: rotateX(-14deg) rotateY(360deg); } }
+@keyframes orbit-pulse { 50% { transform: scale(1.25); opacity: .75; } }
+@media (prefers-reduced-motion: reduce) { .orbit-ring, .orbit-core { animation: none; } }
+@media (max-width: 640px) { .orbit-scene { height: 240px; } }
+
+/* Resume "paper" template: white page, dark text (screen and print) */
+.resume-paper h1, .resume-paper h3 { color: #111 !important; }
+.resume-paper h2 { color: #8a6a12 !important; border-color: #e5e5e5 !important; }
+.resume-paper p, .resume-paper li, .resume-paper span, .resume-paper div { color: #262626; }
+.resume-paper .text-gold-400, .resume-paper .text-gold-300 { color: #8a6a12 !important; }
+.resume-paper [class*='bg-imperial'] { background: #f6f6f4 !important; border-color: #e5e5e5 !important; }
+.resume-paper header, .resume-paper footer { border-color: #e5e5e5 !important; }

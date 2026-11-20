@@ -98,6 +98,9 @@ model Project {
   githubTopics           String?         // JSON array
   githubLastPushedAt     DateTime?
   approvalStatus         String          @default("APPROVED") // "APPROVED" | "PENDING_REVIEW" | "REJECTED"
+  coverImage             String?         // /api/files/<id> or https URL (image/GIF)
+  gallery                String?         // JSON array of image/GIF URLs
+  learnings              String?         // JSON array: what the owner learned
   skills                 ProjectSkill[]
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
@@ -523,4 +526,19 @@ model StoredFile {
   size      Int
   data      Bytes
   createdAt DateTime @default(now())
+}
+
+// ============================================================
+// RESUME STUDIO (single row)
+// ============================================================
+
+model ResumeSettings {
+  id            String   @id @default("singleton")
+  summary       String?
+  photoUrl      String?
+  pdfUrl        String?
+  template      String   @default("imperial")
+  hiddenSections String? // JSON array of section keys
+  extraSections String?  // JSON array of {title, body}
+  updatedAt     DateTime @updatedAt
 }

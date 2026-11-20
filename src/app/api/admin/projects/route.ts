@@ -6,6 +6,18 @@ import { CATEGORY_SLUGS, TAXONOMY } from '@/lib/taxonomy';
 
 export const dynamic = 'force-dynamic';
 
+/** All projects (including unpublished) for the Projects Studio. */
+export async function GET(req: NextRequest) {
+  if (!getAdminFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const rows = await prisma.project.findMany({ include: { category: { select: { slug: true, name: true } } }, orderBy: [{ updatedAt: 'desc' }] });
+  const arr = (v: string | null) => { try { const p = JSON.parse(v ?? '[]'); return Array.isArray(p) ? p : []; } catch { return []; } };
+  return NextResponse.json({ data: rows.map((p) => ({
+    id: p.id, slug: p.slug, title: p.title, tagline: p.tagline, description: p.description, categorySlug: p.category?.slug ?? '', categoryName: p.category?.name ?? '',
+    problemStatement: p.problemStatement, solution: p.solution, githubRepo: p.githubRepo, liveDeployment: p.liveDeployment, githubSynced: p.githubSynced, approvalStatus: p.approvalStatus,
+    keyFeatures: arr(p.keyFeatures), challenges: arr(p.challenges), results: arr(p.results), coverImage: p.coverImage, gallery: arr(p.gallery), learnings: arr(p.learnings),
+  })) });
+}
+
 /** Manually add a project that is not (or not only) on GitHub. It is published immediately, as the owner entered it. */
 export async function POST(req: NextRequest) {
   const admin = getAdminFromRequest(req);
@@ -27,7 +39,8 @@ export async function POST(req: NextRequest) {
       slug, title: d.title, tagline: d.tagline, description: d.description, detailedExplanation: d.description,
       categoryId: category.id, subcategory: node.children[0]?.name ?? node.name,
       problemStatement: d.problemStatement, solution: d.solution,
-      keyFeatures: JSON.stringify(d.keyFeatures), challenges: '[]', results: '[]',
+      keyFeatures: JSON.stringify(d.keyFeatures), challenges: JSON.stringify(d.challenges), results: JSON.stringify(d.results),
+      coverImage: d.coverImage, gallery: JSON.stringify(d.gallery), learnings: JSON.stringify(d.learnings),
       githubRepo: d.githubRepo, liveDeployment: d.liveDeployment, approvalStatus: 'APPROVED', difficulty: 'Unrated',
     },
   });

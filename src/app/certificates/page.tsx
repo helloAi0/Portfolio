@@ -1,4 +1,5 @@
 import React from 'react';
+import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -42,7 +43,7 @@ export default async function CertificatesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {certificates.map((cert) => (
-            <Card key={cert.id} variant="marble" className="p-6 flex flex-col justify-between">
+            <ScrollDepth key={cert.id} strength={0.6}><TiltCard className="h-full"><Card variant="marble" className="p-6 flex flex-col justify-between h-full">
               <div>
                 <Badge variant={cert.verificationStatus === 'VERIFIED' ? 'verified' : 'neutral'} size="xs" className="mb-2">{cert.verificationStatus === 'VERIFIED' ? 'Verified Credential' : 'Listed by owner'}</Badge>
                 <h3 className="font-serif font-bold text-lg text-white mb-1">{cert.title}</h3>
@@ -71,7 +72,7 @@ export default async function CertificatesPage() {
                   </a>)}
                 </div>
               )}
-            </Card>
+            </Card></TiltCard></ScrollDepth>
           ))}
         </div>
       )}

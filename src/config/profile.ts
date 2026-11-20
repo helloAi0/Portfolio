@@ -39,7 +39,7 @@ export const PROFILE = {
   },
   /** Owner-stated schooling. Years are deliberately not asserted. */
   schools: [
-    { name: 'Saifee Golden Jubilee High School', detail: 'Classes X, XI and XII', location: 'Kolkata' },
+    { name: 'Saifee Golden Jubilee English Public High School', detail: 'ICSE (Class X, 2022) and ISC (Class XII, 2024)', location: 'Kolkata' },
     { name: 'Nischintapur Public School', detail: 'Earlier schooling', location: null },
   ],
   timezone: 'Asia/Kolkata',

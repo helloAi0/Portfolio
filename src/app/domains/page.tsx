@@ -4,7 +4,7 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { getProjectCategories } from '@/lib/services/projectService';
+import { getProjectCategories, getProjects } from '@/lib/services/projectService';
 import { Cpu, Brain, LineChart, Shield, Layout, Server, Layers, Cloud, Zap, FlaskConical, ArrowRight } from 'lucide-react';
 
 export const metadata = {
@@ -16,6 +16,9 @@ export const dynamic = 'force-dynamic';
 
 export default async function DomainsPage() {
   const categories = await getProjectCategories();
+  const allProjects = await getProjects();
+  const byCat: Record<string, { slug: string; title: string; tagline: string }[]> = {};
+  allProjects.forEach((p: any) => { const k = p.category?.slug; if (k) (byCat[k] ||= []).push({ slug: p.slug, title: p.title, tagline: p.tagline }); });
 
   const iconMap: Record<string, React.ReactNode> = {
     Cpu: <Cpu className="w-5 h-5 text-gold-400" />,
@@ -36,7 +39,7 @@ export default async function DomainsPage() {
 
       <SectionHeading
         eyebrow="Taxonomy of Mastery"
-        title="10 Core Engineering Disciplines"
+        title={`${categories.length} Engineering Domains`}
         description="Nested classifications spanning hardware-adjacent robotics, deep learning pipelines, system security, and monumental cloud infrastructures."
       />
 
@@ -49,7 +52,7 @@ export default async function DomainsPage() {
                   {iconMap[cat.icon || 'Cpu'] || <Cpu className="w-5 h-5 text-gold-400" />}
                 </div>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-imperial-900 border border-gold-500/20 text-gold-400">
-                  {cat._count?.projects || 0} Projects Seeded
+                  {(byCat[cat.slug] ?? []).length} project{(byCat[cat.slug] ?? []).length === 1 ? '' : 's'}
                 </span>
               </div>
 
@@ -78,6 +81,17 @@ export default async function DomainsPage() {
                   </div>
                 </div>
               )}
+
+              {(byCat[cat.slug] ?? []).length > 0 && (
+                <div className="space-y-1.5 mb-6">
+                  <span className="text-[10px] font-mono text-gold-400 uppercase tracking-widest block">Projects in this domain</span>
+                  <ul className="space-y-1">
+                    {(byCat[cat.slug] ?? []).slice(0, 5).map((pr) => (
+                      <li key={pr.slug}><Link href={`/projects/${pr.slug}`} className="text-xs text-neutral-200 hover:text-gold-300">→ {pr.title}</Link></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="pt-4 border-t border-white/5 flex items-center justify-between">
@@ -85,7 +99,7 @@ export default async function DomainsPage() {
                 href={`/projects?category=${cat.slug}`}
                 className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-gold-400 hover:text-gold-200 transition-colors"
               >
-                <span>Filter Blueprints</span>
+                <span>See all projects</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>

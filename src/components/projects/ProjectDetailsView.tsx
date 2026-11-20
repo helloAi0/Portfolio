@@ -84,6 +84,23 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
         </div>
       </div>
 
+      {(project.coverImage || project.galleryList?.length > 0) && (
+        <div className="mb-12 space-y-4">
+          {project.coverImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={project.coverImage} alt={`${project.title} cover`} className="w-full max-h-[520px] object-cover rounded-lg border border-gold-500/20" />
+          )}
+          {project.galleryList?.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {project.galleryList.map((g: string, i: number) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={g + i} src={g} alt={`${project.title} screenshot ${i + 1}`} loading="lazy" className="w-full h-48 object-cover rounded border border-white/10" />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
         {/* Main Content Column */}
         <div className="lg:col-span-8 space-y-8">
@@ -91,7 +108,7 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
           <Card variant="marble">
             <h2 className="text-xl font-serif font-bold text-white mb-4 flex items-center space-x-2">
               <span className="w-2.5 h-2.5 bg-gold-400 rounded-sm" />
-              <span>Architectural Blueprint & Detailed Explanation</span>
+              <span>About this project</span>
             </h2>
             <div className="prose prose-invert max-w-none text-neutral-300 text-sm leading-relaxed space-y-4">
               {project.detailedExplanation ? (
@@ -107,7 +124,7 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
             {project.problemStatement && (<Card variant="marble" className="border-red-500/20">
               <div className="flex items-center space-x-2 mb-3">
                 <AlertCircle className="w-4 h-4 text-red-400" />
-                <h3 className="font-serif font-bold text-white text-base">The Core Problem</h3>
+                <h3 className="font-serif font-bold text-white text-base">What it is for</h3>
               </div>
               <p className="text-xs text-neutral-300 leading-relaxed font-sans">
                 {project.problemStatement}
@@ -117,7 +134,7 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
             {project.solution && (<Card variant="marble" className="border-emerald-500/20">
               <div className="flex items-center space-x-2 mb-3">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <h3 className="font-serif font-bold text-white text-base">The Imperial Solution</h3>
+                <h3 className="font-serif font-bold text-white text-base">What I built</h3>
               </div>
               <p className="text-xs text-neutral-300 leading-relaxed font-sans">
                 {project.solution}
@@ -125,17 +142,31 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
             </Card>)}
           </div>)}
 
-          {/* Key Architectural Features */}
+          {/* What I implemented */}
           {project.keyFeaturesList?.length > 0 && (
             <Card variant="marble">
               <h2 className="text-lg font-serif font-bold text-white mb-4">
-                Key Architectural Features
+                What I implemented
               </h2>
               <ul className="space-y-3">
                 {project.keyFeaturesList.map((feat: string, idx: number) => (
                   <li key={idx} className="flex items-start space-x-3 text-xs text-neutral-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-gold-400 mt-1.5 flex-shrink-0" />
                     <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {project.learningsList?.length > 0 && (
+            <Card variant="marble" className="border-gold-500/30">
+              <h2 className="text-lg font-serif font-bold text-white mb-4">What I learned</h2>
+              <ul className="space-y-3">
+                {project.learningsList.map((l: string, i: number) => (
+                  <li key={i} className="flex items-start space-x-3 text-sm text-neutral-200">
+                    <span className="text-gold-400 font-mono text-xs mt-0.5">0{i + 1}</span>
+                    <span>{l}</span>
                   </li>
                 ))}
               </ul>
@@ -194,13 +225,9 @@ export function ProjectDetailsView({ project }: ProjectDetailsViewProps) {
                 <dt className="text-neutral-400">Complexity Tier</dt>
                 <dd className="text-white font-mono">{project.difficulty}</dd>
               </div>
-              <div className="flex justify-between border-b border-white/5 pb-2">
+              <div className="flex justify-between">
                 <dt className="text-neutral-400">Operational State</dt>
                 <dd className="text-emerald-400 font-mono">{project.status}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-400">Deployment Target</dt>
-                <dd className="text-neutral-200 font-mono">Render PaaS</dd>
               </div>
             </dl>
           </Card>

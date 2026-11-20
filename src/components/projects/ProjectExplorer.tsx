@@ -152,6 +152,12 @@ export function ProjectExplorer({ initialProjects, categories }: ProjectExplorer
               className="flex flex-col justify-between group hover:border-gold-500/50 transition-all"
             >
               <div>
+                {p.coverImage && (
+                  <Link href={`/projects/${p.slug}`} className="block -mx-1 -mt-1 mb-4 overflow-hidden rounded border border-white/10">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.coverImage} alt={`${p.title} preview`} loading="lazy" className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105" />
+                  </Link>
+                )}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <Badge variant="gold" size="xs">
                     {p.category?.name}

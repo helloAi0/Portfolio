@@ -52,6 +52,8 @@ export async function getProjects(filters?: ProjectFilterOptions) {
     return projects.map((p) => ({
       ...p,
       keyFeaturesList: safeJsonParseArray(p.keyFeatures),
+      galleryList: safeJsonParseArray(p.gallery),
+      learningsList: safeJsonParseArray(p.learnings),
       challengesList: safeJsonParseArray(p.challenges),
       resultsList: safeJsonParseArray(p.results),
     }));
@@ -84,6 +86,8 @@ export async function getProjectBySlug(slug: string) {
     return {
       ...project,
       keyFeaturesList: safeJsonParseArray(project.keyFeatures),
+      galleryList: safeJsonParseArray(project.gallery),
+      learningsList: safeJsonParseArray(project.learnings),
       challengesList: safeJsonParseArray(project.challenges),
       resultsList: safeJsonParseArray(project.results),
     };

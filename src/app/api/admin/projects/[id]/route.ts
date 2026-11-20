@@ -3,6 +3,7 @@ import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
 import { DIFFICULTIES, isValidHttpUrl } from '@/lib/services/projectPublicationService';
 import { CATEGORY_SLUGS } from '@/lib/taxonomy';
+import { cleanProjectMedia } from '@/lib/adminInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const text = (k: string) => { if (typeof b[k] === 'string') data[k] = (b[k] as string).slice(0, 5000); };
   ['title', 'tagline', 'description', 'detailedExplanation', 'problemStatement', 'solution', 'subcategory'].forEach(text);
   for (const k of ['keyFeatures', 'challenges', 'results']) if (Array.isArray(b[k])) data[k] = JSON.stringify((b[k] as unknown[]).filter((x) => typeof x === 'string').slice(0, 30));
+  if (b.coverImage !== undefined || b.gallery !== undefined || b.learnings !== undefined) {
+    const m = cleanProjectMedia(b);
+    if ('error' in m) return NextResponse.json({ error: m.error }, { status: 400 });
+    if (b.coverImage !== undefined) data.coverImage = m.coverImage;
+    if (b.gallery !== undefined) data.gallery = JSON.stringify(m.gallery);
+    if (b.learnings !== undefined) data.learnings = JSON.stringify(m.learnings);
+  }
   if (typeof b.featured === 'boolean') data.featured = b.featured;
   if (b.difficulty !== undefined) {
     if (!(DIFFICULTIES as readonly string[]).includes(String(b.difficulty))) return NextResponse.json({ error: 'Invalid difficulty' }, { status: 400 });
@@ -54,4 +62,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   await prisma.adminAuditLog.create({ data: { action: 'PROJECT_EDITED', target: `Project:${project.slug}`, previousState: JSON.stringify({ difficulty: project.difficulty, subcategory: project.subcategory, liveDeployment: project.liveDeployment }), newState: JSON.stringify(Object.keys(data)), explanation: `${admin.username ?? 'owner'} edited ${Object.keys(data).join(', ') || 'skills'}`, status: 'COMMITTED' } }).catch(() => undefined);
   return NextResponse.json({ success: true, project: { id: updated.id, slug: updated.slug } });
+}
+
+/** Delete a project that was added by hand. GitHub-synced projects would simply be re-imported, so those are refused. */
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!getAdminFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const project = await prisma.project.findUnique({ where: { id: params.id } });
+  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (project.githubSynced) return NextResponse.json({ error: 'This project is synced from GitHub and would come back on the next sync. Edit it instead, or reject it in the GitHub tab.' }, { status: 409 });
+  await prisma.project.delete({ where: { id: project.id } });
+  return NextResponse.json({ success: true });
 }

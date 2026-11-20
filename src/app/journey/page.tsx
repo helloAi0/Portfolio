@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { PROFILE } from '@/config/profile';
 import { prisma } from '@/lib/prisma';
+import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
 import { ExternalLink } from 'lucide-react';
 
 export const metadata = {
@@ -35,6 +36,9 @@ export default async function JourneyPage() {
       detail: PROFILE.education.institution ?? undefined,
       href: '/education',
     },
+    // Owner-stated: ISC (Class XII) passed in 2024; ICSE (Class X) calculated as 2022 (two years earlier).
+    { date: new Date(Date.UTC(2024, 3, 1)), kind: 'Education', title: 'Completed ISC (Class XII)', detail: 'Saifee Golden Jubilee English Public High School, Kolkata', href: '/education' },
+    { date: new Date(Date.UTC(2022, 3, 1)), kind: 'Education', title: 'Completed ICSE (Class X)', detail: 'Saifee Golden Jubilee English Public High School, Kolkata', href: '/education' },
     {
       date: new Date(Date.UTC(PROFILE.education.endYear, 5, 1)),
       kind: 'Target',
@@ -75,8 +79,9 @@ export default async function JourneyPage() {
       <ol className="relative border-l border-gold-500/30 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-8">
         {events.map((ev, idx) => (
           <li key={idx} className="relative">
+            <ScrollDepth strength={0.7}>
             <span className="absolute -left-[31px] sm:-left-[47px] top-2 w-3 h-3 rounded-full bg-imperial-950 border-2 border-gold-400" aria-hidden />
-            <Card variant="marble" className="p-5 sm:p-6">
+            <TiltCard><Card variant="marble" className="p-5 sm:p-6">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <Badge variant={ev.kind === 'Target' ? 'neutral' : 'gold'} size="xs">{ev.kind}</Badge>
                 <time className="text-xs font-mono text-neutral-400" dateTime={ev.date.toISOString()}>
@@ -94,7 +99,8 @@ export default async function JourneyPage() {
                   <a href={ev.href} className="inline-block mt-3 text-xs font-mono text-gold-400 hover:text-gold-200">View details &rarr;</a>
                 )
               )}
-            </Card>
+            </Card></TiltCard>
+            </ScrollDepth>
           </li>
         ))}
       </ol>

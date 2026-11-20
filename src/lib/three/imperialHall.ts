@@ -315,6 +315,44 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
   const stem = new THREE.Mesh(track(new THREE.TorusGeometry(WR, 0.016, 8, 96)), goldMat);
   wreath.add(stem);
   scene.add(wreath);
+
+  // ---------- Inside the wreath: an armillary of the portfolio's domains ----------
+  // Two thin gold rings tilt against each other around a glowing core. Seven labelled orbs (the
+  // portfolio's engineering domains) circle the core. Purely decorative; it asserts no skill level.
+  const armillary = new THREE.Group();
+  wreath.add(armillary);
+  const ringMat = track(new THREE.MeshBasicMaterial({ color: 0xe0b550, transparent: true, opacity: 0.55, fog: false }));
+  const ringA = new THREE.Mesh(track(new THREE.TorusGeometry(0.62, 0.006, 6, 96)), ringMat);
+  const ringB = new THREE.Mesh(track(new THREE.TorusGeometry(0.82, 0.005, 6, 96)), ringMat);
+  ringA.rotation.x = Math.PI / 2.6;
+  ringB.rotation.y = Math.PI / 2.8;
+  armillary.add(ringA, ringB);
+  const core = new THREE.Sprite(track(new THREE.SpriteMaterial({
+    map: track(softSprite('rgba(255,236,190,0.95)', 'rgba(255,170,60,0)')), blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true,
+  })));
+  core.scale.setScalar(0.5);
+  armillary.add(core);
+  const labelTex = (text: string) => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+    const g = c.getContext('2d')!;
+    g.font = '600 26px ui-monospace, Menlo, monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(255,190,80,0.9)'; g.shadowBlur = 10;
+    g.fillStyle = '#ffe6a8';
+    g.fillText(text, 128, 32);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  };
+  const orbitDomains = ['ROBOTICS', 'AI', 'ML', 'SECURITY', 'FULL-STACK', 'CLOUD', 'EMBEDDED'];
+  const orbs: { sprite: THREE.Sprite; label: THREE.Sprite; a: number; r: number; tilt: number; speed: number }[] = [];
+  const orbMap = track(softSprite('rgba(255,214,130,1)', 'rgba(255,150,40,0)'));
+  orbitDomains.forEach((name, i) => {
+    const sprite = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: orbMap, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true })));
+    sprite.scale.setScalar(0.16);
+    const label = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: track(labelTex(name)), depthWrite: false, fog: false, transparent: true })));
+    label.scale.set(0.5, 0.125, 1);
+    armillary.add(sprite, label);
+    orbs.push({ sprite, label, a: (i / orbitDomains.length) * Math.PI * 2, r: i % 2 ? 0.82 : 0.62, tilt: i % 2 ? 0.35 : -0.5, speed: i % 2 ? -0.25 : 0.35 });
+  });
   const halo = new THREE.Sprite(track(new THREE.SpriteMaterial({
     map: track(softSprite('rgba(255,205,110,0.55)')), blending: THREE.AdditiveBlending, depthWrite: false, fog: false, transparent: true,
   })));
@@ -381,6 +419,15 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
     wreath.rotation.y = Math.sin(time * 0.45) * 0.38;
     wreath.rotation.x = Math.sin(time * 0.3) * 0.06;
     wreath.position.y = 2.7 + Math.sin(time * 0.8) * 0.06;
+    ringA.rotation.z = time * 0.3; ringB.rotation.x = time * 0.22;
+    core.scale.setScalar(0.46 + Math.sin(time * 2) * 0.05);
+    for (const o of orbs) {
+      const ang = o.a + time * o.speed;
+      const x = Math.cos(ang) * o.r, z = Math.sin(ang) * o.r;
+      const y = Math.sin(ang) * o.r * Math.sin(o.tilt);
+      o.sprite.position.set(x, y, z * 0.5);
+      o.label.position.set(x, y - 0.13, z * 0.5);
+    }
     halo.material.opacity = 0.85 + Math.sin(time * 1.3) * 0.12;
     wreathLight.intensity = 14 + Math.sin(time * 2.1) * 1.4;
     beams.forEach((b, i) => { b.position.x += Math.sin(time * 0.2 + i) * 0.0008; });

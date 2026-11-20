@@ -107,3 +107,31 @@ const makeDb = (seed: Record<string, any[]> = {}) => {
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 })();
+
+// ---------- Studio validators (skills, project media, resume) ----------
+import { cleanSkillInput as _cs, cleanSkillUpdate as _cu, cleanProjectInput as _cp, cleanResumeSettings as _cr } from '../src/lib/adminInput';
+import { resolveEvidence as _re, mergeEvidenceSources as _me, proficiencySteps as _ps } from '../src/lib/skillEvidence';
+import { validateUpload as _vu } from '../src/lib/fileUpload';
+{
+  let ok = 0, bad = 0;
+  const t = (name: string, c: boolean) => { if (c) ok++; else { bad++; console.log('[FAIL]', name); } };
+  const s1: any = _cs({ name: 'ROS 2', proficiency: 'ADVANCED', evidenceLinks: 'https://github.com/helloAi0/x\nhttps://github.com/helloAi0/x' });
+  t('skill dedupes links', s1.data?.links.length === 1 && s1.data.proficiency === 'ADVANCED');
+  t('skill rejects http link', 'error' in (_cs({ name: 'A', evidenceLinks: 'http://x.com' }) as any));
+  t('skill update rejects bad level', 'error' in (_cu({ level: 'GOD' }) as any));
+  t('skill update accepts PRACTICING', (_cu({ level: 'PRACTICING' }) as any).data?.level === 'PRACTICING');
+  const p: any = _cp({ title: 'T', tagline: 't', description: 'd', categorySlug: 'robotics', coverImage: '/api/files/cm0abcdefghijklmnopqrstu', gallery: 'https://a.com/x.gif\n/api/files/cm0abcdefghijklmnopqrstu', learnings: 'a\nb' });
+  t('project media ok', p.data?.gallery.length === 2 && p.data.learnings.length === 2 && p.data.coverImage?.startsWith('/api/files/'));
+  t('project rejects bad gallery', 'error' in (_cp({ title: 'T', tagline: 't', description: 'd', categorySlug: 'r', gallery: 'javascript:alert(1)' }) as any));
+  const r: any = _cr({ template: 'paper', hiddenSections: ['skills', 'bogus'], extraSections: [{ title: 'Languages', body: 'English' }, { title: '', body: 'x' }], photoUrl: '' });
+  t('resume settings clean', r.data?.template === 'paper' && r.data.hiddenSections.length === 1 && r.data.extraSections.length === 1);
+  t('resume rejects bad pdf', 'error' in (_cr({ pdfUrl: 'ftp://x' }) as any));
+  t('evidence github', _re('github:repo', 'helloAi0').href === 'https://github.com/helloAi0/repo');
+  t('evidence url', _re('url:https://example.com/a', 'u').label === 'example.com');
+  t('merge keeps non-url', JSON.parse(_me('["github:r","url:https://old.com"]', ['https://new.com'])).join() === 'github:r,url:https://new.com');
+  t('proficiency steps', _ps('EXPERT') === 4 && _ps(null) === 0);
+  const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0, 0, 0]);
+  t('gif accepted', !('error' in (_vu(gif as any, 'a.gif') as any)));
+  console.log(`${ok} passed, ${bad} failed (studio validators)`);
+  if (bad) process.exit(1);
+}

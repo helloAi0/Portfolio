@@ -6,7 +6,7 @@ import { PrintButton } from '@/components/ui/PrintButton';
 import { resolveIdentitySafety } from '@/lib/identity';
 import { PROFILE } from '@/config/profile';
 import { prisma } from '@/lib/prisma';
-import { Mail, Github, MapPin } from 'lucide-react';
+import { Mail, Github, MapPin, Download } from 'lucide-react';
 
 export const metadata = {
   title: 'Resume',
@@ -34,6 +34,15 @@ export default async function ResumePage() {
 
   let skills: any[] = [], projects: any[] = [], certs: any[] = [], achievements: any[] = [], experiences: any[] = [], education: any[] = [];
   let loadedAt = new Date();
+  let settings: any = null;
+  try {
+    settings = await prisma.resumeSettings.findUnique({ where: { id: 'singleton' } });
+  } catch { /* defaults */ }
+  const parseArr = (v: string | null | undefined) => { try { const p = JSON.parse(v ?? '[]'); return Array.isArray(p) ? p : []; } catch { return []; } };
+  const hidden: string[] = parseArr(settings?.hiddenSections);
+  const extras: { title: string; body: string }[] = parseArr(settings?.extraSections);
+  const paper = settings?.template === 'paper';
+  const show = (k: string) => !hidden.includes(k);
   try {
     [skills, projects, certs, achievements, experiences, education] = await Promise.all([
       prisma.skill.findMany({ where: { level: { notIn: PUBLIC_SKILL_EXCLUDED } }, orderBy: [{ domain: 'asc' }, { name: 'asc' }] }),
@@ -66,14 +75,27 @@ export default async function ResumePage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 print:hidden">
         <SectionHeading eyebrow="Curriculum Vitae" title="Resume" description="Generated from approved portfolio records. Nothing appears here that is not in the database." />
-        <PrintButton />
+        <div className="flex items-center gap-3">
+          {settings?.pdfUrl && (
+            <a href={settings.pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded border border-gold-500/40 text-gold-300 text-xs font-mono hover:border-gold-400">
+              <Download className="w-4 h-4" aria-hidden /> Download PDF
+            </a>
+          )}
+          <PrintButton />
+        </div>
       </div>
 
-      <article className="marble-card p-8 sm:p-14 rounded-lg text-neutral-200 border-gold-500/30 shadow-2xl space-y-8">
+      <article className={(paper ? 'resume-paper bg-white text-neutral-900 p-8 sm:p-14 rounded-lg shadow-2xl' : 'marble-card p-8 sm:p-14 rounded-lg text-neutral-200 border-gold-500/30 shadow-2xl') + ' space-y-8'}>
         <header className="border-b border-gold-500/20 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
+          <div className="flex items-center gap-5">
+            {settings?.photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={settings.photoUrl} alt={`${identity.displayName}`} className="w-24 h-24 rounded-full object-cover border-2 border-gold-500/50 shrink-0" />
+            )}
+            <div>
             <h1 className="text-3xl sm:text-4xl font-serif font-black text-white tracking-tight">{identity.displayName.toUpperCase()}</h1>
             <p className="text-sm font-mono text-gold-400 mt-1">{profile.headline}</p>
+            </div>
           </div>
           <div className="text-xs font-mono space-y-1 text-neutral-300 md:text-right">
             <div className="flex items-center md:justify-end space-x-1.5"><Mail className="w-3.5 h-3.5 text-gold-400" aria-hidden /><span>{identity.contactEmail}</span></div>
@@ -82,7 +104,11 @@ export default async function ResumePage() {
           </div>
         </header>
 
-        <Section n={num()} title="Education">
+        {settings?.summary && (
+          <Section n={num()} title="Summary"><p className="text-sm leading-relaxed text-neutral-300">{settings.summary}</p></Section>
+        )}
+
+        {show('education') && <Section n={num()} title="Education">
           <div className="space-y-3">
             {(education.length ? education : [{ id: 'default', institution: identity.academicStatus.institution ?? 'B.Tech programme', degree: 'B.Tech', field: identity.academicStatus.field, minor: identity.academicStatus.minor, startYear: identity.academicStatus.enrollmentYear, endYear: identity.academicStatus.expectedGraduationYear }]).map((e: any) => (
               <div key={e.id} className="flex flex-col sm:flex-row sm:items-baseline justify-between">
@@ -97,9 +123,9 @@ export default async function ResumePage() {
               </div>
             ))}
           </div>
-        </Section>
+        </Section>}
 
-        {skills.length > 0 && (
+        {show('skills') && skills.length > 0 && (
           <Section n={num()} title="Technical Skills">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               {Object.entries(skillsByDomain).map(([domain, list]) => (
@@ -112,7 +138,7 @@ export default async function ResumePage() {
           </Section>
         )}
 
-        {projects.length > 0 && (
+        {show('projects') && projects.length > 0 && (
           <Section n={num()} title="Selected Projects">
             <div className="space-y-4">
               {projects.map((p) => (
@@ -126,7 +152,7 @@ export default async function ResumePage() {
           </Section>
         )}
 
-        {certs.length > 0 && (
+        {show('certificates') && certs.length > 0 && (
           <Section n={num()} title="Certificates">
             <ul className="text-xs text-neutral-300 space-y-1">
               {certs.map((c) => (
@@ -136,7 +162,7 @@ export default async function ResumePage() {
           </Section>
         )}
 
-        {achievements.length > 0 && (
+        {show('achievements') && achievements.length > 0 && (
           <Section n={num()} title="Achievements">
             <ul className="text-xs text-neutral-300 space-y-1">
               {achievements.map((a) => (<li key={a.id}>{a.title}, {a.organization}</li>))}
@@ -144,7 +170,7 @@ export default async function ResumePage() {
           </Section>
         )}
 
-        {experiences.length > 0 && (
+        {show('experience') && experiences.length > 0 && (
           <Section n={num()} title="Experience">
             <div className="space-y-3">
               {experiences.map((e) => (
@@ -159,6 +185,10 @@ export default async function ResumePage() {
             </div>
           </Section>
         )}
+
+        {extras.map((x) => (
+          <Section key={x.title} n={num()} title={x.title}><p className="text-xs text-neutral-300 whitespace-pre-line leading-relaxed">{x.body}</p></Section>
+        ))}
 
         <footer className="pt-4 border-t border-gold-500/20 text-[11px] font-mono text-neutral-500">
           Generated {loadedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })} from approved portfolio records.

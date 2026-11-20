@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { getSkillTaxonomy } from '@/lib/services/skillService';
+import { PROFILE } from '@/config/profile';
+import { resolveEvidence, proficiencySteps } from '@/lib/skillEvidence';
 import { CheckCircle2, AlertTriangle, Layers, Cpu, Code2, ArrowUpRight, ShieldCheck, Compass } from 'lucide-react';
 
 export const metadata = {
@@ -131,21 +133,32 @@ export default async function SkillsPage() {
                         </p>
                       )}
 
-                      {/* Evidence Sources */}
+                      {/* Owner-rated proficiency */}
+                      {proficiencySteps(skill.proficiencyLevel) > 0 && (
+                        <div className="mb-4" aria-label={`Owner-rated proficiency: ${String(skill.proficiencyLevel).toLowerCase()}`}>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4].map((n) => (
+                              <span key={n} className={'h-1.5 flex-1 rounded-full ' + (n <= proficiencySteps(skill.proficiencyLevel) ? 'bg-gold-400' : 'bg-white/10')} />
+                            ))}
+                          </div>
+                          <span className="text-[9px] font-mono uppercase text-neutral-500 block mt-1">Self-rated: {String(skill.proficiencyLevel).toLowerCase()}</span>
+                        </div>
+                      )}
+
+                      {/* Evidence: real links */}
                       {sources.length > 0 && (
                         <div className="mb-4">
-                          <span className="text-[9px] font-mono uppercase text-neutral-500 block mb-1">
-                            Evidence Roots:
-                          </span>
-                          <div className="flex flex-wrap gap-1">
-                            {sources.map((src, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded bg-imperial-950 text-[10px] font-mono text-gold-400/90 border border-white/5"
-                              >
-                                {src}
-                              </span>
-                            ))}
+                          <span className="text-[9px] font-mono uppercase text-neutral-500 block mb-1">Evidence</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {sources.map((src, i) => {
+                              const ev = resolveEvidence(String(src), PROFILE.github.username);
+                              const cls = 'px-2 py-0.5 rounded bg-imperial-950 text-[10px] font-mono border border-white/5 ';
+                              return ev.href ? (
+                                <a key={i} href={ev.href} {...(ev.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})} className={cls + 'text-gold-300 hover:border-gold-500/60'}>{ev.label} ↗</a>
+                              ) : (
+                                <span key={i} className={cls + 'text-neutral-400'}>{ev.label}</span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
