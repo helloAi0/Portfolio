@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { SiteChrome } from '@/components/layout/SiteChrome';
 import { RevealObserver } from '@/components/motion/RevealObserver';
 import { PointerFX } from '@/components/motion/PointerFX';
 import { ScrollProgress } from '@/components/motion/ScrollProgress';
@@ -104,12 +105,9 @@ export default function RootLayout({
         <ScrollProgress />
         <RevealObserver />
         <PointerFX />
-        <Header />
-        <main id="main-content" className="flex-1 w-full pt-16" tabIndex={-1}>
+        <SiteChrome header={<Header />} footer={<Footer />} widget={<div className="print:hidden"><LamoChatWidget /></div>}>
           {children}
-        </main>
-        <Footer />
-        <div className="print:hidden"><LamoChatWidget /></div>
+        </SiteChrome>
       </body>
     </html>
   );

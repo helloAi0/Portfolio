@@ -36,3 +36,8 @@ See `.env.example`. Required for production: `DATABASE_URL`, `NEXT_PUBLIC_SITE_U
 
 ## Deployment
 Render Blueprint in `render.yaml` (web service on the Starter plan, which is paid, plus a Postgres database). See `deploy/render.md` and `MAINTENANCE_AND_DISASTER_RECOVERY.md`.
+
+
+## Owner sign-in
+
+Only the owner e-mail (`ADMIN_EMAIL`) can sign in at `/admin/login`. Put `ADMIN_EMAIL`, `ADMIN_JWT_SECRET` and `ADMIN_DEFAULT_PASSWORD` (12+ characters) in your `.env` or Render settings, then run `npm run admin:set` to create or reset the single owner account. The password is never stored in the repository.

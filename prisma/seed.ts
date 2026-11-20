@@ -68,7 +68,7 @@ async function main() {
       await prisma.adminUser.create({
         data: {
           username,
-          email: 'tahaudaipurwala68@gmail.com',
+          email: (process.env.ADMIN_EMAIL || 'tahaudaipurwala68@gmail.com').toLowerCase(),
           passwordHash: await bcrypt.hash(adminPassword, 12),
           role: 'SUPERADMIN',
         },

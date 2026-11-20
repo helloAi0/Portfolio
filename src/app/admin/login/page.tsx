@@ -23,7 +23,7 @@ export default function AdminLoginPage() {
       const res = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email: username, password }),
       });
 
       const data = await res.json();
@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
             Citadel Command Gate
           </h1>
           <p className="text-xs font-mono text-gold-400/80 mt-1 uppercase tracking-widest">
-            Project LAMO • Admin Access
+            Project LAMO • Owner only
           </p>
         </div>
 
@@ -66,14 +66,14 @@ export default function AdminLoginPage() {
           <form onSubmit={handleLogin} className="space-y-5 text-xs font-mono">
             <div className="space-y-1.5">
               <label className="text-neutral-400 uppercase text-[10px] block">
-                Command Identifier (Username)
+                Owner e-mail
               </label>
               <input
-                type="text"
+                type="email"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username" autoComplete="username"
+                placeholder="owner e-mail" autoComplete="email"
                 className="w-full px-4 py-2.5 rounded bg-imperial-900 border border-gold-500/20 text-white placeholder-neutral-600 focus:outline-none focus:border-gold-400 transition-colors"
               />
             </div>

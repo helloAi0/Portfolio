@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminCredentials, signAdminToken } from '@/lib/services/adminAuthService';
 
+// Brute-force guard: 6 failures per client per 15 minutes (in-memory, per instance).
+const fails = new Map<string, { n: number; until: number }>();
+const WINDOW_MS = 15 * 60 * 1000;
+const MAX_FAILS = 6;
+
 export async function POST(req: NextRequest) {
+  const ip = (req.headers.get('x-forwarded-for') || 'local').split(',')[0].trim();
+  const rec = fails.get(ip);
+  if (rec && rec.until > Date.now() && rec.n >= MAX_FAILS) {
+    return NextResponse.json({ error: 'Too many attempts. Try again in a few minutes.' }, { status: 429 });
+  }
   try {
-    const { username, password } = await req.json();
+    const body = await req.json();
+    const username = String(body.email ?? body.username ?? '');
+    const password = String(body.password ?? '');
 
     if (!username || !password) {
       return NextResponse.json({ error: 'Credentials required.' }, { status: 400 });
@@ -11,8 +23,11 @@ export async function POST(req: NextRequest) {
 
     const admin = await verifyAdminCredentials(username, password);
     if (!admin) {
-      return NextResponse.json({ error: 'Invalid credentials.' }, { status: 401 });
+      const cur = rec && rec.until > Date.now() ? rec : { n: 0, until: Date.now() + WINDOW_MS };
+      fails.set(ip, { n: cur.n + 1, until: cur.until });
+      return NextResponse.json({ error: 'Invalid credentials. This door opens for the owner only.' }, { status: 401 });
     }
+    fails.delete(ip);
 
     const token = signAdminToken(admin);
 

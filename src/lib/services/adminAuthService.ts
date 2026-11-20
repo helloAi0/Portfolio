@@ -30,13 +30,25 @@ export interface AdminPayload {
   role: string;
 }
 
+/** The only e-mail address allowed to sign in. Set ADMIN_EMAIL in the environment. */
+export function ownerEmail(): string {
+  return (process.env.ADMIN_EMAIL || process.env.OWNER_CONTACT_EMAIL || 'tahaudaipurwala68@gmail.com').trim().toLowerCase();
+}
+
+/**
+ * Owner-only sign-in. The identifier may be the owner's e-mail or the username, but the matching
+ * account must carry the owner e-mail, so no other account can ever open the dashboard.
+ */
 export async function verifyAdminCredentials(
-  username: string,
+  identifier: string,
   password: string
 ): Promise<AdminPayload | null> {
   try {
-    const admin = await prisma.adminUser.findUnique({ where: { username } });
+    const id = String(identifier).trim();
+    const lower = id.toLowerCase();
+    const admin = await prisma.adminUser.findFirst({ where: { OR: [{ username: id }, { email: lower }] } });
     if (!admin) return null;
+    if (admin.email.trim().toLowerCase() !== ownerEmail()) return null;
 
     const valid = await bcrypt.compare(password, admin.passwordHash);
     if (!valid) return null;
@@ -87,7 +99,7 @@ export async function ensureDefaultAdmin(): Promise<void> {
   await prisma.adminUser.create({
     data: {
       username: process.env.ADMIN_USERNAME || 'taha',
-      email: process.env.OWNER_CONTACT_EMAIL || 'tahaudaipurwala68@gmail.com',
+      email: ownerEmail(),
       passwordHash: await hashPassword(password),
       role: 'SUPERADMIN',
     },
