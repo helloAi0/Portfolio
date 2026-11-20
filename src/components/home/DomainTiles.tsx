@@ -10,7 +10,7 @@ export function DomainTiles({ cats }: { cats: Cat[] }) {
   if (cats.length === 0) return null;
   return (
     <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" aria-labelledby="domains-h">
-      <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mb-4">Domains</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mb-4">Chapter III · Domains</p>
       <h2 id="domains-h" className="font-serif font-black text-white text-4xl sm:text-6xl leading-[0.95] max-w-3xl">Pick a field.<br /><span className="text-gold-300">See what I built in it.</span></h2>
       <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[220px] gap-4">
         {cats.map((c, i) => (

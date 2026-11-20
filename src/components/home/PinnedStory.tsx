@@ -56,7 +56,7 @@ export function PinnedStory() {
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_50%,rgba(212,175,55,0.14),transparent_60%)]" />
         <div className="relative max-w-7xl mx-auto w-full px-4 sm:px-8 grid lg:grid-cols-2 gap-8 items-center">
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mb-6">What I work on · {String(idx + 1).padStart(2, '0')} / {String(CHAPTERS.length).padStart(2, '0')}</p>
+            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mb-6">Chapter II · What I work on · {String(idx + 1).padStart(2, '0')} / {String(CHAPTERS.length).padStart(2, '0')}</p>
             <div className="relative min-h-[260px]">
               {CHAPTERS.map((c, i) => (
                 <div key={c.n} className="absolute inset-0 transition-all duration-500 ease-out" style={{ opacity: i === idx ? 1 : 0, transform: `translateY(${i === idx ? 0 : i < idx ? -40 : 40}px)`, pointerEvents: i === idx ? 'auto' : 'none' }} aria-hidden={i !== idx}>

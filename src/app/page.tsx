@@ -1,5 +1,6 @@
 import React from 'react';
 import { HeroSection } from '@/components/home/HeroSection';
+import { PrologueScene } from '@/components/home/PrologueScene';
 import { PinnedStory } from '@/components/home/PinnedStory';
 import { BigMarquee } from '@/components/home/BigMarquee';
 import { DomainTiles } from '@/components/home/DomainTiles';
@@ -17,8 +18,11 @@ export default async function HomePage() {
 
   return (
     <div className="w-full">
+      {/* 0. Prologue: the person, the phone, the way in */}
+      <PrologueScene />
+
       {/* 1. Scroll-driven cinematic 3D hero */}
-      <HeroSection />
+      <div id="portfolio-hero"><HeroSection /></div>
 
       {/* 2. Big moving type, then the pinned 3D story */}
       <BigMarquee rows={[['Agentic AI', 'Robotics', 'Full-stack', 'Simulation'], ['LLMs', 'Cybersecurity', 'ROS 2', 'Isaac Sim']]} />
@@ -35,7 +39,7 @@ export default async function HomePage() {
         <div className="max-w-5xl mx-auto px-4 text-center">
           <div suppressHydrationWarning className="reveal marble-card p-10 sm:p-16 rounded-3xl relative overflow-hidden">
             <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400 mb-2 block">
-              Contact
+              Epilogue
             </span>
             <h2 className="text-5xl sm:text-8xl font-serif font-black text-white mb-6 leading-[0.95]">
               Let&apos;s build<br /><span className="text-gold-300">something.</span>
