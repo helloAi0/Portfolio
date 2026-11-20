@@ -1,3 +1,4 @@
+import { LamoMark } from '@/components/brand/LamoMark';
 import React from 'react';
 import Link from 'next/link';
 import { resolveIdentitySafety } from '@/lib/identity';
@@ -20,7 +21,7 @@ export async function Footer() {
           <div className="md:col-span-1 space-y-4">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded bg-gold-500/20 border border-gold-500/50 flex items-center justify-center">
-                <span className="font-serif font-black text-gold-400">Λ</span>
+                <LamoMark size={20} />
               </div>
               <span className="font-serif font-bold text-white tracking-widest text-base">
                 PROJECT LAMO

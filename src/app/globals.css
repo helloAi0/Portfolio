@@ -154,7 +154,7 @@ body {
 .orbit-item {
   position: absolute; left: 0; top: 0; translate: -50% -50%; white-space: nowrap;
   font-family: ui-monospace, Menlo, monospace; font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
-  color: #f0d78c; padding: 6px 14px; border: 1px solid rgba(224,181,80,.35); border-radius: 999px; background: rgba(12,12,16,.75);
+  color: #f0d78c; backface-visibility: hidden; padding: 6px 14px; border: 1px solid rgba(224,181,80,.35); border-radius: 999px; background: rgba(12,12,16,.75);
   box-shadow: 0 0 22px rgba(224,181,80,.18);
 }
 .orbit-core { position: absolute; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, rgba(255,226,150,.9), rgba(255,170,60,.15) 60%, transparent 70%); animation: orbit-pulse 3s ease-in-out infinite; }
@@ -187,3 +187,6 @@ body {
 .dust { animation: dust-float 14s ease-in-out infinite; }
 @keyframes dust-float { 50% { transform: translate3d(14px,-22px,0); } }
 @media (prefers-reduced-motion: reduce) { .dust, .anim-cap { animation: none; } }
+.skill-pop { animation: skill-pop 600ms cubic-bezier(.2,.8,.2,1) both; transform-origin: 50% 100%; }
+@keyframes skill-pop { from { opacity: 0; transform: perspective(800px) rotateX(-40deg) translateY(30px) scale(.94); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .skill-pop { animation: none; } }

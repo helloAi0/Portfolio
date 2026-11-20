@@ -4,6 +4,7 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeading } from '@/components/ui/SectionHeading';
+import { getSkillTaxonomy } from '@/lib/services/skillService';
 import { getProjectCategories, getProjects } from '@/lib/services/projectService';
 import { Cpu, Brain, LineChart, Shield, Layout, Server, Layers, Cloud, Zap, FlaskConical, ArrowRight } from 'lucide-react';
 
@@ -17,6 +18,8 @@ export const dynamic = 'force-dynamic';
 export default async function DomainsPage() {
   const categories = await getProjectCategories();
   const allProjects = await getProjects();
+  const tax = await getSkillTaxonomy();
+  const skillsFor = (name: string, slug: string) => Object.entries(tax.byDomain).filter(([d]) => { const k = d.toLowerCase(); return k === name.toLowerCase() || k === slug || name.toLowerCase().includes(k) || k.includes(name.toLowerCase()); }).flatMap(([, l]) => (l as any[]).map((x) => x.name as string)).slice(0, 8);
   const byCat: Record<string, { slug: string; title: string; tagline: string }[]> = {};
   allProjects.forEach((p: any) => { const k = p.category?.slug; if (k) (byCat[k] ||= []).push({ slug: p.slug, title: p.title, tagline: p.tagline }); });
 
@@ -82,6 +85,11 @@ export default async function DomainsPage() {
                 </div>
               )}
 
+              {skillsFor(cat.name, cat.slug).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-5">
+                  {skillsFor(cat.name, cat.slug).map((sk) => <span key={sk} className="px-2 py-0.5 rounded-full text-[10px] font-mono border border-gold-500/25 text-gold-200">{sk}</span>)}
+                </div>
+              )}
               {(byCat[cat.slug] ?? []).length > 0 && (
                 <div className="space-y-1.5 mb-6">
                   <span className="text-[10px] font-mono text-gold-400 uppercase tracking-widest block">Projects in this domain</span>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { LamoMark } from '@/components/brand/LamoMark';
 import { Bot, Cpu, Code2, ShieldCheck, Award, GitBranch, Rocket, Brain, Terminal, Briefcase, Compass, Camera, Wifi, BatteryFull, Signal } from 'lucide-react';
 
 const clamp = (n: number, a = 0, b = 1) => Math.max(a, Math.min(b, n));
@@ -155,7 +156,6 @@ function Phone({ p, lockOut, phoneW }: { p: number; lockOut: number; phoneW: num
   const u = phoneW / 100; // 1% of phone width in px
   const ripple = smooth(0.55, 0.6, p) * (1 - smooth(0.6, 0.66, p));
   const lamoGlow = smooth(0.46, 0.55, p);
-  const splash = smooth(0.78, 0.86, p);
   return (
     <div className="absolute inset-0 rounded-[11%/5%] p-[2.2%]" style={{ background: 'linear-gradient(145deg,#2a2c36,#0c0d12)', boxShadow: '0 0 0 1.5px #3b3f50, 0 0 90px rgba(255,200,110,.35), 0 40px 120px rgba(0,0,0,.9)' }}>
       <div className="relative w-full h-full overflow-hidden rounded-[9.5%/4.4%]" style={{ background: 'linear-gradient(170deg,#1b2350 0%,#0b0d22 45%,#3a2a0a 100%)' }}>
@@ -211,7 +211,7 @@ function Phone({ p, lockOut, phoneW }: { p: number; lockOut: number; phoneW: num
                     transform: isLamo ? `scale(${1 + ripple * 0.08})` : undefined,
                   }}>
                     {isLamo
-                      ? <span className="font-serif font-black" style={{ fontSize: u * 10, color: '#2b1d05', opacity: 1 - splash * 0 }}>Λ</span>
+                      ? <LamoMark size={u * 11} tone="dark" />
                       : <Icon style={{ width: u * 8, height: u * 8, color: '#f3c969' }} />}
                   </span>
                   <span className="text-white/85" style={{ fontSize: u * 3 }}>{a.l}</span>

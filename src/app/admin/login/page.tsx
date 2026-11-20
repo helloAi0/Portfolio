@@ -1,5 +1,6 @@
 'use client';
 
+import { LamoMark } from '@/components/brand/LamoMark';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
@@ -44,7 +45,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-md bg-gradient-to-br from-gold-500/20 via-imperial-800 to-imperial-950 border border-gold-500/40 flex items-center justify-center mx-auto mb-4 shadow-imperial-gold">
-            <span className="font-serif font-black text-2xl text-gold-400">Λ</span>
+            <LamoMark size={36} />
           </div>
           <h1 className="text-2xl font-serif font-bold text-white tracking-tight">
             Citadel Command Gate

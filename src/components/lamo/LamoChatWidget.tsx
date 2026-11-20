@@ -1,5 +1,6 @@
 'use client';
 
+import { LamoMark } from '@/components/brand/LamoMark';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
@@ -220,8 +221,8 @@ export default function LamoChatWidget() {
           <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/30 to-[#ffd700]/10 blur opacity-60 group-hover:opacity-100 transition duration-300"></span>
 
           {/* Horse / Imperial Shield Icon */}
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#1b202c] border border-[#d4af37]/80 text-[#d4af37] font-serif text-sm font-bold shadow-inner">
-            Λ
+          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#1b202c] border border-[#d4af37]/80 text-[#d4af37] shadow-inner">
+            <LamoMark size={18} />
           </div>
 
           <div className="relative text-left pr-1">
@@ -246,8 +247,8 @@ export default function LamoChatWidget() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#11151f] border-b border-[#d4af37]/20">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-full bg-[#181d28] border border-[#d4af37] flex items-center justify-center text-[#d4af37] font-serif font-bold text-sm">
-                Λ
+              <div className="w-8 h-8 rounded-full bg-[#181d28] border border-[#d4af37] flex items-center justify-center text-[#d4af37]">
+                <LamoMark size={18} />
               </div>
               <div>
                 <div className="flex items-center space-x-2">

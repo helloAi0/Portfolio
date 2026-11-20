@@ -31,6 +31,12 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** Lets public pages know whether the visitor is the signed-in owner (to show owner-only buttons). Reveals nothing else. */
+export async function GET(req: NextRequest) {
+  const { getAdminFromRequest } = await import('@/lib/middleware/adminAuth');
+  return NextResponse.json({ admin: Boolean(getAdminFromRequest(req)) }, { headers: { 'Cache-Control': 'no-store' } });
+}
+
 export async function DELETE() {
   const response = NextResponse.json({ success: true });
   response.cookies.delete('imperial_admin_token');

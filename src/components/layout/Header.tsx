@@ -1,5 +1,6 @@
 'use client';
 
+import { LamoMark } from '@/components/brand/LamoMark';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -38,7 +39,7 @@ export function Header() {
         <div className="flex items-center justify-between pl-3 pr-2 sm:pl-4">
           <Link href="/" className="flex items-center gap-2.5 group" aria-label="Home">
             <span className="w-8 h-8 rounded-full bg-gradient-to-br from-gold-400/30 via-imperial-800 to-imperial-950 border border-gold-500/50 flex items-center justify-center group-hover:border-gold-300 transition-colors">
-              <span className="font-serif font-black text-gold-300 text-sm">Λ</span>
+              <LamoMark size={20} />
             </span>
             <span className="font-serif font-bold text-sm tracking-[0.22em] text-white group-hover:text-gold-300 transition-colors hidden sm:block">
               LAMO
