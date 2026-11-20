@@ -181,3 +181,9 @@ body {
 .kw > span { display: inline-block; transform: translateY(105%); animation: kw-up 900ms cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i, 0) * 110ms + 200ms); }
 @keyframes kw-up { to { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .bm-left, .bm-right { animation: none; } .kw > span { animation: none; transform: none; } }
+
+.anim-cap { animation: cap-in 700ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes cap-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.dust { animation: dust-float 14s ease-in-out infinite; }
+@keyframes dust-float { 50% { transform: translate3d(14px,-22px,0); } }
+@media (prefers-reduced-motion: reduce) { .dust, .anim-cap { animation: none; } }
