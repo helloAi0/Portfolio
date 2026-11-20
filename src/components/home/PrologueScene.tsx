@@ -199,8 +199,8 @@ function Phone({ p, lockOut, phoneW }: { p: number; lockOut: number; phoneW: num
         <div className="absolute inset-0" style={{ opacity: lockOut, transform: `scale(${0.94 + lockOut * 0.06})` }}>
           <div className="grid grid-cols-4 gap-y-[3.2%] px-[6%]" style={{ paddingTop: u * 22 }}>
             {APPS.map((a, idx) => {
-              const Icon = a.i;
               const isLamo = idx === LAMO_IDX;
+              const Icon = (isLamo ? Bot : a.i) as React.ComponentType<{ style?: React.CSSProperties }>;
               return (
                 <div key={a.l} className="flex flex-col items-center" style={{ gap: u * 1.4 }}>
                   <span className="flex items-center justify-center" style={{
