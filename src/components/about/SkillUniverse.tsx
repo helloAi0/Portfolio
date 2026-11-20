@@ -48,11 +48,14 @@ export function SkillUniverse({ domains, allDomainNames }: { domains: UniDomain[
   const dialog = adding && (
     <AddSkillDialog domains={allDomainNames} defaultDomain={domains[Math.round(p * (n - 1))]?.name} onClose={() => setAdding(false)} onSaved={() => router.refresh()} />
   );
-  const addBtn = owner && (
+  const signIn = !owner && (
+    <a href="/admin/login" className="text-[10px] font-mono text-neutral-500 hover:text-gold-300 underline underline-offset-2">Owner? Sign in to add skills</a>
+  );
+  const addBtn = owner ? (
     <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold-500 text-imperial-950 text-xs font-bold hover:bg-gold-400 shadow-[0_0_30px_rgba(212,175,55,.35)]">
       <Plus className="w-4 h-4" aria-hidden /> Add skill
     </button>
-  );
+  ) : signIn;
 
   if (n === 0) {
     return (
