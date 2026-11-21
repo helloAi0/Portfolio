@@ -28,7 +28,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       'Content-Length': String(file.size),
       'Content-Disposition': `inline; filename="${file.filename.replace(/"/g, '')}"`,
       'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      // A sandboxed CSP makes browsers refuse to open PDFs, so PDFs (validated by magic bytes) get a CSP without it.
+      'Content-Security-Policy': file.mimeType === 'application/pdf' ? "default-src 'none'; frame-ancestors 'self'" : "default-src 'none'; style-src 'unsafe-inline'; sandbox",
       'Cache-Control': isAdmin ? 'private, no-store' : 'public, max-age=300',
     },
   });

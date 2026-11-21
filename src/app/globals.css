@@ -373,3 +373,15 @@ body {
 .rbtitle > div { padding: 0.25rem 0.4rem; border: 1px solid rgba(243, 201, 105, 0.2); color: #f6e7b0; font-size: 0.64rem; }
 .rbtitle span { display: block; color: #a89349; font-size: 0.52rem; letter-spacing: 0.2em; }
 .rbpend-r { left: 2rem; }
+
+/* resume trophy */
+.resume-frame { padding: 0; background: linear-gradient(135deg, #f7dd8f, #b8892a 45%, #f3c969 70%, #8a6a1a); box-shadow: 0 0 0 1px rgba(255, 230, 150, 0.6), 2px 2px 0 #b8892a, 4px 4px 0 #a07a1a, 6px 6px 0 #7a5a12, 8px 8px 0 #4a3608, 0 0 80px rgba(243, 201, 105, 0.45), 0 30px 80px rgba(0, 0, 0, 0.8); -webkit-box-reflect: below 24px linear-gradient(transparent 72%, rgba(255, 255, 255, 0.16)); }
+.resume-glint { background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%); mix-blend-mode: soft-light; }
+.resume-pedestal { transform: translateX(-50%); height: 54px; border-radius: 6px; background: linear-gradient(180deg, #f3c969, #8a6a1a 40%, #2b1d05); box-shadow: 0 0 60px rgba(243, 201, 105, 0.45); }
+.resume-rings { width: 520px; height: 520px; margin-top: -260px; border-radius: 50%; border: 1.5px solid rgba(243, 201, 105, 0.75); box-shadow: inset 0 0 0 26px transparent, 0 0 0 26px rgba(243, 201, 105, 0), 0 0 40px rgba(243, 201, 105, 0.5); transform: translateX(-50%) rotateX(76deg); }
+.resume-rings::before, .resume-rings::after { content: ''; position: absolute; inset: 40px; border-radius: 50%; border: 1px dashed rgba(243, 201, 105, 0.55); }
+.resume-rings::after { inset: 90px; border-style: solid; border-color: rgba(255, 240, 190, 0.5); }
+.resume-dust { position: absolute; bottom: -10px; border-radius: 50%; background: #ffd78a; box-shadow: 0 0 8px #ffd78a; animation: resumeRise linear infinite; opacity: 0; }
+@keyframes resumeRise { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 0.9; } 100% { transform: translateY(-110vh); opacity: 0; } }
+.resume-sheet { display: block; width: 100%; height: auto; background: #fff; border-radius: 4px; box-shadow: 0 0 0 1px rgba(243, 201, 105, 0.5), 0 0 60px rgba(243, 201, 105, 0.15), 0 24px 60px rgba(0, 0, 0, 0.7); }
+@media print { .resume-sheet { box-shadow: none; } }
