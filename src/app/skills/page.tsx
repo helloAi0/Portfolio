@@ -7,7 +7,8 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { getSkillTaxonomy } from '@/lib/services/skillService';
 import { PROFILE } from '@/config/profile';
 import { resolveEvidence, proficiencySteps } from '@/lib/skillEvidence';
-import { SkillColosseum, toRoman, type ColDomain } from '@/components/skills/SkillColosseum';
+import { SkillColosseum, type ColDomain } from '@/components/skills/SkillColosseum';
+import { toRoman } from '@/lib/roman';
 import { ScrollDepth, TiltCard, CountUp } from '@/components/motion/Depth';
 import { CheckCircle2, AlertTriangle, Layers, Cpu, Code2, ArrowUpRight, ShieldCheck, Compass } from 'lucide-react';
 
