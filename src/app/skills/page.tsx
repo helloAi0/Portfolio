@@ -65,6 +65,7 @@ export default async function SkillsPage() {
     <SkillColosseum domains={colDomains} />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
 
+      <div id="ledger" className="scroll-mt-24" />
       <SectionHeading eyebrow="The full ledger" title="Every skill, with its evidence" description="The same skills as above, laid out in full." />
 
       {/* Verification Telemetry Grid */}

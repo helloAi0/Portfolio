@@ -20,6 +20,7 @@ export function CodingStage({ platforms }: { platforms: [Platform, Platform] }) 
   const [p, setP] = useState(0);
   const [still, setStill] = useState(false);
   const [narrow, setNarrow] = useState(false);
+  const mouse = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setStill(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -33,10 +34,15 @@ export function CodingStage({ platforms }: { platforms: [Platform, Platform] }) 
       setP(clamp(-r.top / ((r.height - window.innerHeight) || 1)));
     };
     const on = () => { if (!raf) raf = requestAnimationFrame(update); meas(); };
+    const pm = (e: PointerEvent) => {
+      const x = e.clientX / window.innerWidth - 0.5, y = e.clientY / window.innerHeight - 0.5;
+      if (mouse.current) mouse.current.style.transform = `rotateY(${x * 10}deg) rotateX(${-y * 7}deg) translate3d(${x * -30}px, ${y * -20}px, 0)`;
+    };
+    window.addEventListener('pointermove', pm);
     update();
     window.addEventListener('scroll', on, { passive: true });
     window.addEventListener('resize', on);
-    return () => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); if (raf) cancelAnimationFrame(raf); };
+    return () => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); window.removeEventListener('pointermove', pm); if (raf) cancelAnimationFrame(raf); };
   }, []);
 
   if (still) {
@@ -65,6 +71,7 @@ export function CodingStage({ platforms }: { platforms: [Platform, Platform] }) 
   };
   const a = slab(0), b = slab(1);
   const title = 1 - sm(0.04, 0.2, p);
+  const cap = p < 0.08 ? '' : p < 0.34 ? 'I · LeetCode: algorithms and data structures' : p < 0.66 ? 'II · GeeksforGeeks: problem solving and practice' : 'Two doors. Pick one.';
 
   return (
     <div ref={outer} style={{ height: '520vh' }} className="relative" aria-label="My coding profiles">
@@ -73,6 +80,7 @@ export function CodingStage({ platforms }: { platforms: [Platform, Platform] }) 
 
         {/* drifting code glyphs in real depth */}
         <div aria-hidden className="absolute inset-0" style={{ perspective: '900px' }}>
+          <div ref={mouse} className="absolute inset-0" style={{ transformStyle: 'preserve-3d', transition: 'transform .25s ease-out' }}>
           {GLYPHS.concat(GLYPHS).map((g, i) => {
             const z = -1100 + ((i * 197) % 1300);
             const x = ((i * 53) % 100);
@@ -81,6 +89,7 @@ export function CodingStage({ platforms }: { platforms: [Platform, Platform] }) 
               <span key={i} className="cglyph" style={{ left: `${x}%`, top: `${y}%`, transform: `translate3d(0, ${-p * (260 + (z + 1100) * 0.35)}px, ${z}px) rotateZ(${p * (i % 2 ? 90 : -90)}deg)`, opacity: 0.12 + ((z + 1100) / 1300) * 0.35 }}>{g}</span>
             );
           })}
+          </div>
         </div>
 
         {/* title */}
@@ -98,6 +107,11 @@ export function CodingStage({ platforms }: { platforms: [Platform, Platform] }) 
           <div className="absolute" style={{ width: 'min(440px, 86vw)', transform: b.t, opacity: b.op, pointerEvents: b.op > 0.6 ? 'auto' : 'none', willChange: 'transform, opacity' }}>
             <ProfilePortal {...platforms[1]} />
           </div>
+        </div>
+
+        {/* chapter caption */}
+        <div className="absolute inset-x-0 bottom-14 text-center px-4 pointer-events-none" aria-hidden>
+          <p key={cap} className="cap-line font-serif font-black text-white text-2xl sm:text-4xl">{cap}</p>
         </div>
 
         {/* progress */}
