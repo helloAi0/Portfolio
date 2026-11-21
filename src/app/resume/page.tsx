@@ -4,7 +4,7 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { PrintButton } from '@/components/ui/PrintButton';
 import { resolveIdentitySafety } from '@/lib/identity';
-import { PROFILE } from '@/config/profile';
+import { PROFILE, REMOVED_INSTITUTIONS } from '@/config/profile';
 import { prisma } from '@/lib/prisma';
 import { Mail, Github, MapPin, Download } from 'lucide-react';
 
@@ -50,7 +50,7 @@ export default async function ResumePage() {
       prisma.certificate.findMany({ where: { isPublic: true, ownerApproved: true }, orderBy: { issueDate: 'desc' } }),
       prisma.achievement.findMany({ where: { isPublic: true, ownerApproved: true }, orderBy: { date: 'desc' } }),
       prisma.experience.findMany({ where: { isPublic: true }, orderBy: { startDate: 'desc' } }),
-      prisma.education.findMany({ orderBy: { orderIndex: 'asc' } }),
+      prisma.education.findMany({ orderBy: { orderIndex: 'asc' } }).then((r: any[]) => r.filter((e) => !REMOVED_INSTITUTIONS.includes(e.institution))),
     ]);
     loadedAt = new Date();
   } catch {

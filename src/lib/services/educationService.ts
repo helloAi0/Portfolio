@@ -2,13 +2,14 @@ import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { deriveAcademicStanding, getKolkataDateParts } from '@/lib/identity';
 import { buildSemesterTrack } from '@/lib/academic';
-import { PROFILE } from '@/config/profile';
+import { PROFILE, REMOVED_INSTITUTIONS } from '@/config/profile';
 
 export async function getEducationHistory() {
   try {
-    const records = await prisma.education.findMany({
+    // Entries the owner asked to remove stay hidden even if an old database row still exists.
+    const records = (await prisma.education.findMany({
       orderBy: { orderIndex: 'asc' },
-    });
+    })).filter((r) => !REMOVED_INSTITUTIONS.includes(r.institution));
 
     const currentHigherEd = records.find((e) => e.isCurrent && e.schoolType === 'HIGHER_EDUCATION');
     const dynamicStanding = currentHigherEd && currentHigherEd.startYear

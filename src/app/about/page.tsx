@@ -2,6 +2,7 @@ import React from 'react';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { ScrollDepth, TiltCard, OrbitRing } from '@/components/motion/Depth';
 import { ChapterStage } from '@/components/about/ChapterStage';
+import { NeuralStage } from '@/components/about/NeuralStage';
 import { SkillUniverse, type UniDomain } from '@/components/about/SkillUniverse';
 import { resolveIdentitySafety } from '@/lib/identity';
 import { PROFILE } from '@/config/profile';
@@ -67,6 +68,7 @@ export default async function AboutPage() {
         </ScrollDepth>
       </div>
 
+      <NeuralStage />
       <ChapterStage chapters={ABOUT_CHAPTERS} />
       <SkillUniverse domains={domains} allDomainNames={allDomainNames} />
 

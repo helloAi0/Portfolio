@@ -302,3 +302,29 @@ body {
 
 .cap-line { animation: skin .6s ease-out; text-shadow: 0 0 30px rgba(212,175,55,.35); }
 @media (prefers-reduced-motion: reduce) { .cap-line { animation: none; } }
+
+/* ---------- Education climb ---------- */
+.eb { position: absolute; top: 0; transform-style: preserve-3d; }
+.eb-top { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(145deg, #3a3020, #1a160d); border: 1px solid rgba(224,181,80,.3); transition: background .5s, box-shadow .5s, border-color .5s; }
+.eb-top span { font: 900 54px/1 var(--font-cinzel), Georgia, serif; color: rgba(243,201,105,.55); }
+.eb-front { position: absolute; left: 0; top: 100%; transform-origin: top; transform: rotateX(-90deg); background: linear-gradient(#2a2418, #0f0c07); border: 1px solid rgba(224,181,80,.18); }
+.eb-side { position: absolute; left: 100%; top: 0; transform-origin: left; transform: rotateY(90deg); background: linear-gradient(90deg, #1e1a10, #0a0805); border: 1px solid rgba(224,181,80,.12); }
+.eb[data-status="done"] .eb-top { background: linear-gradient(145deg, #8a6a1c, #4b3a10); }
+.eb[data-status="done"] .eb-top span { color: #fff3c4; }
+.eb[data-active="1"] .eb-top { background: linear-gradient(145deg, #f3c969, #a67c1d); box-shadow: 0 0 80px 10px rgba(243,201,105,.55); border-color: #fff3c4; }
+.eb[data-active="1"] .eb-top span { color: #1a1205; }
+.edmark { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #fff1b8, #d4a62c 65%, #7a5710); box-shadow: 0 0 40px 12px rgba(243,201,105,.6); transform-style: flat; }
+.edchip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(224,181,80,.3); background: rgba(255,255,255,.04); }
+.edchip[data-s="current"] { color: #f3c969; border-color: #f3c969; }
+.edchip[data-s="done"] { color: #7be3b0; border-color: rgba(123,227,176,.4); }
+@media (max-width: 1023px) { .edmark { transform-origin: center; } }
+
+.edworld { --edscale: 1; }
+@media (max-width: 1023px) { .edworld { --edscale: .42; } }
+.edpillars { display: flex; align-items: flex-end; gap: 10px; height: 260px; perspective: 900px; }
+.edpillar { position: relative; flex: 1; border-radius: 8px 8px 2px 2px; border: 1px solid rgba(224,181,80,.25); background: linear-gradient(#1c1810, #0c0a06); transform: rotateX(8deg); transform-origin: bottom; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px 8px; transition: transform .3s; }
+.edpillar[data-s="done"] { background: linear-gradient(#b8892a, #4b3a10); border-color: #f3c969; }
+.edpillar[data-s="current"] { background: linear-gradient(#f3c969, #a67c1d); border-color: #fff3c4; box-shadow: 0 0 50px 4px rgba(243,201,105,.6); animation: edpulse 2.2s ease-in-out infinite; }
+.edpillar:hover { transform: rotateX(0) translateY(-6px); }
+@keyframes edpulse { 50% { box-shadow: 0 0 80px 14px rgba(243,201,105,.8); } }
+@media (prefers-reduced-motion: reduce) { .edpillar { animation: none !important; } }

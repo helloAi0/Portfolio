@@ -40,9 +40,11 @@ export const PROFILE = {
   /** Owner-stated schooling. Years are deliberately not asserted. */
   schools: [
     { name: 'Saifee Golden Jubilee English Public High School', detail: 'ICSE (Class X, 2022) and ISC (Class XII, 2024)', location: 'Kolkata' },
-    { name: 'Nischintapur Public School', detail: 'Earlier schooling', location: null },
   ],
   timezone: 'Asia/Kolkata',
 } as const;
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+
+/** Schools the owner asked to remove. Hidden everywhere even if an old database row still exists. */
+export const REMOVED_INSTITUTIONS: string[] = ['Nischintapur Public School'];

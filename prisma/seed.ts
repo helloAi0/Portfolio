@@ -117,18 +117,9 @@ async function main() {
         orderIndex: 2,
       },
     },
-    {
-      legacy: [],
-      data: {
-        institution: 'Nischintapur Public School',
-        schoolType: 'HIGH_SCHOOL',
-        degree: 'Earlier schooling',
-        graduationStatus: 'ATTENDED',
-        verificationStatus: 'OWNER_CONFIRMED',
-        orderIndex: 3,
-      },
-    },
   ];
+  // The owner removed this school from the portfolio; delete any existing row.
+  await prisma.education.deleteMany({ where: { institution: 'Nischintapur Public School' } });
   for (const rec of educationRecords) {
     // A row that already has the correct name is the owner's (possibly edited in Admin > Profile & Education):
     // never overwrite it. Only rows still carrying an old placeholder/misspelled name are corrected.
