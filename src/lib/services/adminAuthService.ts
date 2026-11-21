@@ -6,6 +6,7 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
@@ -46,24 +47,39 @@ export async function verifyAdminCredentials(
   try {
     const id = String(identifier).trim();
     const lower = id.toLowerCase();
-    const admin = await prisma.adminUser.findFirst({ where: { OR: [{ username: id }, { email: lower }] } });
-    if (!admin) return null;
-    if (admin.email.trim().toLowerCase() !== ownerEmail()) return null;
+    const owner = ownerEmail();
+    let admin = await prisma.adminUser.findFirst({ where: { OR: [{ username: id }, { email: lower }] } });
+    if (admin && admin.email.trim().toLowerCase() !== owner) return null;
 
-    const valid = await bcrypt.compare(password, admin.passwordHash);
-    if (!valid) return null;
+    let valid = admin ? await bcrypt.compare(password, admin.passwordHash) : false;
 
-    // Update last login
-    await prisma.adminUser.update({
-      where: { id: admin.id },
-      data: { lastLogin: new Date() },
-    });
+    // The owner keeps the password in ADMIN_DEFAULT_PASSWORD. If the stored hash is out of date
+    // (or the account is missing), a sign-in with exactly that value repairs the account.
+    if (!valid) {
+      const envPw = process.env.ADMIN_DEFAULT_PASSWORD || '';
+      const isOwnerId = lower === owner || id === (process.env.ADMIN_USERNAME || 'taha');
+      if (isOwnerId && envPw.length >= 12 && safeEqual(password, envPw)) {
+        const passwordHash = await hashPassword(envPw);
+        admin = admin
+          ? await prisma.adminUser.update({ where: { id: admin.id }, data: { passwordHash } })
+          : await prisma.adminUser.create({ data: { username: process.env.ADMIN_USERNAME || 'taha', email: owner, passwordHash, role: 'SUPERADMIN' } });
+        valid = true;
+      }
+    }
+    if (!admin || !valid) return null;
 
+    await prisma.adminUser.update({ where: { id: admin.id }, data: { lastLogin: new Date() } });
     return { adminId: admin.id, username: admin.username, role: admin.role };
   } catch (err) {
     logger.error('AdminAuth', err as Error);
     return null;
   }
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 export function signAdminToken(payload: AdminPayload): string {

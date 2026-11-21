@@ -9,7 +9,18 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+function loadDotEnv() {
+  try {
+    const fs = require('fs');
+    for (const line of fs.readFileSync('.env', 'utf8').split(/\r?\n/)) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+    }
+  } catch { /* no .env file: rely on the real environment */ }
+}
+
 async function main() {
+  loadDotEnv();
   const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const password = process.env.ADMIN_DEFAULT_PASSWORD || '';
   const username = process.env.ADMIN_USERNAME || 'taha';

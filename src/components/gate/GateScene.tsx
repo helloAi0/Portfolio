@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Lock, Eye, ArrowRight } from 'lucide-react';
-import { LamoMark } from '@/components/brand/LamoMark';
 
 /**
  * The front door. A small robot rises off a glowing platform, greets you, and opens a hologram
@@ -12,8 +11,8 @@ import { LamoMark } from '@/components/brand/LamoMark';
 export function GateScene() {
   const [stage, setStage] = useState(0); // 0 dark, 1 platform, 2 robot, 3 screen, 4 choices
   const [typed, setTyped] = useState('');
-  const rig = useRef<HTMLDivElement>(null);
-  const eyes = useRef<SVGGElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hud = useRef<HTMLDivElement>(null);
   const LINE = 'Hello. Who is walking in?';
 
   useEffect(() => {
@@ -36,19 +35,33 @@ export function GateScene() {
   }, [stage]);
 
   useEffect(() => {
-    let raf = 0;
-    const onMove = (e: PointerEvent) => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const x = e.clientX / window.innerWidth - 0.5;
-        const y = e.clientY / window.innerHeight - 0.5;
-        if (rig.current) rig.current.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 8}deg)`;
-        if (eyes.current) eyes.current.style.transform = `translate(${x * 9}px, ${y * 5}px)`;
-      });
-    };
-    window.addEventListener('pointermove', onMove);
-    return () => { window.removeEventListener('pointermove', onMove); cancelAnimationFrame(raf); };
-  }, []);
+    if (stage < 1 || !canvasRef.current) return;
+    let handle: { dispose: () => void } | null = null;
+    let cancelled = false;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    import('@/lib/three/robotArm').then(({ createRobotArm }) => {
+      if (cancelled || !canvasRef.current) return;
+      try {
+        handle = createRobotArm({
+          canvas: canvasRef.current, reduceMotion: reduce,
+          onTelemetry: (t) => {
+            const root = hud.current; if (!root) return;
+            t.q.forEach((v, i) => {
+              const bar = root.querySelector<HTMLElement>(`[data-q="${i}"]`); const val = root.querySelector(`[data-qv="${i}"]`);
+              if (bar) bar.style.width = `${Math.min(100, Math.abs(v) / 180 * 100)}%`;
+              if (val) val.textContent = `${v.toFixed(0)}°`;
+            });
+            const w = root.querySelector<HTMLElement>('[data-w]'); if (w) { w.style.width = `${t.manipulability * 100}%`; w.dataset.low = t.manipulability < 0.2 ? '1' : '0'; }
+            const wv = root.querySelector('[data-wv]'); if (wv) wv.textContent = t.manipulability.toFixed(2);
+            const xyz = root.querySelector('[data-xyz]'); if (xyz) xyz.textContent = `tip  x ${t.tip[0].toFixed(2)}  y ${t.tip[1].toFixed(2)}  z ${t.tip[2].toFixed(2)}`;
+            const st = root.querySelector<HTMLElement>('[data-state]');
+            if (st) { st.textContent = t.clamped ? 'TARGET OUT OF REACH' : t.manipulability < 0.2 ? 'NEAR SINGULARITY' : t.error < 0.05 ? 'ON TARGET' : 'TRACKING'; st.dataset.warn = t.clamped || t.manipulability < 0.2 ? '1' : '0'; }
+          },
+        });
+      } catch { /* WebGL unavailable: the two doors still work */ }
+    });
+    return () => { cancelled = true; handle?.dispose(); };
+  }, [stage >= 1]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div role="main" id="main-content" className="gate" data-stage={stage} aria-label="Choose how to enter">
@@ -60,80 +73,21 @@ export function GateScene() {
         ))}
       </div>
 
-      <header className="gate-brand">
-        <LamoMark size={30} />
-        <span>PROJECT LAMO</span>
-      </header>
 
       <div className="gate-layout">
-        {/* left: the robot on its platform */}
+        {/* left: a live 6-DOF arm (inverse kinematics) */}
         <div className="gate-robot-col">
-          <div className="gate-persp">
-            <div className="gate-pad" aria-hidden>
-              <span className="r r1" /><span className="r r2" /><span className="r r3" /><span className="r r4" /><span className="core" />
-            </div>
-            <div className="gate-beam" aria-hidden />
-            <div className="gate-rig" ref={rig}>
-              <div className="gate-bot">
-                <svg viewBox="0 0 240 340" width="100%" role="img" aria-label="A friendly white robot with glowing gold eyes">
-                  <defs>
-                    <radialGradient id="gb-shell" cx="35%" cy="28%" r="80%">
-                      <stop offset="0" stopColor="#ffffff" />
-                      <stop offset="0.55" stopColor="#dfe3f2" />
-                      <stop offset="1" stopColor="#8d93b8" />
-                    </radialGradient>
-                    <linearGradient id="gb-visor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stopColor="#1b1740" />
-                      <stop offset="1" stopColor="#0a0820" />
-                    </linearGradient>
-                    <radialGradient id="gb-eye" cx="50%" cy="50%" r="50%">
-                      <stop offset="0" stopColor="#fff6c8" />
-                      <stop offset="0.5" stopColor="#ffc933" />
-                      <stop offset="1" stopColor="#ff9a1f" stopOpacity="0" />
-                    </radialGradient>
-                    <linearGradient id="gb-gold" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0" stopColor="#ffe48a" />
-                      <stop offset="1" stopColor="#d9992a" />
-                    </linearGradient>
-                  </defs>
-                  {/* thruster glow */}
-                  <ellipse cx="120" cy="322" rx="34" ry="8" fill="#ffb12e" opacity="0.55" />
-                  <path d="M96 262 Q120 330 144 262 Z" fill="url(#gb-gold)" opacity="0.85" />
-                  {/* torso */}
-                  <path d="M62 190 Q60 120 120 118 Q180 120 178 190 Q176 268 120 272 Q64 268 62 190Z" fill="url(#gb-shell)" />
-                  <path d="M80 160 Q120 148 160 160" stroke="#b9bedc" strokeWidth="3" fill="none" strokeLinecap="round" />
-                  <circle cx="120" cy="205" r="17" fill="url(#gb-visor)" stroke="url(#gb-gold)" strokeWidth="3" />
-                  <circle cx="120" cy="205" r="7" fill="#ffc933" />
-                  <path d="M104 196 L120 226 M136 196 L120 226" stroke="none" />
-                  {/* neck */}
-                  <rect x="100" y="104" width="40" height="22" rx="8" fill="#9aa0c6" />
-                  <rect x="96" y="112" width="48" height="8" rx="4" fill="url(#gb-gold)" />
-                  {/* head */}
-                  <ellipse cx="120" cy="70" rx="64" ry="58" fill="url(#gb-shell)" />
-                  <ellipse cx="46" cy="72" rx="9" ry="20" fill="#b3b8da" />
-                  <ellipse cx="194" cy="72" rx="9" ry="20" fill="#b3b8da" />
-                  <rect x="48" y="44" width="144" height="56" rx="28" fill="url(#gb-visor)" />
-                  <path d="M60 52 Q120 38 180 52" stroke="#ffffff" strokeOpacity="0.25" strokeWidth="3" fill="none" strokeLinecap="round" />
-                  <g ref={eyes} className="gate-eyes">
-                    <circle cx="94" cy="72" r="15" fill="url(#gb-eye)" />
-                    <circle cx="146" cy="72" r="15" fill="url(#gb-eye)" />
-                    <circle cx="94" cy="72" r="6" fill="#fff6c8" />
-                    <circle cx="146" cy="72" r="6" fill="#fff6c8" />
-                  </g>
-                  {/* antenna */}
-                  <line x1="120" y1="12" x2="120" y2="-2" stroke="#9aa0c6" strokeWidth="4" />
-                  <circle cx="120" cy="0" r="6" fill="#ffc933" className="gate-bulb" />
-                  {/* floating hands */}
-                  <g className="gate-hand l">
-                    <ellipse cx="34" cy="204" rx="19" ry="23" fill="url(#gb-shell)" />
-                    <rect x="22" y="212" width="24" height="9" rx="4.5" fill="url(#gb-gold)" />
-                  </g>
-                  <g className="gate-hand r">
-                    <ellipse cx="206" cy="204" rx="19" ry="23" fill="url(#gb-shell)" />
-                    <rect x="194" y="212" width="24" height="9" rx="4.5" fill="url(#gb-gold)" />
-                  </g>
-                </svg>
-              </div>
+          <div className="gate-arm">
+            <canvas ref={canvasRef} className="gate-canvas" aria-label="A simulated six-axis robot arm tracking your cursor with live inverse kinematics" role="img" />
+            <div className="gate-hud" ref={hud} aria-hidden>
+              <p className="hud-title">6-DOF ARM · LIVE IK</p>
+              <p className="hud-sub">Simulated in your browser. Damped least squares, numerical Jacobian.</p>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div className="hud-row" key={n}><span>q{n}</span><i><b data-q={n - 1} /></i><em data-qv={n - 1}>0°</em></div>
+              ))}
+              <div className="hud-row"><span>w</span><i><b data-w /></i><em data-wv>0.00</em></div>
+              <p className="hud-xyz" data-xyz>tip x 0.00 y 0.00 z 0.00</p>
+              <p className="hud-state" data-state>BOOTING</p>
             </div>
           </div>
         </div>
