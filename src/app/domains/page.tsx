@@ -1,16 +1,15 @@
 import React from 'react';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import { SectionHeading } from '@/components/ui/SectionHeading';
+import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
+import { DomainGalaxy, type GalaxyWorld } from '@/components/domains/DomainGalaxy';
+import { toRoman } from '@/lib/roman';
 import { getSkillTaxonomy } from '@/lib/services/skillService';
 import { getProjectCategories, getProjects } from '@/lib/services/projectService';
-import { Cpu, Brain, LineChart, Shield, Layout, Server, Layers, Cloud, Zap, FlaskConical, ArrowRight } from 'lucide-react';
 
 export const metadata = {
-  title: 'Engineering Domains & Disciplines',
-  description: 'Detailed taxonomy of the 10 core engineering domains explored within Project LAMO.',
+  title: 'Domains',
+  description: 'The engineering domains Taha Udaipurwala works in, with the real projects and skills filed under each.',
 };
 
 export const dynamic = 'force-dynamic';
@@ -19,102 +18,53 @@ export default async function DomainsPage() {
   const categories = await getProjectCategories();
   const allProjects = await getProjects();
   const tax = await getSkillTaxonomy();
-  const skillsFor = (name: string, slug: string) => Object.entries(tax.byDomain).filter(([d]) => { const k = d.toLowerCase(); return k === name.toLowerCase() || k === slug || name.toLowerCase().includes(k) || k.includes(name.toLowerCase()); }).flatMap(([, l]) => (l as any[]).map((x) => x.name as string)).slice(0, 8);
-  const byCat: Record<string, { slug: string; title: string; tagline: string }[]> = {};
-  allProjects.forEach((p: any) => { const k = p.category?.slug; if (k) (byCat[k] ||= []).push({ slug: p.slug, title: p.title, tagline: p.tagline }); });
 
-  const iconMap: Record<string, React.ReactNode> = {
-    Cpu: <Cpu className="w-5 h-5 text-gold-400" />,
-    Brain: <Brain className="w-5 h-5 text-gold-400" />,
-    LineChart: <LineChart className="w-5 h-5 text-gold-400" />,
-    Shield: <Shield className="w-5 h-5 text-gold-400" />,
-    Layout: <Layout className="w-5 h-5 text-gold-400" />,
-    Server: <Server className="w-5 h-5 text-gold-400" />,
-    Layers: <Layers className="w-5 h-5 text-gold-400" />,
-    Cloud: <Cloud className="w-5 h-5 text-gold-400" />,
-    Zap: <Zap className="w-5 h-5 text-gold-400" />,
-    FlaskConical: <FlaskConical className="w-5 h-5 text-gold-400" />,
-  };
+  const skillsFor = (name: string, slug: string) =>
+    Array.from(new Set(Object.entries(tax.byDomain)
+      .filter(([d]) => { const k = d.toLowerCase(); return k === name.toLowerCase() || k === slug || name.toLowerCase().includes(k) || k.includes(name.toLowerCase()); })
+      .flatMap(([, l]) => (l as any[]).map((x) => x.name as string))));
+  const byCat: Record<string, { slug: string; title: string }[]> = {};
+  allProjects.forEach((p: any) => { const k = p.category?.slug; if (k) (byCat[k] ||= []).push({ slug: p.slug, title: p.title }); });
+
+  // Busiest domains first, so the flight starts with the strongest evidence.
+  const worlds: GalaxyWorld[] = categories
+    .map((c: any) => ({
+      slug: c.slug, name: c.name, description: c.description ?? '',
+      subtracks: (c.children ?? []).map((s: any) => s.name as string),
+      skills: skillsFor(c.name, c.slug), projects: byCat[c.slug] ?? [],
+    }))
+    .sort((a, b) => (b.projects.length + b.skills.length) - (a.projects.length + a.skills.length));
+
+  const totalProjects = allProjects.length;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <Breadcrumbs items={[{ label: 'Engineering Domains' }]} />
+    <div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+        <Breadcrumbs items={[{ label: 'Engineering Domains' }]} />
+        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mt-10 mb-4">Domains · {worlds.length} worlds · {totalProjects} projects</p>
+        <h1 className="font-serif font-black text-white leading-[0.92] text-[clamp(2.6rem,8vw,7rem)]">A galaxy of<br /><span className="text-gold-300">things I build.</span></h1>
+        <p className="mt-5 text-neutral-300 max-w-2xl">Each planet is a field I work in. Its moons are the projects I have built there, and its sparks are the skills I have logged. The bigger the world, the more work stands behind it. Scroll to fly between them.</p>
+      </div>
 
-      <SectionHeading
-        eyebrow="Taxonomy of Mastery"
-        title={`${categories.length} Engineering Domains`}
-        description="Nested classifications spanning hardware-adjacent robotics, deep learning pipelines, system security, and monumental cloud infrastructures."
-      />
+      <DomainGalaxy worlds={worlds} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {categories.map((cat) => (
-          <Card key={cat.id} variant="marble" className="p-8 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded bg-imperial-900 border border-gold-500/30 flex items-center justify-center">
-                  {iconMap[cat.icon || 'Cpu'] || <Cpu className="w-5 h-5 text-gold-400" />}
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-imperial-900 border border-gold-500/20 text-gold-400">
-                  {(byCat[cat.slug] ?? []).length} project{(byCat[cat.slug] ?? []).length === 1 ? '' : 's'}
-                </span>
-              </div>
-
-              <h2 className="text-2xl font-serif font-bold text-white mb-2">
-                {cat.name}
-              </h2>
-              <p className="text-xs text-neutral-300 leading-relaxed font-sans mb-6">
-                {cat.description}
-              </p>
-
-              {/* Nested Subcategories */}
-              {cat.children && cat.children.length > 0 && (
-                <div className="space-y-2 mb-6">
-                  <span className="text-[10px] font-mono text-gold-400 uppercase tracking-widest block">
-                    Specialized Sub-Tracks
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {cat.children.map((sub) => (
-                      <span
-                        key={sub.id}
-                        className="px-2.5 py-1 rounded bg-imperial-950 border border-white/5 text-[11px] font-mono text-neutral-300"
-                      >
-                        {sub.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {skillsFor(cat.name, cat.slug).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-5">
-                  {skillsFor(cat.name, cat.slug).map((sk) => <span key={sk} className="px-2 py-0.5 rounded-full text-[10px] font-mono border border-gold-500/25 text-gold-200">{sk}</span>)}
-                </div>
-              )}
-              {(byCat[cat.slug] ?? []).length > 0 && (
-                <div className="space-y-1.5 mb-6">
-                  <span className="text-[10px] font-mono text-gold-400 uppercase tracking-widest block">Projects in this domain</span>
-                  <ul className="space-y-1">
-                    {(byCat[cat.slug] ?? []).slice(0, 5).map((pr) => (
-                      <li key={pr.slug}><Link href={`/projects/${pr.slug}`} className="text-xs text-neutral-200 hover:text-gold-300">→ {pr.title}</Link></li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-              <Link
-                href={`/projects?category=${cat.slug}`}
-                className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-gold-400 hover:text-gold-200 transition-colors"
-              >
-                <span>See all projects</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </Card>
-        ))}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mb-6">The chart</p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {worlds.map((w, i) => (
+            <ScrollDepth key={w.slug} strength={0.35}>
+              <TiltCard className="h-full">
+                <Link href={`/projects?category=${w.slug}`} className="marble-card rounded-2xl p-6 h-full flex flex-col hover:border-gold-400/60 transition-colors">
+                  <span className="font-serif font-black text-gold-300 text-3xl">{toRoman(i + 1)}</span>
+                  <h2 className="font-serif font-black text-white text-2xl mt-2">{w.name}</h2>
+                  <p className="text-sm text-neutral-300 mt-2 line-clamp-2">{w.description}</p>
+                  <p className="mt-auto pt-5 text-xs font-mono text-gold-300">{w.projects.length} project{w.projects.length === 1 ? '' : 's'} · {w.skills.length} skill{w.skills.length === 1 ? '' : 's'}</p>
+                </Link>
+              </TiltCard>
+            </ScrollDepth>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
-

@@ -12,7 +12,7 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({ searchParams }: { searchParams?: { category?: string } }) {
   const [projects, categories] = await Promise.all([getProjects(), getProjectCategories()]);
 
   const items: Exhibit[] = projects.map((p: any) => ({
@@ -32,7 +32,7 @@ export default async function ProjectsPage() {
         <p className="mt-5 text-neutral-300 max-w-2xl">Everything I have built, hung in one hall. Scroll to walk through it, or jump to a domain. Every piece opens into a full case study.</p>
       </div>
 
-      <ExhibitionStage items={items} />
+      <ExhibitionStage items={items} initialDomain={items.some((i) => i.domainSlug === searchParams?.category) ? searchParams?.category : undefined} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <SectionHeading eyebrow="The archive" title="Search every project" description="The same projects as a searchable list." />

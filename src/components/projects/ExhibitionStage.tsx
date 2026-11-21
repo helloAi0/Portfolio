@@ -20,12 +20,12 @@ const pad = (n: number) => String(n).padStart(2, '0');
  * the hall: the exhibit in front holds still while you read its placard, then flies past and the next one
  * rises out of the dark. Filtering by domain rebuilds the hall. Reduced motion: skipped (the archive below lists all).
  */
-export function ExhibitionStage({ items }: { items: Exhibit[] }) {
+export function ExhibitionStage({ items, initialDomain }: { items: Exhibit[]; initialDomain?: string }) {
   const outer = useRef<HTMLDivElement>(null);
   const rig = useRef<HTMLDivElement>(null);
   const [raw, setRaw] = useState(0);
   const [still, setStill] = useState(false);
-  const [domain, setDomain] = useState('ALL');
+  const [domain, setDomain] = useState(initialDomain || 'ALL');
 
   const domains = useMemo(() => {
     const m = new Map<string, { name: string; n: number }>();
