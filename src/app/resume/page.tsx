@@ -32,7 +32,7 @@ export default async function ResumePage() {
   const identity = resolveIdentitySafety();
   const profile = await getPublicProfile();
 
-  let skills: any[] = [], projects: any[] = [], certs: any[] = [], achievements: any[] = [], experiences: any[] = [], education: any[] = [];
+  let skills: any[] = [], projects: any[] = [], certs: any[] = [], achievements: any[] = [], education: any[] = [];
   let loadedAt = new Date();
   let settings: any = null;
   try {
@@ -44,12 +44,11 @@ export default async function ResumePage() {
   const paper = settings?.template === 'paper';
   const show = (k: string) => !hidden.includes(k);
   try {
-    [skills, projects, certs, achievements, experiences, education] = await Promise.all([
+    [skills, projects, certs, achievements, education] = await Promise.all([
       prisma.skill.findMany({ where: { level: { notIn: PUBLIC_SKILL_EXCLUDED } }, orderBy: [{ domain: 'asc' }, { name: 'asc' }] }),
       prisma.project.findMany({ where: { approvalStatus: 'APPROVED' }, orderBy: [{ featured: 'desc' }, { orderIndex: 'asc' }], take: 6 }),
       prisma.certificate.findMany({ where: { isPublic: true, ownerApproved: true }, orderBy: { issueDate: 'desc' } }),
       prisma.achievement.findMany({ where: { isPublic: true, ownerApproved: true }, orderBy: { date: 'desc' } }),
-      prisma.experience.findMany({ where: { isPublic: true }, orderBy: { startDate: 'desc' } }),
       prisma.education.findMany({ orderBy: { orderIndex: 'asc' } }).then((r: any[]) => r.filter((e) => !REMOVED_INSTITUTIONS.includes(e.institution))),
     ]);
     loadedAt = new Date();
@@ -167,22 +166,6 @@ export default async function ResumePage() {
             <ul className="text-xs text-neutral-300 space-y-1">
               {achievements.map((a) => (<li key={a.id}>{a.title}, {a.organization}</li>))}
             </ul>
-          </Section>
-        )}
-
-        {show('experience') && experiences.length > 0 && (
-          <Section n={num()} title="Experience">
-            <div className="space-y-3">
-              {experiences.map((e) => (
-                <div key={e.id}>
-                  <h3 className="font-serif font-bold text-white text-sm">{e.roleTitle}, {e.organization}</h3>
-                  <p className="text-[11px] font-mono text-neutral-400">
-                    {e.startDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })} - {e.isCurrent ? 'Present' : e.endDate ? e.endDate.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}
-                  </p>
-                  <p className="text-xs text-neutral-300">{e.description}</p>
-                </div>
-              ))}
-            </div>
           </Section>
         )}
 

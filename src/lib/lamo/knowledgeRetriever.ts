@@ -172,25 +172,6 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
       });
     }
 
-    // 8. Experience (Only public & verified/approved)
-    const exps = await prisma.experience.findMany({
-      where: { isPublic: true },
-    });
-    for (const exp of exps) {
-      chunks.push({
-        id: `experience:${exp.id}`,
-        source: `Experience:${exp.roleTitle}`,
-        category: 'Work Experience',
-        title: `${exp.roleTitle} at ${exp.organization}`,
-        content: `Role: ${exp.roleTitle}. Organization: ${exp.organization} (${exp.organizationType}). Duration: ${exp.startDate.toLocaleDateString()} to ${exp.isCurrent ? 'Present' : exp.endDate?.toLocaleDateString() || 'N/A'}. Location: ${exp.location || 'not specified'}. Description: ${exp.description}. Key Contributions: ${exp.keyContributions || 'N/A'}.`,
-        verificationStatus: exp.verified ? 'VERIFIED' : 'OWNER_CONFIRMED',
-        confidenceScore: 0.92,
-        visibility: 'PUBLIC',
-        lastUpdated: exp.updatedAt.toISOString(),
-        urlPath: '/experience',
-      });
-    }
-
     // 9. Approved LinkedIn Transmissions
     const posts = await prisma.linkedinPost.findMany({
       where: { isPublic: true, isApproved: true },

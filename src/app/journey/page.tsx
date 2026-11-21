@@ -10,14 +10,14 @@ import { ExternalLink } from 'lucide-react';
 
 export const metadata = {
   title: 'Journey',
-  description: 'A timeline built only from real, approved records: education, projects, certificates, achievements, experience and posts.',
+  description: 'A timeline built only from real, approved records: education, projects, certificates, achievements and posts.',
 };
 
 export const dynamic = 'force-dynamic';
 
 interface TimelineEvent {
   date: Date;
-  kind: 'Education' | 'Project' | 'Certificate' | 'Achievement' | 'Experience' | 'Post' | 'Target';
+  kind: 'Education' | 'Project' | 'Certificate' | 'Achievement' | 'Post' | 'Target';
   title: string;
   detail?: string;
   href?: string;
@@ -48,17 +48,15 @@ export default async function JourneyPage() {
   ];
 
   try {
-    const [projects, certs, achievements, experiences, posts] = await Promise.all([
+    const [projects, certs, achievements, posts] = await Promise.all([
       prisma.project.findMany({ where: { approvalStatus: 'APPROVED' }, select: { title: true, slug: true, createdAt: true } }),
       prisma.certificate.findMany({ where: { isPublic: true, ownerApproved: true } }),
       prisma.achievement.findMany({ where: { isPublic: true, ownerApproved: true } }),
-      prisma.experience.findMany({ where: { isPublic: true } }),
       prisma.linkedinPost.findMany({ where: { isApproved: true, isPublic: true } }),
     ]);
     for (const p of projects) events.push({ date: p.createdAt, kind: 'Project', title: `Project added: ${p.title}`, href: `/projects/${p.slug}` });
     for (const c of certs) if (c.issueDate) events.push({ date: c.issueDate, kind: 'Certificate', title: c.title, detail: c.issuingOrganization, href: '/certificates' });
     for (const a of achievements) if (a.date) events.push({ date: a.date, kind: 'Achievement', title: a.title, detail: a.organization, href: '/achievements' });
-    for (const e of experiences) events.push({ date: e.startDate, kind: 'Experience', title: `${e.roleTitle}, ${e.organization}`, href: '/experience' });
     for (const post of posts) events.push({ date: post.publishedAt, kind: 'Post', title: post.title || 'LinkedIn post', detail: post.contentExcerpt, href: post.postUrl ?? undefined, external: true });
   } catch {
     // Database unavailable: the static education milestones above still render.
@@ -73,7 +71,7 @@ export default async function JourneyPage() {
       <SectionHeading
         eyebrow="Timeline"
         title="Journey"
-        description="Every entry here comes from a real record. The timeline grows as projects, certificates, achievements and experience are added and approved."
+        description="Every entry here comes from a real record. The timeline grows as projects, certificates and achievements are added and approved."
       />
 
       <ol className="relative border-l border-gold-500/30 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-8">

@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Compass } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { AmbitionPath } from '@/components/ambitions/AmbitionPath';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,7 +48,8 @@ export default async function AmbitionsPage() {
     : defaults;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-10">
       <Breadcrumbs items={[{ label: 'Ambitions & Goals' }]} />
 
       <SectionHeading
@@ -56,6 +58,10 @@ export default async function AmbitionsPage() {
         description="Where I want to go. These are goals and intentions, not completed achievements."
       />
 
+    </div>
+    <AmbitionPath goals={milestones} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SectionHeading eyebrow="In plain words" title="The goals, written out" description="The same goals as above, in full." />
       <div className="space-y-8">
         {milestones.map((m, idx) => (
           <Card key={idx} variant="marble" className="p-8">
@@ -81,6 +87,6 @@ export default async function AmbitionsPage() {
         ))}
       </div>
     </div>
+    </div>
   );
 }
-

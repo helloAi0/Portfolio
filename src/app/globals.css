@@ -351,3 +351,12 @@ body {
 .exh-dot { width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.18); transition: all .25s; }
 .exh-dot[data-on="1"] { width: 26px; background: #f3c969; }
 @media (prefers-reduced-motion: reduce) { .exh-sheen { transition: none; } }
+
+/* robot bay (skills) */
+.rbhud { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--font-jetbrains), monospace; font-size: 0.72rem; letter-spacing: 0.22em; color: #7fe4ff; text-transform: uppercase; }
+.rbdot { width: 8px; height: 8px; border-radius: 50%; background: #4fd8ff; box-shadow: 0 0 10px #4fd8ff; animation: rbblink 1.6s ease-in-out infinite; }
+@keyframes rbblink { 50% { opacity: 0.3; } }
+.rbrow { border-color: rgba(79, 216, 255, 0.28) !important; background: linear-gradient(160deg, rgba(10, 24, 36, 0.82), rgba(8, 12, 22, 0.88)) !important; }
+
+/* ambitions */
+.amb-card { border: 1px solid rgba(243, 201, 105, 0.3); background: linear-gradient(160deg, rgba(20, 17, 8, 0.82), rgba(10, 10, 18, 0.9)); border-radius: 14px; padding: 1.4rem 1.5rem; backdrop-filter: blur(4px); }
