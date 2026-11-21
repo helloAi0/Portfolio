@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { LiveClock, LiveDayLine } from '@/components/ui/LiveClock';
 
 export interface ColSkill { id: string; name: string; label: string; steps: number; note: string | null; links: { label: string; href: string }[] }
 export interface ColDomain { name: string; skills: ColSkill[] }
@@ -17,6 +18,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
   const outer = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hud = useRef<HTMLDivElement>(null);
   const ctl = useRef<{ setPos: (p: number) => void; setNarrow: (v: boolean) => void; dispose: () => void } | null>(null);
   const [raw, setRaw] = useState(0);
   const [still, setStill] = useState(false);
@@ -31,7 +33,7 @@ export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
     import('@/lib/three/skillRobot').then(({ createSkillRobot }) => {
       if (cancelled || !canvasRef.current) return;
       try {
-        ctl.current = createSkillRobot({ canvas: canvasRef.current, narrow: window.innerWidth < 1024, domains: domains.map((d) => ({ name: d.name, levels: d.skills.map((s) => s.steps) })) });
+        ctl.current = createSkillRobot({ canvas: canvasRef.current, narrow: window.innerWidth < 1024, onTelemetry: (t) => { const set = (k: string, v: string) => { const el = hud.current?.querySelector(`[data-k="${k}"]`); if (el) el.textContent = v; }; t.j.forEach((v, i) => set(`j${i + 1}`, `${v.toFixed(1)}°`)); set('x', t.tip[0].toFixed(2)); set('y', t.tip[1].toFixed(2)); set('z', t.tip[2].toFixed(2)); set('reach', `${Math.round((t.reach / t.reachMax) * 100)}%`); const bar = hud.current?.querySelector('[data-k="bar"]') as HTMLElement | null; if (bar) bar.style.width = `${Math.min(100, (t.reach / t.reachMax) * 100)}%`; }, domains: domains.map((d) => ({ name: d.name, levels: d.skills.map((s) => s.steps) })) });
       } catch { /* no WebGL: the text panel still works */ }
     });
     let raf = 0;
@@ -65,6 +67,22 @@ export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
         <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: narrow ? 'linear-gradient(0deg, rgba(6,10,20,0.97) 0%, rgba(6,10,20,0.8) 45%, transparent 66%)' : 'linear-gradient(270deg, rgba(6,10,20,0.95) 0%, rgba(6,10,20,0.78) 38%, transparent 62%)' }} />
         <div aria-hidden className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#060a14] to-transparent pointer-events-none" />
 
+        {/* teach-pendant readout + drawing title block (desktop) */}
+        <div ref={hud} className="rbpend hidden lg:block" aria-hidden>
+          <div className="rbpend-h"><span className="rbdot" />TEACH PENDANT · AUTO · SIM</div>
+          <dl>
+            {['j1', 'j2', 'j3', 'j4'].map((k, i) => (<div key={k}><dt>J{i + 1}</dt><dd data-k={k}>0.0°</dd></div>))}
+            <div><dt>TCP X</dt><dd data-k="x">0.00</dd></div><div><dt>TCP Y</dt><dd data-k="y">0.00</dd></div><div><dt>TCP Z</dt><dd data-k="z">0.00</dd></div>
+          </dl>
+          <div className="rbpend-bar"><span>REACH <b data-k="reach">0%</b></span><i><u data-k="bar" /></i></div>
+          <div className="rbtitle">
+            <div><span>SHEET</span>03 · SKILL CELL</div>
+            <div><span>DRAWN</span>T. UDAIPURWALA</div>
+            <div><span>SCALE</span>1 : 1 (SIMULATION)</div>
+            <div><span>TIME</span><LiveClock /></div>
+            <div className="col-span-2"><span>DATE</span><LiveDayLine /></div>
+          </div>
+        </div>
         <div className="relative h-full max-w-[88rem] mx-auto px-4 sm:px-8 pt-24 pb-6 flex lg:justify-end items-end lg:items-center">
           <div className="relative z-10 min-w-0 w-full lg:w-[52%]">
             <div className="rbhud">

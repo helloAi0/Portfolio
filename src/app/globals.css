@@ -360,3 +360,16 @@ body {
 
 /* ambitions */
 .amb-card { border: 1px solid rgba(243, 201, 105, 0.3); background: linear-gradient(160deg, rgba(20, 17, 8, 0.82), rgba(10, 10, 18, 0.9)); border-radius: 14px; padding: 1.4rem 1.5rem; backdrop-filter: blur(4px); }
+
+/* teach pendant + title block */
+.rbpend { position: absolute; left: 2rem; bottom: 1.6rem; z-index: 5; width: 17.5rem; padding: 0.8rem 0.9rem; border: 1px solid rgba(79, 216, 255, 0.35); background: rgba(6, 12, 22, 0.78); backdrop-filter: blur(6px); font-family: var(--font-jetbrains), monospace; font-size: 0.68rem; color: #cfeffa; }
+.rbpend-h { display: flex; gap: 0.5rem; align-items: center; letter-spacing: 0.18em; color: #7fe4ff; margin-bottom: 0.55rem; }
+.rbpend dl { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 0.9rem; margin: 0; }
+.rbpend dl > div { display: flex; justify-content: space-between; border-bottom: 1px dotted rgba(127, 228, 255, 0.2); }
+.rbpend dt { color: #6aa5b5; } .rbpend dd { margin: 0; font-variant-numeric: tabular-nums; }
+.rbpend-bar { margin-top: 0.55rem; } .rbpend-bar span { color: #6aa5b5; } .rbpend-bar b { color: #fff; font-weight: 500; }
+.rbpend-bar i { display: block; height: 3px; background: rgba(255, 255, 255, 0.1); margin-top: 0.25rem; } .rbpend-bar u { display: block; height: 100%; background: #4fd8ff; text-decoration: none; box-shadow: 0 0 8px #4fd8ff; }
+.rbtitle { display: grid; grid-template-columns: 1fr 1fr; margin-top: 0.7rem; border: 1px solid rgba(243, 201, 105, 0.45); }
+.rbtitle > div { padding: 0.25rem 0.4rem; border: 1px solid rgba(243, 201, 105, 0.2); color: #f6e7b0; font-size: 0.64rem; }
+.rbtitle span { display: block; color: #a89349; font-size: 0.52rem; letter-spacing: 0.2em; }
+.rbpend-r { left: 2rem; }

@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Compass } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { PROFILE } from '@/config/profile';
 import { AmbitionPath } from '@/components/ambitions/AmbitionPath';
 
 export const dynamic = 'force-dynamic';
@@ -59,7 +60,7 @@ export default async function AmbitionsPage() {
       />
 
     </div>
-    <AmbitionPath goals={milestones} />
+    <AmbitionPath goals={milestones} gradYear={PROFILE.education.endYear} />
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <SectionHeading eyebrow="In plain words" title="The goals, written out" description="The same goals as above, in full." />
       <div className="space-y-8">

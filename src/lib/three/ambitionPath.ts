@@ -15,7 +15,7 @@ function labelSprite(text: string) {
   s.scale.set(6, 0.75, 1); return s;
 }
 
-export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones: PathMilestone[]; narrow: boolean }) {
+export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones: PathMilestone[]; narrow: boolean; onTelemetry?: (t: { elev: number; pct: number; top: number }) => void }) {
   const { canvas, milestones } = opts;
   let narrow = opts.narrow;
   const n = milestones.length;
@@ -75,8 +75,26 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
     return { g, pad, ring, beam, lab };
   });
 
+  // floor plates inside the tower at every landing, like slabs poured level by level
+  const plateMat = new THREE.MeshBasicMaterial({ color: 0xf3c969, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false });
+  milestones.forEach((_, i) => { const y = curve.getPointAt(us[i]).y - 0.1; const pl = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, W * 2), plateMat); pl.rotation.x = Math.PI / 2; pl.position.y = y; scene.add(pl); });
+  // tower crane on the roof: the structure is still going up
+  const crane = new THREE.Group(); crane.position.set(0, top, 0); scene.add(crane);
+  const cm: number[] = []; const CH = 3.2;
+  for (const [x, z] of [[-0.25, -0.25], [0.25, -0.25], [0.25, 0.25], [-0.25, 0.25]]) cm.push(x, 0, z, x, CH, z);
+  for (let y = 0; y < CH; y += 0.5) cm.push(-0.25, y, -0.25, 0.25, y + 0.5, -0.25, 0.25, y, 0.25, -0.25, y + 0.5, 0.25);
+  const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(cm, 3));
+  crane.add(new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: 0xf3c969 })));
+  const jib = new THREE.Group(); jib.position.y = CH; crane.add(jib);
+  const jm: number[] = [-1.6, 0, 0, 4.2, 0, 0, -1.6, 0.35, 0, 4.2, 0, 0, -1.6, 0, 0, -1.6, 0.35, 0, 0, 0.9, 0, 4.2, 0, 0, 0, 0.9, 0, -1.6, 0, 0, 0, 0, 0, 0, 0.9, 0];
+  const jg = new THREE.BufferGeometry(); jg.setAttribute('position', new THREE.Float32BufferAttribute(jm, 3));
+  jib.add(new THREE.LineSegments(jg, new THREE.LineBasicMaterial({ color: 0xf3c969 })));
+  const cw = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x1a1830, metalness: 0.8, roughness: 0.4 })); cw.position.set(-1.5, -0.05, 0); jib.add(cw);
+  const hookLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(3.2, 0, 0), new THREE.Vector3(3.2, -2, 0)]), new THREE.LineBasicMaterial({ color: 0xfff3c4 })); jib.add(hookLine);
+  const hook = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), new THREE.MeshBasicMaterial({ color: 0x7fe4ff })); hook.position.set(3.2, -2.1, 0); jib.add(hook);
+
   // beacon at the very top
-  const beacon = new THREE.Group(); beacon.position.set(0, top + 2.2, 0); scene.add(beacon);
+  const beacon = new THREE.Group(); beacon.position.set(0, top + CH + 3, 0); scene.add(beacon);
   const oct = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), new THREE.MeshBasicMaterial({ color: 0xfff3c4, wireframe: true })); beacon.add(oct);
   const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.55, 0), new THREE.MeshStandardMaterial({ color: 0xf3c969, emissive: 0xf3c969, emissiveIntensity: 1.2 })); beacon.add(core);
   const bring = new THREE.Mesh(new THREE.TorusGeometry(2, 0.02, 8, 80), new THREE.MeshBasicMaterial({ color: 0x7fe4ff })); beacon.add(bring);
@@ -96,7 +114,7 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
   scene.add(new THREE.Points(dg, new THREE.PointsMaterial({ size: 0.07, color: 0xcbbcff, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending })));
   const floor = new THREE.GridHelper(60, 60, 0x4a4468, 0x1c1a30); scene.add(floor);
 
-  let target = 0, cur = 0;
+  let target = 0, cur = 0, lastTel = 0;
   const uAt = (pos: number) => { const i0 = Math.max(0, Math.min(n - 1, Math.floor(pos))), i1 = Math.min(n - 1, i0 + 1); return us[i0] + (us[i1] - us[i0]) * (pos - i0); };
   function resize() { const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   resize(); const ro = new ResizeObserver(resize); ro.observe(canvas);
@@ -125,6 +143,8 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
       (p.lab.material as THREE.SpriteMaterial).opacity = 0.25 + near * 0.75;
       p.ring.rotation.z += dt * 0.3 * (1 + near);
     });
+    jib.rotation.y += dt * 0.12; hook.position.y = -2.1 + Math.sin(t * 0.8) * 0.5; hookLine.scale.y = 1 + Math.sin(t * 0.8) * 0.25;
+    if (opts.onTelemetry && t - lastTel > 0.1) { lastTel = t; opts.onTelemetry({ elev: P.y, pct: Math.min(100, (P.y / (top + 0.4)) * 100), top }); }
     oct.rotation.y += dt * 0.6; oct.rotation.x += dt * 0.3; core.rotation.y -= dt; bring.rotation.z += dt * 0.5; bring2.rotation.y += dt * 0.4;
     bl.intensity = 28 + 14 * Math.sin(t * 2);
     renderer.render(scene, camera);

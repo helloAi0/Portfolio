@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
+export interface BayTelemetry { j: [number, number, number, number]; tip: [number, number, number]; reach: number; reachMax: number }
 export interface BayDomain { name: string; levels: number[] }
 
 function labelSprite(text: string) {
@@ -16,7 +17,7 @@ function labelSprite(text: string) {
   s.scale.set(4.4, 0.69, 1); return s;
 }
 
-export function createSkillRobot(opts: { canvas: HTMLCanvasElement; domains: BayDomain[]; narrow: boolean }) {
+export function createSkillRobot(opts: { canvas: HTMLCanvasElement; domains: BayDomain[]; narrow: boolean; onTelemetry?: (t: BayTelemetry) => void }) {
   const { canvas, domains } = opts;
   let narrow = opts.narrow;
   const n = domains.length;
@@ -60,30 +61,44 @@ export function createSkillRobot(opts: { canvas: HTMLCanvasElement; domains: Bay
     const chips: THREE.Mesh[] = [];
     const cnt = Math.min(12, d.levels.length);
     for (let k = 0; k < cnt; k++) {
-      const lvl = d.levels[k] || 1;
-      const chip = new THREE.Mesh(new THREE.BoxGeometry(modW * 0.34, 0.1, modW * 0.34), new THREE.MeshStandardMaterial({ color: 0x0c1220, emissive: gold, emissiveIntensity: 0.12 + lvl * 0.28, metalness: 0.6, roughness: 0.35 }));
-      chip.position.set((k % 2 ? 1 : -1) * modW * 0.2, 1.05 + Math.floor(k / 2) * 0.15, 0); g.add(chip); chips.push(chip);
+      const lvl = d.levels[k] || 1, ang = (k / Math.max(cnt, 1)) * Math.PI * 2, rr = cnt === 1 ? 0 : modW * 0.27, h = 0.18 + lvl * 0.16;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.09, h, 0.09), new THREE.MeshStandardMaterial({ color: 0x0c1220, emissive: gold, emissiveIntensity: 0.15 + lvl * 0.3, metalness: 0.5, roughness: 0.3 }));
+      bar.position.set(Math.cos(ang) * rr, 0.95 + h / 2, Math.sin(ang) * rr); g.add(bar); chips.push(bar);
     }
-    const label = labelSprite(d.name); label.position.set(0, 2.9 + Math.min(6, Math.ceil(cnt / 2)) * 0.1, 0); g.add(label);
+    // tick marks around the cartridge, like a graduated scale
+    for (let k = 0; k < 24; k++) { const a2 = (k / 24) * Math.PI * 2; const tk = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, k % 6 === 0 ? 0.08 : 0.04), goldM); tk.position.set(Math.cos(a2) * modW * 0.47, 0.9, Math.sin(a2) * modW * 0.47); tk.rotation.y = -a2; g.add(tk); }
+    const label = labelSprite(d.name); label.position.set(0, 2.7, 0); g.add(label);
     return { g, top, chips, label, levels: d.levels };
   });
 
-  // arm
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.95, 0.5, 40), dark); base.position.y = 0.43; scene.add(base);
-  const baseRing = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.03, 8, 60), goldM); baseRing.rotation.x = Math.PI / 2; baseRing.position.y = 0.68; scene.add(baseRing);
-  const SH = 1.5, L1 = 2.3, L2 = 2.1;
-  const yaw = new THREE.Group(); yaw.position.set(0, 0.68, 0); scene.add(yaw);
-  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, SH - 0.68, 32), steel); column.position.y = (SH - 0.68) / 2; yaw.add(column);
-  const shoulder = new THREE.Group(); shoulder.position.y = SH - 0.68; yaw.add(shoulder);
-  const jointA = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.7, 28), goldM); jointA.rotation.z = Math.PI / 2; shoulder.add(jointA);
-  const upper = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, L1), steel); upper.position.z = L1 / 2; shoulder.add(upper);
+  // arm: plinth, bolted base, J1 turret, J2 shoulder housing, tapered links with bands, J3 elbow, J4 wrist, flange + gripper
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.3, 2.2), dark); plinth.position.y = 0.33; scene.add(plinth);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 + Math.PI / 8; const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.06, 6), steel); bolt.position.set(Math.cos(a) * 0.98, 0.5, Math.sin(a) * 0.98); scene.add(bolt); }
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.9, 0.3, 40), steel); base.position.y = 0.63; scene.add(base);
+  const baseRing = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.03, 8, 60), goldM); baseRing.rotation.x = Math.PI / 2; baseRing.position.y = 0.8; scene.add(baseRing);
+  const SH = 1.6, L1 = 2.3, L2 = 2.1;
+  const yaw = new THREE.Group(); yaw.position.set(0, 0.8, 0); scene.add(yaw);
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.55, SH - 0.8, 32), steel); column.position.y = (SH - 0.8) / 2; yaw.add(column);
+  const shoulder = new THREE.Group(); shoulder.position.y = SH - 0.8; yaw.add(shoulder);
+  const housing = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.62, 0.62), steel); shoulder.add(housing);
+  const capA = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.9, 32), goldM); capA.rotation.z = Math.PI / 2; shoulder.add(capA);
+  const link = (len: number, r0: number, r1: number, parent: THREE.Group) => {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 24), steel); body.rotation.x = Math.PI / 2; body.position.z = len / 2; parent.add(body);
+    for (const f of [0.3, 0.55, 0.8]) { const band = new THREE.Mesh(new THREE.TorusGeometry(r0 + (r1 - r0) * f + 0.015, 0.018, 6, 28), dark); band.position.z = len * f; parent.add(band); }
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(r0 * 0.55, r0 * 0.55, 0.5, 20), dark); motor.position.set(0, r0 + 0.12, len * 0.2); parent.add(motor);
+  };
+  link(L1, 0.2, 0.15, shoulder);
   const elbow = new THREE.Group(); elbow.position.z = L1; shoulder.add(elbow);
-  const jointB = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.55, 28), goldM); jointB.rotation.z = Math.PI / 2; elbow.add(jointB);
-  const fore = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, L2), steel); fore.position.z = L2 / 2; elbow.add(fore);
+  const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.62, 28), goldM); capB.rotation.z = Math.PI / 2; elbow.add(capB);
+  link(L2, 0.15, 0.1, elbow);
   const wrist = new THREE.Group(); wrist.position.z = L2; elbow.add(wrist);
-  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 16), dark); wrist.add(hand);
-  const fingers = [-1, 1].map((s) => { const f = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.34), goldM); f.position.set(s * 0.14, 0, 0.26); wrist.add(f); return f; });
+  const capC = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.4, 24), goldM); capC.rotation.z = Math.PI / 2; wrist.add(capC);
+  const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.1, 24), steel); flange.rotation.x = Math.PI / 2; flange.position.z = 0.2; wrist.add(flange);
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.08), dark); rail.position.z = 0.28; wrist.add(rail);
+  const fingers = [-1, 1].map((sg) => { const f = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.3), goldM); f.position.set(sg * 0.14, 0, 0.44); wrist.add(f); return f; });
   const lamp = new THREE.PointLight(0x4fd8ff, 6, 6); wrist.add(lamp);
+  // radius dimension line on the table, like a drawing
+  const dim = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.02, 0), new THREE.Vector3(0, 0.02, R)]), new THREE.LineDashedMaterial({ color: 0x7fe4ff, dashSize: 0.18, gapSize: 0.12, transparent: true, opacity: 0.7 })); dim.computeLineDistances(); scene.add(dim);
 
   // laser
   const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]);
@@ -102,7 +117,7 @@ export function createSkillRobot(opts: { canvas: HTMLCanvasElement; domains: Bay
   const ro = new ResizeObserver(resize); ro.observe(canvas);
 
   const tip = new THREE.Vector3(), tgt = new THREE.Vector3(), look = new THREE.Vector3(), mTmp = new THREE.Vector3();
-  let yawC = 0, a1C = 0.6, a2C = 1.2;
+  let yawC = 0, a1C = 0.6, a2C = 1.2, lastTel = 0;
   const clock = new THREE.Clock(); let raf = 0, running = true;
   function frame() {
     if (!running) return;
@@ -123,8 +138,8 @@ export function createSkillRobot(opts: { canvas: HTMLCanvasElement; domains: Bay
     // arm target: above the facing module (world), with a reach sweep while the table turns
     const mod = mods[act];
     mod.g.getWorldPosition(mTmp);
-    tgt.set(mTmp.x + Math.sin(t * 1.3) * 0.12, mTmp.y + 1.5 + Math.min(6, Math.ceil(mod.chips.length / 2)) * 0.15, mTmp.z + 0.1);
-    const dx = tgt.x, dz = tgt.z, dy = tgt.y - 0.68 - (SH - 0.68);
+    tgt.set(mTmp.x + Math.sin(t * 1.3) * 0.12, mTmp.y + 1.9, mTmp.z + 0.1);
+    const dx = tgt.x, dz = tgt.z, dy = tgt.y - SH;
     const yawT = Math.atan2(dx, dz);
     const d0 = Math.hypot(Math.hypot(dx, dz), dy);
     const dd = Math.min(L1 + L2 - 0.05, Math.max(0.9, d0));
@@ -139,10 +154,14 @@ export function createSkillRobot(opts: { canvas: HTMLCanvasElement; domains: Bay
     wrist.getWorldPosition(tip);
     const lp = laser.geometry.attributes.position as THREE.BufferAttribute;
     lp.setXYZ(0, tip.x, tip.y - 0.05, tip.z); lp.setXYZ(1, mTmp.x, mTmp.y + 0.95, mTmp.z); lp.needsUpdate = true;
-    scan.position.set(mTmp.x, mTmp.y + 0.95 + ((t * 0.7) % 1) * (0.35 + mod.chips.length * 0.09), mTmp.z);
+    scan.position.set(mTmp.x, mTmp.y + 0.95 + ((t * 0.7) % 1) * 0.9, mTmp.z);
     (scan.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - Math.min(1, fr * 3));
     (laser.material as THREE.LineBasicMaterial).opacity = 0.9 * (1 - Math.min(1, fr * 3));
     lamp.intensity = 4 + 3 * Math.sin(t * 5);
+    if (opts.onTelemetry && t - lastTel > 0.1) {
+      lastTel = t; const D = 180 / Math.PI;
+      opts.onTelemetry({ j: [yawC * D, a1C * D, a2C * D, wrist.rotation.x * D], tip: [tip.x, tip.y, tip.z], reach: dd, reachMax: L1 + L2 });
+    }
     floorRing.rotation.z += dt * 0.1; dust.rotation.y += dt * 0.02;
 
     const orbit = Math.sin(t * 0.18) * 1.3;
