@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { LiveClock, LiveDayLine } from '@/components/ui/LiveClock';
 
 export interface ColSkill { id: string; name: string; label: string; steps: number; note: string | null; links: { label: string; href: string }[] }
 export interface ColDomain { name: string; skills: ColSkill[] }
@@ -18,7 +17,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
 export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
   const outer = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const hud = useRef<HTMLDivElement>(null);
   const ctl = useRef<{ setPos: (p: number) => void; setNarrow: (v: boolean) => void; dispose: () => void } | null>(null);
   const [raw, setRaw] = useState(0);
   const [still, setStill] = useState(false);
@@ -33,7 +31,7 @@ export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
     import('@/lib/three/skillRobot').then(({ createSkillRobot }) => {
       if (cancelled || !canvasRef.current) return;
       try {
-        ctl.current = createSkillRobot({ canvas: canvasRef.current, narrow: window.innerWidth < 1024, onTelemetry: (t) => { const set = (k: string, v: string) => { const el = hud.current?.querySelector(`[data-k="${k}"]`); if (el) el.textContent = v; }; t.j.forEach((v, i) => set(`j${i + 1}`, `${v.toFixed(1)}°`)); set('x', t.tip[0].toFixed(2)); set('y', t.tip[1].toFixed(2)); set('z', t.tip[2].toFixed(2)); set('reach', `${Math.round((t.reach / t.reachMax) * 100)}%`); const bar = hud.current?.querySelector('[data-k="bar"]') as HTMLElement | null; if (bar) bar.style.width = `${Math.min(100, (t.reach / t.reachMax) * 100)}%`; }, domains: domains.map((d) => ({ name: d.name, levels: d.skills.map((s) => s.steps) })) });
+        ctl.current = createSkillRobot({ canvas: canvasRef.current, narrow: window.innerWidth < 1024, domains: domains.map((d) => ({ name: d.name, levels: d.skills.map((s) => s.steps) })) });
       } catch { /* no WebGL: the text panel still works */ }
     });
     let raf = 0;
@@ -57,34 +55,19 @@ export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
   if (n === 0 || still) return null;
   const active = Math.min(n - 1, Math.round(raw));
   const dom = domains[active];
-  const cap = narrow ? 3 : 8;
-  const shown = dom.skills.slice(0, cap);
+  const cap = narrow ? 3 : 6;
+  // strongest self-rating first, so the few shown are the ones that matter
+  const shown = [...dom.skills].sort((a, b) => b.steps - a.steps).slice(0, cap);
 
   return (
-    <div ref={outer} style={{ height: `${n * 100 + 60}vh` }} className="relative" aria-label="Skill modules">
+    <div ref={outer} style={{ height: `${Math.min(n * 100, 500 + n * 45) + 60}vh` }} className="relative" aria-label="Skill modules">
       <div className="sticky top-0 h-screen overflow-hidden bg-[#060a14]">
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden />
-        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: narrow ? 'linear-gradient(0deg, rgba(6,10,20,0.97) 0%, rgba(6,10,20,0.8) 45%, transparent 66%)' : 'linear-gradient(270deg, rgba(6,10,20,0.95) 0%, rgba(6,10,20,0.78) 38%, transparent 62%)' }} />
+        <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: narrow ? 'linear-gradient(0deg, rgba(6,10,20,0.97) 0%, rgba(6,10,20,0.8) 45%, transparent 66%)' : 'linear-gradient(270deg, rgba(6,10,20,0.98) 0%, rgba(6,10,20,0.92) 45%, transparent 66%)' }} />
         <div aria-hidden className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#060a14] to-transparent pointer-events-none" />
 
-        {/* teach-pendant readout + drawing title block (desktop) */}
-        <div ref={hud} className="rbpend hidden lg:block" aria-hidden>
-          <div className="rbpend-h"><span className="rbdot" />TEACH PENDANT · AUTO · SIM</div>
-          <dl>
-            {['j1', 'j2', 'j3', 'j4'].map((k, i) => (<div key={k}><dt>J{i + 1}</dt><dd data-k={k}>0.0°</dd></div>))}
-            <div><dt>TCP X</dt><dd data-k="x">0.00</dd></div><div><dt>TCP Y</dt><dd data-k="y">0.00</dd></div><div><dt>TCP Z</dt><dd data-k="z">0.00</dd></div>
-          </dl>
-          <div className="rbpend-bar"><span>REACH <b data-k="reach">0%</b></span><i><u data-k="bar" /></i></div>
-          <div className="rbtitle">
-            <div><span>SHEET</span>03 · SKILL CELL</div>
-            <div><span>DRAWN</span>T. UDAIPURWALA</div>
-            <div><span>SCALE</span>1 : 1 (SIMULATION)</div>
-            <div><span>TIME</span><LiveClock /></div>
-            <div className="col-span-2"><span>DATE</span><LiveDayLine /></div>
-          </div>
-        </div>
         <div className="relative h-full max-w-[88rem] mx-auto px-4 sm:px-8 pt-24 pb-6 flex lg:justify-end items-end lg:items-center">
-          <div className="relative z-10 min-w-0 w-full lg:w-[52%]">
+          <div className="relative z-10 min-w-0 w-full lg:w-[50%] rounded-2xl bg-[#060a14]/80 backdrop-blur-sm p-4 lg:p-6">
             <div className="rbhud">
               <span className="rbdot" aria-hidden />MODULE {pad(active + 1)} / {pad(n)} · ONLINE · {dom.skills.length} SKILL{dom.skills.length === 1 ? '' : 'S'}
             </div>
@@ -107,8 +90,8 @@ export function SkillRobotBay({ domains }: { domains: ColDomain[] }) {
                 </li>
               ))}
             </ul>
-            {dom.skills.length > cap && <a href="#ledger" className="inline-block mt-3 text-sm font-mono text-cyan-300 hover:underline">+ {dom.skills.length - cap} more in the full ledger below ↓</a>}
-            <p className="mt-4 text-xs font-mono text-neutral-500">Scroll: the table turns to the next module.</p>
+            {dom.skills.length > cap && <a href="#ledger" className="inline-block mt-3 text-sm font-mono text-cyan-300 hover:underline">+ {dom.skills.length - cap} more (every skill, with evidence) in the full ledger below ↓</a>}
+            <p className="mt-4 text-xs font-mono text-neutral-500">Scroll: the belt moves the next domain under the arm.</p>
           </div>
         </div>
       </div>

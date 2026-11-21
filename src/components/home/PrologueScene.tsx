@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { LamoMark } from '@/components/brand/LamoMark';
+import { useNow } from '@/components/ui/LiveClock';
 import { Bot, Cpu, Code2, ShieldCheck, Award, GitBranch, Rocket, Brain, Terminal, Briefcase, Compass, Camera, Wifi, BatteryFull, Signal } from 'lucide-react';
 
 const clamp = (n: number, a = 0, b = 1) => Math.max(a, Math.min(b, n));
@@ -10,7 +11,7 @@ const easeIn = (t: number) => t * t * t;
 
 /** First-person story. The caption voice is the owner's ("I"). Nothing here states a fact about his work beyond his own About text. */
 const BEATS = [
-  { at: 0, big: '11:47 PM.', small: 'Everyone else is asleep.' },
+  { at: 0, big: '', small: '' },
   { at: 0.12, big: "I'm not.", small: 'A screen is the only light in the room.' },
   { at: 0.3, big: 'Robots to simulate.\nAgents to build.\nSystems to secure.', small: 'This is what is waiting on my phone.' },
   { at: 0.5, big: 'One tap.', small: 'Let me show you.' },
@@ -31,6 +32,16 @@ const APPS = [
 const LAMO_IDX = 11;
 // LAMO icon centre inside the phone, in % of phone width/height (4-col grid, 3rd row, 4th col)
 const OX = 0.81, OY = 0.392;
+
+function clockFor(d: Date | null) {
+  if (!d) return { hm: '', ampm: '', day: '', night: true, hour: 23 };
+  const h = d.getHours();
+  const parts = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).formatToParts(d);
+  const hm = `${parts.find((x) => x.type === 'hour')!.value}:${parts.find((x) => x.type === 'minute')!.value}`;
+  const ampm = (parts.find((x) => x.type === 'dayPeriod')?.value || '').toUpperCase();
+  const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 17 ? 'afternoon' : h < 21 ? 'evening' : 'night';
+  return { hm, ampm, day: `${d.toLocaleDateString('en-US', { weekday: 'long' })} ${part}`, night: h >= 22 || h < 5, hour: h };
+}
 
 export function PrologueScene() {
   const outer = useRef<HTMLDivElement>(null);
@@ -71,7 +82,12 @@ export function PrologueScene() {
   const dx = (vp.w / 2 - iconX) * zE, dy = (vp.h / 2 - iconY) * zE;
   const tilt = 1 - smooth(0.5, 0.65, q);
 
-  const beat = [...BEATS].reverse().find((b) => q >= b.at)!;
+  const now = useNow(5000);
+  const ck = clockFor(now);
+  const timeBig = ck.hm ? `${ck.hm} ${ck.ampm}.` : '';
+  const timeSmall = ck.night ? 'Everyone else is asleep.' : ck.hour < 12 ? 'The day is only starting.' : ck.hour < 17 ? 'The afternoon is quiet.' : 'The day is winding down.';
+  const found = [...BEATS].reverse().find((b) => q >= b.at)!;
+  const beat = found.at === 0 ? { ...found, big: timeBig || '\u00a0', small: timeSmall } : found.at === 0.12 && !ck.night ? { ...found, big: "I'm building.", small: 'A screen is the only light I need.' } : found;
   const lockOut = smooth(0.4, 0.5, q);
   const bloom = smooth(0.86, 0.96, q);
   const dark = smooth(0.96, 1, q);
@@ -90,7 +106,7 @@ export function PrologueScene() {
             transform: `translate(${dx}px, ${dy}px) scale(${S}) perspective(1200px) rotateX(${7 * tilt}deg) rotateZ(${-2 * tilt}deg)`,
           }}
         >
-          <Phone p={q} lockOut={lockOut} phoneW={phoneW} />
+          <Phone p={q} lockOut={lockOut} phoneW={phoneW} hm={ck.hm} day={ck.day} />
           <Fingers />
         </div>
 
@@ -152,7 +168,7 @@ function Fingers() {
   );
 }
 
-function Phone({ p, lockOut, phoneW }: { p: number; lockOut: number; phoneW: number }) {
+function Phone({ p, lockOut, phoneW, hm, day }: { p: number; lockOut: number; phoneW: number; hm: string; day: string }) {
   const u = phoneW / 100; // 1% of phone width in px
   const ripple = smooth(0.55, 0.6, p) * (1 - smooth(0.6, 0.66, p));
   const lamoGlow = smooth(0.46, 0.55, p);
@@ -161,7 +177,7 @@ function Phone({ p, lockOut, phoneW }: { p: number; lockOut: number; phoneW: num
       <div className="relative w-full h-full overflow-hidden rounded-[9.5%/4.4%]" style={{ background: 'linear-gradient(170deg,#1b2350 0%,#0b0d22 45%,#3a2a0a 100%)' }}>
         {/* status bar */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-[7%] pt-[3.2%] text-white/90" style={{ fontSize: u * 3.6 }}>
-          <span className="font-semibold">11:47</span>
+          <span className="font-semibold">{hm}</span>
           <span className="absolute left-1/2 -translate-x-1/2 top-[1.6%] rounded-full bg-black" style={{ width: u * 26, height: u * 7 }} />
           <span className="flex items-center gap-1"><Signal style={{ width: u * 4.2, height: u * 4.2 }} /><Wifi style={{ width: u * 4.2, height: u * 4.2 }} /><BatteryFull style={{ width: u * 5.5, height: u * 5.5 }} /></span>
         </div>
@@ -170,8 +186,8 @@ function Phone({ p, lockOut, phoneW }: { p: number; lockOut: number; phoneW: num
         {lockOut < 1 && (
           <div className="absolute inset-0" style={{ transform: `translateY(${-lockOut * 100}%)`, opacity: 1 - lockOut * 0.6 }}>
             <div className="text-center text-white" style={{ paddingTop: u * 20 }}>
-              <p className="opacity-70" style={{ fontSize: u * 4.2 }}>Friday night</p>
-              <p className="font-light tracking-tight leading-none" style={{ fontSize: u * 24 }}>11:47</p>
+              <p className="opacity-70" style={{ fontSize: u * 4.2 }}>{day}</p>
+              <p className="font-light tracking-tight leading-none" style={{ fontSize: u * 24 }}>{hm}</p>
             </div>
             <div className="absolute left-[5%] right-[5%] space-y-[2.2%]" style={{ top: '38%' }}>
               {NOTES.map((n, i) => {

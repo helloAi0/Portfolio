@@ -9,8 +9,8 @@ export interface PathMilestone { label: string }
 
 function labelSprite(text: string) {
   const c = document.createElement('canvas'); c.width = 1024; c.height = 128;
-  const g = c.getContext('2d')!; g.font = '600 46px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.shadowColor = 'rgba(243,201,105,.9)'; g.shadowBlur = 16; g.fillStyle = '#fff3c4'; g.fillText(text.toUpperCase().slice(0, 30), 512, 66);
+  const g = c.getContext('2d')!; g.font = '600 38px "JetBrains Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = 'rgba(243,201,105,.9)'; g.shadowBlur = 16; g.fillStyle = '#fff3c4'; g.fillText(text.toUpperCase().slice(0, 40), 512, 66);
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
   s.scale.set(6, 0.75, 1); return s;
 }
@@ -23,7 +23,8 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.localClippingEnabled = true;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x07060f, 0.018);
+  const skyLow = new THREE.Color(0x07060f), skyHigh = new THREE.Color(0x4a3418), sky = new THREE.Color();
+  scene.background = sky; scene.fog = new THREE.FogExp2(0x07060f, 0.018);
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 300);
   scene.add(new THREE.AmbientLight(0x8877cc, 0.7));
   const sun = new THREE.DirectionalLight(0xfff0d0, 1.4); sun.position.set(6, 14, 8); scene.add(sun);
@@ -33,8 +34,9 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
   for (let i = 0; i <= 240; i++) { const s = i / 240, a = s * TURNS * Math.PI * 2; pts.push(new THREE.Vector3(Math.sin(a) * RAD, 0.4 + s * H, Math.cos(a) * RAD)); }
   const curve = new THREE.CatmullRomCurve3(pts);
   const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-  const dimLine = new THREE.LineBasicMaterial({ color: 0x4a4468, transparent: true, opacity: 0.55 });
-  const litLine = new THREE.LineBasicMaterial({ color: 0xf3c969, transparent: true, opacity: 0.95, clippingPlanes: [plane] });
+  const planeBuild = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0); // the tower rises when the page opens
+  const dimLine = new THREE.LineBasicMaterial({ color: 0x4a4468, transparent: true, opacity: 0.55, clippingPlanes: [planeBuild] });
+  const litLine = new THREE.LineBasicMaterial({ color: 0xf3c969, transparent: true, opacity: 0.95, clippingPlanes: [plane, planeBuild] });
 
   // truss tower: 4 corner columns, rings and X braces every 1.4 units
   const seg: number[] = []; const W = 1.7, step = 1.4, top = H + 3;
@@ -107,6 +109,9 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
   const halo = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 18), new THREE.MeshBasicMaterial({ color: 0xf3c969, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })); marker.add(halo);
   const mlight = new THREE.PointLight(0xffd45a, 14, 12); marker.add(mlight);
 
+  // shockwave ring each time a landing is reached
+  const bursts = pads.map(() => { const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.03, 8, 64), new THREE.MeshBasicMaterial({ color: 0xfff3c4, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); m.rotation.x = Math.PI / 2; scene.add(m); return { m, t0: -10, hit: false }; });
+
   // dust
   const N = 400, sp = new Float32Array(N * 3);
   for (let i = 0; i < N; i++) { sp[i * 3] = (Math.random() - 0.5) * 40; sp[i * 3 + 1] = Math.random() * (top + 10); sp[i * 3 + 2] = (Math.random() - 0.5) * 40; }
@@ -114,7 +119,7 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
   scene.add(new THREE.Points(dg, new THREE.PointsMaterial({ size: 0.07, color: 0xcbbcff, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending })));
   const floor = new THREE.GridHelper(60, 60, 0x4a4468, 0x1c1a30); scene.add(floor);
 
-  let target = 0, cur = 0, lastTel = 0;
+  let target = 0, cur = 0;
   const uAt = (pos: number) => { const i0 = Math.max(0, Math.min(n - 1, Math.floor(pos))), i1 = Math.min(n - 1, i0 + 1); return us[i0] + (us[i1] - us[i0]) * (pos - i0); };
   function resize() { const w = canvas.clientWidth || 800, h = canvas.clientHeight || 600; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   resize(); const ro = new ResizeObserver(resize); ro.observe(canvas);
@@ -126,25 +131,35 @@ export function createAmbitionPath(opts: { canvas: HTMLCanvasElement; milestones
     raf = requestAnimationFrame(frame);
     const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
     cur += (target - cur) * Math.min(1, dt * 4);
+    const built = 1 - Math.pow(1 - Math.min(1, t / 3.8), 3);
+    planeBuild.constant = built * (top + 0.6);
+    crane.visible = beacon.visible = built > 0.97;
     const u = uAt(cur); curve.getPointAt(u, P);
     marker.position.copy(P).add(new THREE.Vector3(0, 0.45, 0)); halo.scale.setScalar(1 + 0.15 * Math.sin(t * 4));
     plane.constant = P.y + 0.3;
+    const pct = Math.min(1, P.y / (top + 0.4));
     out.set(P.x, 0, P.z).normalize();
     right.set(out.z, 0, -out.x);
     const dist = narrow ? 17 : 13.5;
-    camera.position.set(P.x + out.x * dist, P.y + 3.2 + (narrow ? 2 : 0), P.z + out.z * dist);
-    look.set(0, P.y + (narrow ? -3.4 : 0.6), 0).addScaledVector(right, narrow ? 0 : 4.2).addScaledVector(out, 3);
+    const lowAngle = 1 - Math.min(1, pct * 3); // starts at the foot of the tower looking up
+    camera.position.set(P.x + out.x * dist, P.y + 3.2 + (narrow ? 2 : 0) - lowAngle * 2.6, P.z + out.z * dist);
+    look.set(0, P.y + (narrow ? -3.4 : 0.6) + lowAngle * 4.5, 0).addScaledVector(right, narrow ? 0 : 4.2).addScaledVector(out, 3);
     camera.lookAt(look);
+    sky.copy(skyLow).lerp(skyHigh, pct * pct); (scene.fog as THREE.FogExp2).color.copy(sky);
     pads.forEach((p, i) => {
+      p.g.visible = p.g.position.y < planeBuild.constant;
+      const b = bursts[i];
+      if (us[i] <= u + 0.004 && !b.hit) { b.hit = true; b.t0 = t; b.m.position.copy(p.g.position).setY(p.g.position.y + 0.15); }
+      if (us[i] > u + 0.02) b.hit = false;
+      const age = t - b.t0; (b.m.material as THREE.MeshBasicMaterial).opacity = age >= 0 && age < 1.4 ? 0.9 * (1 - age / 1.4) : 0; b.m.scale.setScalar(1 + Math.max(0, age) * 3.2);
       const reached = us[i] <= u + 0.004; const near = Math.max(0, 1 - Math.abs(cur - i));
       (p.pad.material as THREE.MeshStandardMaterial).emissiveIntensity = reached ? 0.5 + near * 0.9 : 0.1;
       (p.ring.material as THREE.MeshBasicMaterial).color.setHex(reached ? 0xfff3c4 : 0x6a5f8a);
       (p.beam.material as THREE.MeshBasicMaterial).opacity = (reached ? 0.25 : 0.06) + near * 0.4;
-      (p.lab.material as THREE.SpriteMaterial).opacity = 0.25 + near * 0.75;
+      (p.lab.material as THREE.SpriteMaterial).opacity = near * 0.95;
       p.ring.rotation.z += dt * 0.3 * (1 + near);
     });
     jib.rotation.y += dt * 0.12; hook.position.y = -2.1 + Math.sin(t * 0.8) * 0.5; hookLine.scale.y = 1 + Math.sin(t * 0.8) * 0.25;
-    if (opts.onTelemetry && t - lastTel > 0.1) { lastTel = t; opts.onTelemetry({ elev: P.y, pct: Math.min(100, (P.y / (top + 0.4)) * 100), top }); }
     oct.rotation.y += dt * 0.6; oct.rotation.x += dt * 0.3; core.rotation.y -= dt; bring.rotation.z += dt * 0.5; bring2.rotation.y += dt * 0.4;
     bl.intensity = 28 + 14 * Math.sin(t * 2);
     renderer.render(scene, camera);

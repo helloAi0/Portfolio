@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { toRoman } from '@/lib/roman';
-import { LiveClock, LiveDayLine, useNow } from '@/components/ui/LiveClock';
 
 export interface PathGoal { horizon: string; title: string; description: string; focus: string[] }
 
@@ -14,11 +13,9 @@ const sm = (a: number, b: number, x: number) => { const t = clamp((x - a) / (b -
  * marker climbs from pad to pad and holds still on each so the goal can be read. Goals are stated as intentions.
  * Reduced motion or no WebGL: the plain list on the page carries the same goals.
  */
-export function AmbitionPath({ goals, gradYear }: { goals: PathGoal[]; gradYear?: number }) {
+export function AmbitionPath({ goals }: { goals: PathGoal[] }) {
   const outer = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const hud = useRef<HTMLDivElement>(null);
-  const now = useNow(60000);
   const ctl = useRef<{ setPos: (p: number) => void; setNarrow: (v: boolean) => void; dispose: () => void } | null>(null);
   const [raw, setRaw] = useState(0);
   const [still, setStill] = useState(false);
@@ -32,7 +29,7 @@ export function AmbitionPath({ goals, gradYear }: { goals: PathGoal[]; gradYear?
     let cancelled = false;
     import('@/lib/three/ambitionPath').then(({ createAmbitionPath }) => {
       if (cancelled || !canvasRef.current) return;
-      try { ctl.current = createAmbitionPath({ canvas: canvasRef.current, narrow: window.innerWidth < 1024, onTelemetry: (t) => { const set = (k: string, v: string) => { const el = hud.current?.querySelector(`[data-k="${k}"]`); if (el) el.textContent = v; }; set('elev', `${(t.elev * 3.2).toFixed(1)} m`); set('pct', `${t.pct.toFixed(0)}%`); const bar = hud.current?.querySelector('[data-k="bar"]') as HTMLElement | null; if (bar) bar.style.width = `${t.pct}%`; }, milestones: goals.map((g) => ({ label: g.horizon })) }); } catch { /* no WebGL: the list below still works */ }
+      try { ctl.current = createAmbitionPath({ canvas: canvasRef.current, narrow: window.innerWidth < 1024, milestones: goals.map((g) => ({ label: g.horizon })) }); } catch { /* no WebGL: the list below still works */ }
     });
     let raf = 0;
     const update = () => {
@@ -55,7 +52,6 @@ export function AmbitionPath({ goals, gradYear }: { goals: PathGoal[]; gradYear?
   if (n === 0 || still) return null;
   const active = Math.min(n - 1, Math.round(raw));
   const g = goals[active];
-  const yearsLeft = gradYear && now ? Math.max(0, (new Date(gradYear, 11, 31).getTime() - now.getTime()) / (365.25 * 864e5)) : null;
 
   return (
     <div ref={outer} style={{ height: `${Math.max(2, n) * 110 + 60}vh` }} className="relative" aria-label="Goal path">
@@ -63,22 +59,6 @@ export function AmbitionPath({ goals, gradYear }: { goals: PathGoal[]; gradYear?
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden />
         <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: narrow ? 'linear-gradient(0deg, rgba(7,6,15,0.97) 0%, rgba(7,6,15,0.8) 45%, transparent 68%)' : 'linear-gradient(270deg, rgba(7,6,15,0.95) 0%, rgba(7,6,15,0.7) 38%, transparent 62%)' }} />
         <div aria-hidden className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#07060f] to-transparent pointer-events-none" />
-        <div ref={hud} className="rbpend rbpend-r hidden lg:block" aria-hidden>
-          <div className="rbpend-h"><span className="rbdot" />SITE LOG · LIVE</div>
-          <dl>
-            <div><dt>ELEVATION</dt><dd data-k="elev">0.0 m</dd></div>
-            <div><dt>BUILT</dt><dd data-k="pct">0%</dd></div>
-            <div><dt>NOW</dt><dd><LiveClock seconds={false} /></dd></div>
-            {yearsLeft !== null && <div><dt>TO {gradYear}</dt><dd>{yearsLeft.toFixed(1)} yr</dd></div>}
-          </dl>
-          <div className="rbpend-bar"><i><u data-k="bar" /></i></div>
-          <div className="rbtitle">
-            <div><span>SHEET</span>04 · GOAL PATH</div>
-            <div><span>DRAWN</span>T. UDAIPURWALA</div>
-            <div className="col-span-2"><span>DATE</span><LiveDayLine /></div>
-            {gradYear && <div className="col-span-2"><span>NOTE</span>Countdown runs to 31 Dec {gradYear} (latest expected graduation)</div>}
-          </div>
-        </div>
         <div className="relative h-full max-w-[88rem] mx-auto px-4 sm:px-8 pt-24 pb-8 flex lg:justify-end items-end lg:items-center">
           <div className="relative z-10 w-full lg:w-[44%]">
             <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">Stage {toRoman(active + 1)} of {toRoman(n)} · {g.horizon}</p>
