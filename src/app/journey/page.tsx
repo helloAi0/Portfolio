@@ -7,6 +7,7 @@ import { PROFILE } from '@/config/profile';
 import { prisma } from '@/lib/prisma';
 import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
 import { ExternalLink } from 'lucide-react';
+import { RoadStage, type RoadItem } from '@/components/journey/RoadStage';
 
 export const metadata = {
   title: 'Journey',
@@ -63,16 +64,26 @@ export default async function JourneyPage() {
   }
 
   events.sort((a, b) => b.date.getTime() - a.date.getTime());
+  const road: RoadItem[] = [...events].reverse().map((ev) => ({
+    kind: ev.kind, title: ev.title, detail: ev.detail, href: ev.href, external: ev.external,
+    dateLabel: fmt(ev.date) + (ev.date > now ? ' · expected' : ''),
+    shortDate: ev.date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }),
+    future: ev.date > now,
+  }));
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-10">
       <Breadcrumbs items={[{ label: 'Journey' }]} />
-
       <SectionHeading
         eyebrow="Timeline"
         title="Journey"
-        description="Every entry here comes from a real record. The timeline grows as projects, certificates and achievements are added and approved."
+        description="Every stone on this road is a real record. Walk it from the oldest to what is still ahead."
       />
+    </div>
+    <RoadStage items={road} />
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <SectionHeading eyebrow="In plain words" title="The full record" description="The same entries, newest first." />
 
       <ol className="relative border-l border-gold-500/30 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-8">
         {events.map((ev, idx) => (
@@ -102,6 +113,7 @@ export default async function JourneyPage() {
           </li>
         ))}
       </ol>
+    </div>
     </div>
   );
 }
