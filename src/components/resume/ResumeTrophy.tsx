@@ -9,8 +9,21 @@ const MAX_PAGES = 8;
 
 type Doc = { pages: HTMLCanvasElement[]; ratio: number };
 
+// pdf.js ships in /public (no npm install needed): loaded once, on demand
+let pdfJsPromise: Promise<any> | null = null;
+function loadPdfJs(): Promise<any> {
+  if ((window as any).pdfjsLib) return Promise.resolve((window as any).pdfjsLib);
+  if (!pdfJsPromise) pdfJsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script'); s.src = '/pdf.min.js'; s.async = true;
+    s.onload = () => ((window as any).pdfjsLib ? resolve((window as any).pdfjsLib) : reject(new Error('pdf.js missing')));
+    s.onerror = () => reject(new Error('pdf.js failed to load'));
+    document.head.appendChild(s);
+  });
+  return pdfJsPromise;
+}
+
 async function renderPdf(url: string, targetW: number): Promise<Doc> {
-  const pdfjs: any = await import('pdfjs-dist/build/pdf');
+  const pdfjs: any = await loadPdfJs();
   pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
   const pdf = await pdfjs.getDocument({ url, withCredentials: false }).promise;
   const pages: HTMLCanvasElement[] = []; let ratio = 0.707;
