@@ -328,3 +328,26 @@ body {
 .edpillar:hover { transform: rotateX(0) translateY(-6px); }
 @keyframes edpulse { 50% { box-shadow: 0 0 80px 14px rgba(243,201,105,.8); } }
 @media (prefers-reduced-motion: reduce) { .edpillar { animation: none !important; } }
+
+/* ---------- Project exhibition ---------- */
+.exh-floor { position: absolute; left: -10%; right: -10%; bottom: -4%; height: 48%; background-image: linear-gradient(rgba(224,181,80,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(224,181,80,.12) 1px, transparent 1px); background-size: 70px 70px; transform: perspective(520px) rotateX(64deg); transform-origin: bottom; mask-image: linear-gradient(to top, #000 8%, transparent 85%); -webkit-mask-image: linear-gradient(to top, #000 8%, transparent 85%); }
+.exh-chip { flex-shrink: 0; padding: 7px 14px; border-radius: 999px; font: 600 12px/1 var(--font-jetbrains), monospace; color: #cfc9ff; border: 1px solid rgba(224,181,80,.25); background: rgba(255,255,255,.03); transition: all .2s; white-space: nowrap; }
+.exh-chip b { color: #f3c969; margin-left: 4px; }
+.exh-chip:hover { border-color: #f3c969; }
+.exh-chip[data-on="1"] { background: linear-gradient(90deg, #f3c969, #d4a62c); color: #1a1205; border-color: transparent; }
+.exh-chip[data-on="1"] b { color: #1a1205; }
+.exh-tag { padding: 5px 11px; border-radius: 999px; font: 600 12px/1 var(--font-jetbrains), monospace; color: #f3d98a; border: 1px solid rgba(243,201,105,.35); background: rgba(243,201,105,.07); }
+.exh-cta { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font: 800 14px/1 var(--font-plus-jakarta), sans-serif; color: #1a1205; background: linear-gradient(90deg, #f3c969, #d4a62c); box-shadow: 0 14px 40px -12px rgba(243,201,105,.7); transition: transform .2s; }
+.exh-cta:hover { transform: translateY(-2px) scale(1.03); }
+.exh-ghost { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 999px; font: 700 13px/1 var(--font-plus-jakarta), sans-serif; color: #f3d98a; border: 1px solid rgba(243,201,105,.45); transition: background .2s; }
+.exh-ghost:hover { background: rgba(243,201,105,.1); }
+.exh-card { position: absolute; left: 50%; top: 50%; width: min(400px, 64vw); aspect-ratio: 4/5; max-height: 100%; transition: opacity .15s linear; will-change: transform, opacity; }
+.exh-frame { display: block; height: 100%; padding: 12px; border-radius: 10px; background: linear-gradient(145deg, #f3c969, #8a6a1c 55%, #d4a62c); box-shadow: 0 40px 90px -24px rgba(0,0,0,.9), 0 0 0 1px rgba(255,241,184,.4) inset; position: relative; }
+.exh-card[data-front="1"] .exh-frame { box-shadow: 0 40px 100px -20px rgba(0,0,0,.9), 0 0 90px -10px rgba(243,201,105,.55), 0 0 0 1px rgba(255,241,184,.6) inset; }
+.exh-mat { position: relative; height: calc(100% - 38px); overflow: hidden; border-radius: 3px; background: #07061a; box-shadow: 0 0 0 5px #120d05, 0 0 0 6px rgba(243,201,105,.5); }
+.exh-sheen { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.16) 50%, transparent 62%); transform: translateX(-70%); transition: transform .9s; pointer-events: none; }
+.exh-card[data-front="1"] .exh-frame:hover .exh-sheen { transform: translateX(70%); }
+.exh-plaque { position: absolute; left: 12px; right: 12px; bottom: 9px; height: 24px; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; border-radius: 3px; background: #1a1205; color: #f3d98a; font: 700 10px/1 var(--font-jetbrains), monospace; letter-spacing: .14em; text-transform: uppercase; }
+.exh-dot { width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.18); transition: all .25s; }
+.exh-dot[data-on="1"] { width: 26px; background: #f3c969; }
+@media (prefers-reduced-motion: reduce) { .exh-sheen { transition: none; } }
