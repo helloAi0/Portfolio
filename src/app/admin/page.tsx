@@ -284,30 +284,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleAddPost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (saving) return;
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/linkedin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost),
-      });
-      if (res.ok) {
-        showMsg('success', 'LinkedIn post imported.');
-        setNewPost({ title: '', contentExcerpt: '', postUrl: '', isPublic: true, isApproved: true });
-        loadAllData();
-      } else {
-        await reportFail(res, 'Could not import the post.');
-      }
-    } catch {
-      showMsg('error', 'Failed to import post.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleAddCert = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
@@ -668,7 +644,6 @@ export default function AdminDashboardPage() {
     { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length },
     { id: 'leetcode', label: 'LeetCode', icon: Code2 },
     { id: 'geeksforgeeks', label: 'GeeksforGeeks', icon: Code2 },
-    { id: 'linkedin', label: 'LinkedIn Transmissions', icon: Linkedin, count: linkedinPosts.length },
     { id: 'skills', label: 'Skill Graph Engine', icon: Cpu, count: skills.length },
     { id: 'certificates', label: 'Certificates Vault', icon: Award, count: certificates.length },
     { id: 'achievements', label: 'Achievements & Honors', icon: Trophy, count: achievements.length },
@@ -1050,72 +1025,6 @@ export default function AdminDashboardPage() {
                   Notice: GeeksforGeeks does not provide an official public API. Data is maintained through verified benchmarks.
                 </div>
               </Card>
-            </div>
-          )}
-
-          {/* TAB 5: LINKEDIN */}
-          {activeTab === 'linkedin' && (
-            <div className="space-y-6">
-              <h3 className="font-serif font-bold text-xl text-white">LinkedIn Transmission Feed & Manual Importer</h3>
-
-              {/* Add Post Form */}
-              <Card variant="marble" className="p-6">
-                <h4 className="font-serif font-bold text-base text-white mb-3">Import Verified Transmission</h4>
-                <form onSubmit={handleAddPost} className="space-y-3 text-xs font-mono">
-                  <div>
-                    <label className="text-neutral-400 block mb-1">Post Title (Optional)</label>
-                    <input
-                      type="text"
-                      value={newPost.title}
-                      onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                      placeholder="e.g. Post title"
-                      className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-neutral-400 block mb-1">Post Content Excerpt *</label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={newPost.contentExcerpt}
-                      onChange={(e) => setNewPost({ ...newPost, contentExcerpt: e.target.value })}
-                      placeholder="Paste text of transmission..."
-                      className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-neutral-400 block mb-1">LinkedIn Post URL</label>
-                    <input
-                      type="url"
-                      value={newPost.postUrl}
-                      onChange={(e) => setNewPost({ ...newPost, postUrl: e.target.value })}
-                      placeholder="https://linkedin.com/feed/update/urn:li:activity:..."
-                      className="w-full px-3 py-2 rounded bg-imperial-900 border border-gold-500/20 text-white"
-                    />
-                  </div>
-                  <Button type="submit" variant="primary" size="sm" icon={<Plus className="w-3.5 h-3.5" />}>
-                    Save Transmission Update
-                  </Button>
-                </form>
-              </Card>
-
-              {/* Existing Posts */}
-              <div className="space-y-3">
-                {linkedinPosts.map((post) => (
-                  <Card key={post.id} variant="marble" className="p-4 flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-white text-sm">{post.title || 'Professional Update'}</h4>
-                      <p className="text-xs text-neutral-300 mt-1">{post.contentExcerpt}</p>
-                      <span className="text-[10px] font-mono text-neutral-500 block mt-2">
-                        {new Date(post.publishedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <Badge variant={post.isApproved ? 'verified' : 'detected'} size="xs">
-                      {post.isApproved ? 'Approved Public' : 'Draft'}
-                    </Badge>
-                  </Card>
-                ))}
-              </div>
             </div>
           )}
 

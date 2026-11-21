@@ -7,6 +7,8 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { getSkillTaxonomy } from '@/lib/services/skillService';
 import { PROFILE } from '@/config/profile';
 import { resolveEvidence, proficiencySteps } from '@/lib/skillEvidence';
+import { SkillColosseum, toRoman, type ColDomain } from '@/components/skills/SkillColosseum';
+import { ScrollDepth, TiltCard, CountUp } from '@/components/motion/Depth';
 import { CheckCircle2, AlertTriangle, Layers, Cpu, Code2, ArrowUpRight, ShieldCheck, Compass } from 'lucide-react';
 
 export const metadata = {
@@ -41,15 +43,28 @@ const levelBadgeMap: Record<string, { label: string; variant: 'verified' | 'gold
 export default async function SkillsPage() {
   const { all, byDomain, verifiedCount, detectedCount } = await getSkillTaxonomy();
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <Breadcrumbs items={[{ label: 'Skill Taxonomy' }]} />
+  const colDomains: ColDomain[] = Object.entries(byDomain)
+    .map(([name, list]) => ({
+      name,
+      skills: (list as any[]).map((sk) => ({
+        id: sk.id, name: sk.name, label: (levelBadgeMap[sk.level] || { label: sk.level || 'Detected' }).label, steps: proficiencySteps(sk.proficiencyLevel), note: sk.evidenceNotes ?? null,
+        links: parseSources(sk.evidenceSources).map((x) => resolveEvidence(String(x), PROFILE.github.username)).filter((l) => l.kind !== 'note' && l.href).map((l) => ({ label: l.label, href: l.href as string })),
+      })),
+    }))
+    .sort((a, b) => b.skills.length - a.skills.length);
 
-      <SectionHeading
-        eyebrow="Dynamic Intelligence Graph"
-        title="Skills and the Evidence Behind Them"
-        description="Every skill is graded across five objective tiers: Demonstrated through Projects, Owner Confirmed, Practicing, Learning, and Repository-Detected. Automatic repository discovery is never equated with mastery."
-      />
+  return (
+    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+      <Breadcrumbs items={[{ label: 'Skill Taxonomy' }]} />
+      <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mt-10 mb-4">Skills · {toRoman(all.length)}</p>
+      <h1 className="font-serif font-black text-white leading-[0.92] text-[clamp(2.6rem,8vw,7rem)]">What I know,<br /><span className="text-gold-300">and the proof.</span></h1>
+      <p className="mt-5 text-neutral-300 max-w-2xl">Each skill is marked honestly: demonstrated in a project, confirmed by me, still practising, or only detected in a repository. Detection is never treated as mastery.</p>
+    </div>
+    <SkillColosseum domains={colDomains} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+
+      <SectionHeading eyebrow="The full ledger" title="Every skill, with its evidence" description="The same skills as above, laid out in full." />
 
       {/* Verification Telemetry Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-12">
@@ -57,8 +72,8 @@ export default async function SkillsPage() {
           <span className="text-[10px] font-mono uppercase text-neutral-400 block mb-1">
             Total Cataloged Skills
           </span>
-          <span className="text-3xl font-serif font-black text-white">{all.length}</span>
-          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Across 7 Core Domains</span>
+          <CountUp value={all.length} className="text-3xl font-serif font-black text-white" />
+          <span className="text-[10px] font-mono text-neutral-500 block mt-1">Across {Object.keys(byDomain).length} domains</span>
         </Card>
 
         <Card variant="marble" className="p-5 border-emerald-500/30">
@@ -112,7 +127,7 @@ export default async function SkillsPage() {
                 const sources = parseSources(skill.evidenceSources);
 
                 return (
-                  <Card key={skill.id} variant="marble" className="p-6 flex flex-col justify-between">
+                  <ScrollDepth key={skill.id} strength={0.4}><TiltCard className="h-full"><Card variant="marble" className="p-6 flex flex-col justify-between h-full">
                     <div>
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <h3 className="font-serif font-bold text-lg text-white">
@@ -182,13 +197,14 @@ export default async function SkillsPage() {
                         ))}
                       </div>
                     )}
-                  </Card>
+                  </Card></TiltCard></ScrollDepth>
                 );
               })}
             </div>
           </div>
         ))}
       </div>
+    </div>
     </div>
   );
 }
