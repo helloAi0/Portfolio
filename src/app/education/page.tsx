@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyNote } from '@/components/ui/EmptyNote';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { ScrollDepth } from '@/components/motion/Depth';
 import { EducationClimb, type ClimbStep } from '@/components/education/EducationClimb';
@@ -48,7 +49,7 @@ export default async function EducationPage() {
         <p className="mt-5 text-neutral-300 max-w-2xl">From school in Kolkata to a B.Tech in Computer Science and Engineering (AI &amp; ML). No grades or rankings are published unless backed by official records.</p>
       </div>
 
-      <EducationClimb steps={steps} />
+      {steps.length ? <EducationClimb steps={steps} /> : <EmptyNote title="Education records are being added">Nothing is shown here until the records are published with the owner&apos;s approval.</EmptyNote>}
 
       {dynamicStanding && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">

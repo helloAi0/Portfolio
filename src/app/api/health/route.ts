@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 const SERVER_START_TIME = Date.now();
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const startTime = Date.now();
   let dbStatus = 'CONNECTED';

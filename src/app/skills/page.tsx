@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyNote } from '@/components/ui/EmptyNote';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { Card } from '@/components/ui/Card';
@@ -62,7 +63,7 @@ export default async function SkillsPage() {
       <h1 className="font-serif font-black text-white leading-[0.92] text-[clamp(2.6rem,8vw,7rem)]">What I know,<br /><span className="text-gold-300">and the proof.</span></h1>
       <p className="mt-5 text-neutral-300 max-w-2xl">Each skill is marked honestly: demonstrated in a project, confirmed by me, still practising, or only detected in a repository. Detection is never treated as mastery.</p>
     </div>
-    <SkillRobotBay domains={colDomains} />
+    {all.length === 0 ? <EmptyNote title="The skill ledger is being built">Each skill is added with its evidence, so nothing is listed until it is backed by a project or confirmed by the owner.</EmptyNote> : <SkillRobotBay domains={colDomains} />}
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
 
       <div id="ledger" className="scroll-mt-24" />

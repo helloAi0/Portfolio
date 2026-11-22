@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyNote } from '@/components/ui/EmptyNote';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
@@ -46,7 +47,8 @@ export default async function DomainsPage() {
         <p className="mt-5 text-neutral-300 max-w-2xl">Each planet is a field I work in. Its moons are the projects I have built there, and its sparks are the skills I have logged. The bigger the world, the more work stands behind it. Scroll to fly between them.</p>
       </div>
 
-      <DomainGalaxy worlds={worlds} />
+      {worlds.length === 0 && <EmptyNote title="The galaxy is being charted">Domains appear here as soon as projects and skills are published under them.</EmptyNote>}
+      {worlds.length > 0 && <DomainGalaxy worlds={worlds} />}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
         <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mb-6">The chart</p>
