@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
-import { prisma } from '@/lib/prisma';
+import { saveUpload, hasBucket } from '@/lib/storage';
 import { validateUpload, MAX_UPLOAD_BYTES } from '@/lib/fileUpload';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +16,10 @@ export async function POST(req: NextRequest) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const v = validateUpload(bytes, file.name);
   if ('error' in v) return NextResponse.json({ error: v.error }, { status: 400 });
-  const row = await prisma.storedFile.create({ data: { filename: v.filename, mimeType: v.mime, size: bytes.length, data: Buffer.from(bytes) } });
+  // Without an R2 bucket the bytes are kept in the database, and D1 rows are limited to about 2 MB.
+  if (!hasBucket() && bytes.length > 1_500_000) return NextResponse.json({ error: 'File storage (R2) is not connected, so files over 1.5 MB cannot be saved.' }, { status: 503 });
+  let row;
+  try { row = await saveUpload(bytes, { filename: v.filename, mime: v.mime }); }
+  catch { return NextResponse.json({ error: 'The file could not be stored. Please try again.' }, { status: 500 }); }
   return NextResponse.json({ success: true, id: row.id, url: `/api/files/${row.id}`, mimeType: v.mime, filename: v.filename });
 }

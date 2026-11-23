@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
+import { removeUploadByUrl } from '@/lib/storage';
 import { cleanResumeSettings } from '@/lib/adminInput';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,11 @@ export async function PUT(req: NextRequest) {
   if ('error' in c) return NextResponse.json({ error: c.error }, { status: 400 });
   const d = c.data;
   const data = { summary: d.summary, photoUrl: d.photoUrl, pdfUrl: d.pdfUrl, template: d.template, hiddenSections: JSON.stringify(d.hiddenSections), extraSections: JSON.stringify(d.extraSections) };
+  const before = await prisma.resumeSettings.findUnique({ where: { id: 'singleton' }, select: { pdfUrl: true, photoUrl: true } });
   await prisma.resumeSettings.upsert({ where: { id: 'singleton' }, create: { id: 'singleton', ...data }, update: data });
+  // a replaced or removed PDF/photo must not stay in storage
+  if (before?.pdfUrl && before.pdfUrl !== data.pdfUrl) await removeUploadByUrl(before.pdfUrl).catch(() => undefined);
+  if (before?.photoUrl && before.photoUrl !== data.photoUrl) await removeUploadByUrl(before.photoUrl).catch(() => undefined);
   await prisma.adminAuditLog.create({ data: { action: 'RESUME_UPDATE', target: 'ResumeSettings', newState: JSON.stringify(Object.keys(data)), explanation: `${(admin as any).username ?? 'owner'} updated the resume settings` } }).catch(() => undefined);
   return NextResponse.json({ success: true });
 }

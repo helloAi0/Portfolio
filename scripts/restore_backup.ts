@@ -1,3 +1,4 @@
+import './_nodeDb';
 /**
  * npm run restore -- backups/backup-....json            (dry run: shows what would happen, changes nothing)
  * npm run restore -- backups/backup-....json --apply    (restores into EMPTY tables only; tables with data are skipped)

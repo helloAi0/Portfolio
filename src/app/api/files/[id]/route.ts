@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
+import { readUpload } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const onResume = published || onProject ? null : await prisma.resumeSettings.findFirst({ where: { OR: [{ photoUrl: url }, { pdfUrl: url }] }, select: { id: true } });
     if (!published && !onProject && !onResume) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  return new NextResponse(file.data as unknown as BodyInit, {
+  const bytes = await readUpload(file);
+  if (!bytes) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return new NextResponse(bytes as unknown as BodyInit, {
     headers: {
       'Content-Type': file.mimeType,
       'Content-Length': String(file.size),

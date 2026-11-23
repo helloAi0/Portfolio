@@ -1,3 +1,4 @@
+import './_nodeDb';
 /** npm run backup  ->  backups/backup-<timestamp>.json (git-ignored; contains private data such as contact messages). */
 try { require('dotenv').config(); } catch { /* shell environment is used */ }
 import fs from 'fs';

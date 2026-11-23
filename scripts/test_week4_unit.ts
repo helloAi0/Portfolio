@@ -1,7 +1,8 @@
+import './_nodeDb';
 /** Week 4 DB-free unit tests: uploads, backup/restore logic, deploy configuration check. */
 import { validateUpload, safeFilename, MAX_UPLOAD_BYTES, FILE_URL_RE } from '../src/lib/fileUpload';
 import { orderByDependency, serializeRow, reviveRow, validateBackup, createBackup, restoreBackup, modelInfoFromDmmf, type ModelInfo, type BackupFile } from '../src/lib/backup';
-import { checkDeployEnv, summarize } from './deploy-check.mjs';
+import { checkDeployEnv, checkWranglerConfig, summarize } from './deploy-check.mjs';
 import { cleanProfileUpdate, cleanEducation } from '../src/lib/adminInput';
 
 import fs from 'fs';
@@ -76,7 +77,7 @@ const makeDb = (seed: Record<string, any[]> = {}) => {
   // ---- Deploy check
   const good = { NODE_ENV: 'production', DATABASE_URL: 'postgresql://u:p@h/db', ADMIN_JWT_SECRET: 'a'.repeat(48), CRON_SECRET: 'b'.repeat(32), GITHUB_WEBHOOK_SECRET: 'c'.repeat(32), NEXT_PUBLIC_SITE_URL: 'https://site.example', RESEND_API_KEY: 're_x', EMAIL_FROM: 'LAMO <hi@mydomain.dev>', GITHUB_TOKEN: 'x', GEMINI_API_KEY: 'x', LEETCODE_USERNAME: 'u', ADMIN_USERNAME: 'owner' };
   t('deploy: good config has no failures or warnings', JSON.stringify(summarize(checkDeployEnv(good))) === '{"fail":0,"warn":0}', checkDeployEnv(good).filter((r: any) => r.level !== 'PASS'));
-  t('deploy: SQLite in production fails', summarize(checkDeployEnv({ ...good, DATABASE_URL: 'file:./dev.db' })).fail === 1);
+  t('deploy: wrangler placeholders fail, real values pass', checkWranglerConfig('"database_id": "REPLACE_WITH_D1_DATABASE_ID"').some((r: any) => r.level === 'FAIL') && checkWranglerConfig('"database_id": "abc"').every((r: any) => r.level === 'PASS'));
   t('deploy: weak/placeholder secrets fail', summarize(checkDeployEnv({ ...good, ADMIN_JWT_SECRET: 'changeme', CRON_SECRET: 'short' })).fail === 2);
   t('deploy: missing secrets fail in production but only warn in dev', summarize(checkDeployEnv({ ...good, ADMIN_JWT_SECRET: '' })).fail === 1 && summarize(checkDeployEnv({ ...good, NODE_ENV: 'development', ADMIN_JWT_SECRET: '' })).fail === 0);
   t('deploy: http site url fails in production', summarize(checkDeployEnv({ ...good, NEXT_PUBLIC_SITE_URL: 'http://x.com' })).fail === 1);
@@ -91,7 +92,7 @@ const makeDb = (seed: Record<string, any[]> = {}) => {
   t('education: invalid input refused', ['error' in cleanEducation({ institution: '' }), 'error' in cleanEducation({ institution: 'X', schoolType: 'COLLEGE', graduationStatus: 'COMPLETED' }), 'error' in cleanEducation({ institution: 'X', schoolType: 'HIGH_SCHOOL', graduationStatus: 'EXPECTED' }), 'error' in cleanEducation({ institution: 'X', schoolType: 'HIGH_SCHOOL', graduationStatus: 'COMPLETED', startYear: 2020, endYear: 2010 })].every(Boolean));
 
   // ---- Real schema parsing (both provider files must agree)
-  for (const file of ['prisma/schema.prisma', 'prisma/schema.postgresql.prisma']) {
+  for (const file of ['prisma/schema.prisma']) {
     const info = modelInfoFromDmmf(parseSchemaModels(fs.readFileSync(file, 'utf8')) as any);
     const by = Object.fromEntries(info.map((i) => [i.name, i]));
     t(`schema(${file.split('/')[1]}): models parsed, secrets excluded`, info.length > 25 && !by.AdminUser && !by.AdminSession && !!by.Project && !!by.StoredFile, info.length);
@@ -100,8 +101,7 @@ const makeDb = (seed: Record<string, any[]> = {}) => {
     t(`schema(${file.split('/')[1]}): dependency order valid for every model`, info.every((i) => i.dependsOn.every((dep) => ord.indexOf(dep) < ord.indexOf(i.name))));
   }
   const a = parseSchemaModels(fs.readFileSync('prisma/schema.prisma', 'utf8')).map((m) => m.name).sort().join();
-  const b = parseSchemaModels(fs.readFileSync('prisma/schema.postgresql.prisma', 'utf8')).map((m) => m.name).sort().join();
-  t('schema: SQLite and PostgreSQL files define the same models', a === b);
+  t('schema: D1 migration covers every model', (() => { const sql = fs.readFileSync('migrations/0001_init.sql', 'utf8'); return a.split(',').every((m) => sql.includes(`CREATE TABLE "${m}"`)); })());
   t('schema: loadModelInfo falls back to the file', loadModelInfo(undefined).length > 25);
 
   console.log(`\n${passed} passed, ${failed} failed`);

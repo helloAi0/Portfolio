@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { inspectUserInput, INSUFFICIENT_EVIDENCE_PHRASE } from '@/lib/lamo/guardrails';
-import { retrieveVerifiedKnowledge } from '@/lib/lamo/knowledgeRetriever';
-import { generateLamoResponse } from '@/lib/lamo/llmProvider';
+import { runAgent, type AgentTurn } from '@/lib/lamo/agent';
 import { recordUnansweredQuestion } from '@/lib/lamo/unansweredService';
 import { RateLimiter, getClientIp, isValidSessionId, normalizeEmail, sanitizeName } from '@/lib/lamo/security';
 import { PROFILE } from '@/config/profile';
@@ -53,49 +52,60 @@ export async function POST(req: NextRequest) {
       return reply({ error: guard.violationReason || 'Invalid question.' }, 400);
     }
 
-    // 2. Retrieval + answer
-    const { chunks, relevanceScore } = await retrieveVerifiedKnowledge(message);
-    const lamoRes = await generateLamoResponse({ question: message, retrievedChunks: chunks, relevanceScore });
+    // 2. Agent run (tools -> answer). In stream mode every step is sent as it happens.
+    const history: AgentTurn[] = Array.isArray(body?.history)
+      ? body.history.slice(-8).filter((t: any) => t && (t.role === 'USER' || t.role === 'ASSISTANT') && typeof t.content === 'string').map((t: any) => ({ role: t.role, content: String(t.content).slice(0, 600) }))
+      : [];
 
-    // 3. Unanswered workflow (single place that records it)
-    let questionId: string | undefined;
-    let followUpToken: string | undefined;
-    if (lamoRes.isUnanswered) {
-      const logged = await recordUnansweredQuestion({ question: message, reason: lamoRes.missingInformationReason, visitorEmail, visitorName });
-      if (logged) {
-        questionId = logged.questionId;
-        followUpToken = logged.followUpToken; // only given to the visitor who created it
+    const finish = async (onStep?: (l: string) => void) => {
+      const lamoRes = await runAgent({ question: message, history, onStep });
+
+      // 3. Unanswered workflow (single place that records it)
+      let questionId: string | undefined;
+      let followUpToken: string | undefined;
+      if (lamoRes.isUnanswered) {
+        const logged = await recordUnansweredQuestion({ question: message, reason: lamoRes.missingInformationReason, visitorEmail, visitorName });
+        if (logged) { questionId = logged.questionId; followUpToken = logged.followUpToken; } // only given to the visitor who created it
       }
+
+      // 4. Conversation log (best effort; never fails the answer)
+      if (sessionId) {
+        try {
+          const conv = await prisma.lamoConversation.upsert({ where: { sessionId }, update: {}, create: { sessionId, visitorName, visitorEmail } });
+          await prisma.lamoMessage.createMany({
+            data: [
+              { conversationId: conv.id, role: 'USER', content: message },
+              { conversationId: conv.id, role: 'ASSISTANT', content: lamoRes.answer, retrievedContext: JSON.stringify(lamoRes.citations), confidence: lamoRes.confidence, suggestedActions: JSON.stringify(lamoRes.suggestedActions) },
+            ],
+          });
+        } catch (e) { logger.error('LamoChat.ConversationLog', e as Error); }
+      }
+
+      return {
+        answer: lamoRes.answer, confidence: lamoRes.confidence, citations: lamoRes.citations, suggestedActions: lamoRes.suggestedActions,
+        isUnanswered: lamoRes.isUnanswered, questionId, followUpToken, steps: lamoRes.steps ?? [], followUps: lamoRes.followUps ?? [],
+      };
+    };
+
+    if (body?.stream === true) {
+      const enc = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (o: unknown) => controller.enqueue(enc.encode(JSON.stringify(o) + '\n'));
+          try {
+            const payload = await finish((label) => send({ type: 'step', label }));
+            send({ type: 'done', ...payload });
+          } catch (e) {
+            logger.error('LamoChat.Stream', e as Error);
+            send({ type: 'done', answer: INSUFFICIENT_EVIDENCE_PHRASE, confidence: 'UNKNOWN', citations: [], suggestedActions: [], isUnanswered: false, steps: [], followUps: [] });
+          }
+          controller.close();
+        },
+      });
+      return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' } });
     }
 
-    // 4. Conversation log (best effort; never fails the answer)
-    if (sessionId) {
-      try {
-        const conv = await prisma.lamoConversation.upsert({
-          where: { sessionId },
-          update: {},
-          create: { sessionId, visitorName, visitorEmail },
-        });
-        await prisma.lamoMessage.createMany({
-          data: [
-            { conversationId: conv.id, role: 'USER', content: message },
-            { conversationId: conv.id, role: 'ASSISTANT', content: lamoRes.answer, retrievedContext: JSON.stringify(lamoRes.citations), confidence: lamoRes.confidence, suggestedActions: JSON.stringify(lamoRes.suggestedActions) },
-          ],
-        });
-      } catch (e) {
-        logger.error('LamoChat.ConversationLog', e as Error);
-      }
-    }
-
-    return NextResponse.json({
-      answer: lamoRes.answer,
-      confidence: lamoRes.confidence,
-      citations: lamoRes.citations,
-      suggestedActions: lamoRes.suggestedActions,
-      isUnanswered: lamoRes.isUnanswered,
-      questionId,
-      followUpToken,
-    });
+    return NextResponse.json(await finish());
   } catch (error) {
     logger.error('LamoChat', error as Error);
     return reply({ answer: INSUFFICIENT_EVIDENCE_PHRASE, error: 'server_error' }, 500);

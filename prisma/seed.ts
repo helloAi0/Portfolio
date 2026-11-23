@@ -7,12 +7,12 @@
  * Non-destructive by default: existing records are kept. Set SEED_RESET=true to
  * wipe content tables first (never do this against a production database).
  */
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { nodePrisma } from '../scripts/_nodeDb';
+import { hashPassword } from '../src/lib/services/adminAuthService';
 import { PROFILE } from '../src/config/profile';
 import { ensureTaxonomy } from '../src/lib/taxonomy';
 
-const prisma = new PrismaClient();
+const prisma = nodePrisma;
 
 async function main() {
   console.log('Seeding database (owner-supplied facts only)...');
@@ -69,7 +69,7 @@ async function main() {
         data: {
           username,
           email: (process.env.ADMIN_EMAIL || 'tahaudaipurwala68@gmail.com').toLowerCase(),
-          passwordHash: await bcrypt.hash(adminPassword, 12),
+          passwordHash: await hashPassword(adminPassword),
           role: 'SUPERADMIN',
         },
       });

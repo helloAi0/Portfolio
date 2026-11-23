@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
@@ -518,13 +519,14 @@ model Ambition {
   updatedAt   DateTime @updatedAt
 }
 
-// Uploaded files (certificate scans etc.), stored in the database so they survive Render redeploys
+// Uploaded files (resume PDF, certificate scans, project images). On Cloudflare the bytes live in the R2 bucket
+// (key = id) and only this metadata row is in the database; `data` is a small fallback used when no R2 bucket is bound.
 model StoredFile {
   id        String   @id @default(cuid())
   filename  String
   mimeType  String
   size      Int
-  data      Bytes
+  data      Bytes?
   createdAt DateTime @default(now())
 }
 

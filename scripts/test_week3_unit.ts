@@ -1,3 +1,4 @@
+import './_nodeDb';
 /** Week 3 DB-free unit tests: guardrails, ranking, security helpers, grounded synthesis/validation. */
 import { inspectUserInput, isPureGreeting, sanitizeOutput, INSUFFICIENT_EVIDENCE_PHRASE } from '../src/lib/lamo/guardrails';
 import { rankChunks, MIN_EVIDENCE_SCORE, queryTokens } from '../src/lib/lamo/ranking';

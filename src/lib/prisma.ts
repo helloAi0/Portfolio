@@ -1,14 +1,39 @@
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
+// The WebAssembly build of the client is the one that runs inside a Cloudflare Worker (no native engine).
+// @ts-ignore: same API as '@prisma/client', resolved by the bundler
+import { PrismaClient as WorkerPrismaClient } from '@prisma/client/wasm';
+import { PrismaD1 } from '@prisma/adapter-d1';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+/**
+ * Database access.
+ *  - On Cloudflare (and in `next dev` through the Cloudflare dev proxy) the client talks to the D1 binding named `DB`.
+ *  - In Node scripts and unit tests, scripts/_nodeDb.ts installs a client on globalThis.__LAMO_PRISMA__ first.
+ * `prisma` is a thin proxy so the right client is resolved per request, never at import time (build-safe).
+ */
+const g = globalThis as unknown as { __LAMO_PRISMA__?: PrismaClient };
+const perBinding = new WeakMap<object, PrismaClient>();
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  });
+function cloudflareDb(): object | undefined {
+  const ctx = (globalThis as any)[Symbol.for('__cloudflare-context__')];
+  return ctx?.env?.DB;
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+function resolve(): PrismaClient {
+  if (g.__LAMO_PRISMA__) return g.__LAMO_PRISMA__;
+  const db = cloudflareDb();
+  if (!db) throw new Error('No database: the D1 binding "DB" is missing (see wrangler.jsonc).');
+  let client = perBinding.get(db) as PrismaClient | undefined;
+  if (!client) {
+    client = new WorkerPrismaClient({ adapter: new PrismaD1(db as any), log: ['error'] });
+    perBinding.set(db, client);
+  }
+  return client;
+}
 
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_t, key) {
+    const client = resolve() as any;
+    const v = client[key];
+    return typeof v === 'function' ? v.bind(client) : v;
+  },
+});

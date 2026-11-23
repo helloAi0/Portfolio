@@ -27,7 +27,6 @@ export function parseSchemaModels(schemaText: string): DmmfLikeModel[] {
 export function loadModelInfo(prismaNamespace?: unknown): ModelInfo[] {
   const fromClient = (prismaNamespace as any)?.dmmf?.datamodel?.models;
   if (Array.isArray(fromClient) && fromClient.length) return modelInfoFromDmmf(fromClient);
-  const isPg = /^postgres(ql)?:\/\//.test(process.env.DATABASE_URL || '');
-  const file = path.join(process.cwd(), 'prisma', isPg ? 'schema.postgresql.prisma' : 'schema.prisma');
+  const file = path.join(process.cwd(), 'prisma', 'schema.prisma');
   return modelInfoFromDmmf(parseSchemaModels(fs.readFileSync(file, 'utf8')));
 }

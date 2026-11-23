@@ -6,8 +6,8 @@
  * Run: npm run admin:set
  * Any other admin account is removed, so exactly one owner account exists afterwards.
  */
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { nodePrisma } from './_nodeDb';
+import { hashPassword } from '../src/lib/services/adminAuthService';
 
 function loadDotEnv() {
   try {
@@ -26,9 +26,9 @@ async function main() {
   const username = process.env.ADMIN_USERNAME || 'taha';
   if (!email.includes('@')) throw new Error('Set ADMIN_EMAIL to the owner e-mail first.');
   if (password.length < 12) throw new Error('Set ADMIN_DEFAULT_PASSWORD (12+ characters) first.');
-  const prisma = new PrismaClient();
+  const prisma = nodePrisma;
   try {
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password);
     await prisma.adminUser.deleteMany({ where: { NOT: { email } } });
     await prisma.adminUser.upsert({
       where: { email },

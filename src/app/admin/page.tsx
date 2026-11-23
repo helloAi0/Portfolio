@@ -12,6 +12,7 @@ import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
 import SkillsPanel from '@/components/admin/SkillsPanel';
 import ResumeStudioPanel from '@/components/admin/ResumeStudioPanel';
+import { RecordRow } from '@/components/admin/RecordRow';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import {
@@ -65,6 +66,20 @@ type AdminTab =
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [health, setHealth] = useState<any | null>(null);
+  const [resumeSet, setResumeSet] = useState<boolean | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const [recordBusy, setRecordBusy] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen((o) => !o); setPaletteQuery(''); }
+      else if (e.key === 'Escape') setPaletteOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -167,6 +182,8 @@ export default function AdminDashboardPage() {
       const bioData = bioRes.ok ? await bioRes.json().catch(() => ({ data: null })) : { data: null };
       const copilotData = copilotRes.ok ? await copilotRes.json().catch(() => ({ data: [] })) : { data: [] };
 
+      try { const h = await fetch('/api/health', { cache: 'no-store' }); if (h.ok) setHealth(await h.json()); } catch { /* health card is optional */ }
+      try { const rr = await fetch('/api/admin/resume'); if (rr.ok) setResumeSet(Boolean((await rr.json())?.data?.pdfUrl)); } catch { /* optional */ }
       try {
         const eq = await fetch('/api/admin/enquiries');
         const ej = eq.ok ? await eq.json() : { data: [] };
@@ -201,6 +218,26 @@ export default function AdminDashboardPage() {
     if (res.status === 401) { router.push('/admin/login'); return; }
     const e = await res.json().catch(() => ({}));
     showMsg('error', e?.error || fallback);
+  };
+
+  /** Publish / unpublish / delete for certificates and achievements. */
+  const handleRecordToggle = async (kind: 'certificates' | 'achievements', id: string, publish: boolean) => {
+    setRecordBusy(true);
+    try {
+      const res = await fetch(`/api/admin/${kind}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownerApproved: publish, isPublic: publish }) });
+      if (res.ok) { showMsg('success', publish ? 'Published. It is now visible on the site.' : 'Unpublished. It is hidden from the site.'); await loadAllData(); }
+      else await reportFail(res, 'Could not update the record.');
+    } finally { setRecordBusy(false); }
+  };
+
+  const handleRecordDelete = async (kind: 'certificates' | 'achievements', id: string, title: string) => {
+    if (!confirm(`Delete "${title}" permanently? Its uploaded file is deleted too. This cannot be undone.`)) return;
+    setRecordBusy(true);
+    try {
+      const res = await fetch(`/api/admin/${kind}/${id}`, { method: 'DELETE' });
+      if (res.ok) { showMsg('success', 'Deleted.'); await loadAllData(); }
+      else await reportFail(res, 'Could not delete the record.');
+    } finally { setRecordBusy(false); }
   };
 
   const handleLogout = async () => {
@@ -633,185 +670,201 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const navTabs: { id: AdminTab; label: string; icon: any; count?: number }[] = [
-    { id: 'overview', label: 'Citadel Overview', icon: LayoutDashboard },
-    { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
-    { id: 'projects', label: 'Projects Studio', icon: Layers },
-    { id: 'resume', label: 'Resume Studio', icon: Award },
-    { id: 'manual', label: 'Manual Entry', icon: Settings },
-    { id: 'inbox', label: 'Contact Inbox', icon: Send, count: unreadEnquiries },
-    { id: 'profile', label: 'Profile & Education', icon: Settings },
-    { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length },
-    { id: 'leetcode', label: 'LeetCode', icon: Code2 },
-    { id: 'geeksforgeeks', label: 'GeeksforGeeks', icon: Code2 },
-    { id: 'skills', label: 'Skill Graph Engine', icon: Cpu, count: skills.length },
-    { id: 'certificates', label: 'Certificates Vault', icon: Award, count: certificates.length },
-    { id: 'achievements', label: 'Achievements & Honors', icon: Trophy, count: achievements.length },
-    { id: 'experience', label: 'Experience & Labs', icon: Briefcase, count: experiences.length },
-    { id: 'lamo-questions', label: 'LAMO Question Inbox', icon: Send, count: lamoQuestions.filter((q) => q.status === 'PENDING_OWNER').length },
-    { id: 'lamo-copilot', label: 'LAMO Copilot & Bio', icon: Cpu },
-    { id: 'sync-history', label: 'Synchronization Logs', icon: History, count: syncLogs.length },
-    { id: 'settings', label: 'Integration Settings', icon: Settings },
+  type NavItem = { id: AdminTab; label: string; icon: any; count?: number; hot?: boolean };
+  const pendingRepos = githubRepos.filter((r) => r.classificationStatus === 'SUGGESTED').length;
+  const pendingQuestions = lamoQuestions.filter((q) => q.status === 'PENDING_OWNER').length;
+  const hiddenCerts = certificates.filter((c) => !(c.ownerApproved && c.isPublic)).length;
+  const hiddenAchs = achievements.filter((c) => !(c.ownerApproved && c.isPublic)).length;
+  const navGroups: { title: string; items: NavItem[] }[] = [
+    { title: 'Start', items: [{ id: 'overview', label: 'Overview', icon: LayoutDashboard }] },
+    { title: 'Content', items: [
+      { id: 'projects', label: 'Projects', icon: Layers },
+      { id: 'skills', label: 'Skills', icon: Cpu, count: skills.length },
+      { id: 'certificates', label: 'Certificates', icon: Award, count: certificates.length, hot: hiddenCerts > 0 },
+      { id: 'achievements', label: 'Achievements & Honors', icon: Trophy, count: achievements.length, hot: hiddenAchs > 0 },
+      { id: 'resume', label: 'Resume (PDF)', icon: Award, hot: resumeSet === false },
+      { id: 'profile', label: 'Profile & Education', icon: Settings },
+      { id: 'manual', label: 'Manual Entry', icon: Settings },
+    ] },
+    { title: 'Inbox', items: [
+      { id: 'inbox', label: 'Contact Messages', icon: Send, count: unreadEnquiries, hot: unreadEnquiries > 0 },
+      { id: 'lamo-questions', label: 'LAMO Questions', icon: Send, count: pendingQuestions, hot: pendingQuestions > 0 },
+    ] },
+    { title: 'Automation', items: [
+      { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
+      { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length, hot: pendingRepos > 0 },
+      { id: 'leetcode', label: 'LeetCode', icon: Code2 },
+      { id: 'geeksforgeeks', label: 'GeeksforGeeks', icon: Code2 },
+      { id: 'sync-history', label: 'Sync Logs', icon: History, count: syncLogs.length },
+      { id: 'settings', label: 'Integrations', icon: Settings },
+    ] },
+    { title: 'LAMO', items: [{ id: 'lamo-copilot', label: 'LAMO Copilot & Bio', icon: Cpu }] },
   ];
+  const navTabs: NavItem[] = navGroups.flatMap((g) => g.items);
+  const go = (id: AdminTab) => { setActiveTab(id); setPaletteOpen(false); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+  const attention = ([
+    { label: 'GitHub repositories waiting for your decision', count: pendingRepos, tab: 'github', tone: 'amber' },
+    { label: 'Unread contact messages', count: unreadEnquiries, tab: 'inbox', tone: 'sky' },
+    { label: 'LAMO questions waiting for your answer', count: pendingQuestions, tab: 'lamo-questions', tone: 'amber' },
+    { label: 'Certificates hidden from the site', count: hiddenCerts, tab: 'certificates', tone: 'neutral' },
+    { label: 'Achievements hidden from the site', count: hiddenAchs, tab: 'achievements', tone: 'neutral' },
+    { label: 'Resume PDF not uploaded yet (the Resume page shows “Coming soon”)', count: resumeSet === false ? 1 : 0, tab: 'resume', tone: 'amber' },
+  ] as { label: string; count: number; tab: AdminTab; tone: string }[]).filter((x) => x.count > 0);
+  const toneCls: Record<string, string> = { amber: 'bg-amber-400', sky: 'bg-sky-400', neutral: 'bg-neutral-500' };
+  const paletteHits = navTabs.filter((t) => t.label.toLowerCase().includes(paletteQuery.trim().toLowerCase()));
+  const chip = (ok: boolean, label: string, hint: string) => (
+    <div key={label} className={`rounded-lg border px-3 py-2 ${ok ? 'border-emerald-400/30 bg-emerald-400/[.06]' : 'border-white/10 bg-white/[.02]'}`}>
+      <p className={`text-xs font-mono ${ok ? 'text-emerald-300' : 'text-neutral-300'}`}>{ok ? '✓' : '○'} {label}</p>
+      {!ok && <p className="text-[10px] text-neutral-500 mt-0.5">{hint}</p>}
+    </div>
+  );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Top Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gold-500/20 mb-8">
+    <div className="max-w-[88rem] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Top bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/10 mb-6">
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="font-serif font-black text-2xl text-white">CITADEL COMMAND DESK</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-gold-500/20 text-gold-300 border border-gold-500/40">
-              Control Room
+          <div className="flex items-center gap-2.5">
+            <h1 className="font-serif font-black text-2xl text-white">Command Desk</h1>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border ${health?.database?.status === 'CONNECTED' ? 'border-emerald-400/40 text-emerald-300 bg-emerald-400/10' : 'border-neutral-600 text-neutral-400'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${health?.database?.status === 'CONNECTED' ? 'bg-emerald-400' : 'bg-neutral-500'}`} />
+              {health ? (health.database?.status === 'CONNECTED' ? `Live · ${health.database.latencyMs} ms` : 'Database problem') : 'Checking…'}
             </span>
           </div>
-          <p className="text-xs font-mono text-neutral-400 mt-1">
-            Data Discovery • Project Classification • Evidence Graph • Platform Sync
-          </p>
+          <p className="text-xs text-neutral-400 mt-1">Everything on the public site is managed from here. Nothing appears until you publish it.</p>
         </div>
-
-        <div className="flex items-center space-x-3">
-          <Button
-            onClick={loadAllData}
-            variant="outline"
-            size="sm"
-            icon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
-          >
-            Refresh Telemetry
-          </Button>
-          <Button onClick={handleLogout} variant="secondary" size="sm" icon={<LogOut className="w-3.5 h-3.5" />}>
-            Log Out
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => { setPaletteOpen(true); setPaletteQuery(''); }} className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 text-xs text-neutral-400 hover:text-white hover:border-white/25 transition">
+            Jump to… <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono">Ctrl K</kbd>
+          </button>
+          <Button onClick={loadAllData} variant="outline" size="sm" icon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}>Refresh</Button>
+          <Button onClick={handleLogout} variant="secondary" size="sm" icon={<LogOut className="w-3.5 h-3.5" />}>Log out</Button>
         </div>
       </div>
 
-      {/* Notification Toast */}
+      {/* Toast */}
       {message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`fixed bottom-6 right-6 z-50 max-w-md shadow-2xl p-4 rounded-md text-xs font-mono flex items-center space-x-2 ${
-            message.type === 'success'
-              ? 'bg-emerald-950/80 border border-emerald-500/40 text-emerald-300'
-              : 'bg-red-950/80 border border-red-500/40 text-red-300'
-          }`}
-        >
-          {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+        <div role="status" aria-live="polite" className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] max-w-md shadow-2xl p-4 rounded-xl text-xs font-mono flex items-center gap-2 backdrop-blur ${message.type === 'success' ? 'bg-emerald-950/90 border border-emerald-500/40 text-emerald-200' : 'bg-red-950/90 border border-red-500/40 text-red-200'}`}>
+          {message.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
           <span>{message.text}</span>
+          <button onClick={() => setMessage(null)} aria-label="Dismiss" className="ml-2 opacity-60 hover:opacity-100">✕</button>
         </div>
       )}
 
-      {/* Dashboard Layout: Left Nav + Right Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Navigation Sidebar */}
-        <div className="lg:col-span-3 space-y-1">
-          {navTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded text-xs font-mono uppercase tracking-wider transition-all text-left ${
-                  isActive
-                    ? 'bg-gold-500 text-imperial-950 font-bold shadow-md'
-                    : 'text-neutral-400 hover:text-white hover:bg-imperial-900'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </div>
-                {tab.count !== undefined && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[10px] ${
-                      isActive ? 'bg-imperial-950/30 text-imperial-950' : 'bg-imperial-800 text-gold-400'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+      {/* Command palette */}
+      {paletteOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[16vh] px-4" onClick={() => setPaletteOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0b0e16] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <input autoFocus value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && paletteHits[0]) go(paletteHits[0].id); }} placeholder="Where do you want to go?" className="w-full bg-transparent px-4 py-3.5 text-sm text-white placeholder-neutral-600 focus:outline-none border-b border-white/10" />
+            <ul className="max-h-72 overflow-y-auto py-1">
+              {paletteHits.map((t) => { const I = t.icon; return (
+                <li key={t.id}><button onClick={() => go(t.id)} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-300 hover:bg-white/5 hover:text-white text-left"><I className="w-4 h-4 text-gold-400" />{t.label}{t.count ? <span className="ml-auto text-[10px] font-mono text-neutral-500">{t.count}</span> : null}</button></li>
+              ); })}
+              {paletteHits.length === 0 && <li className="px-4 py-3 text-xs text-neutral-500">Nothing matches.</li>}
+            </ul>
+          </div>
         </div>
+      )}
 
-        {/* Main Content Chamber */}
-        <div className="lg:col-span-9">
-          {/* TAB 1: OVERVIEW */}
+      {/* Layout: sticky grouped sidebar + panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <nav aria-label="Admin sections" className="lg:col-span-3 xl:col-span-2 lg:sticky lg:top-24 self-start lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto pr-1">
+          {navGroups.map((g) => (
+            <div key={g.title} className="mb-4">
+              <p className="px-2 mb-1.5 text-[10px] font-mono uppercase tracking-[0.25em] text-neutral-600">{g.title}</p>
+              <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
+                {g.items.map((tab) => {
+                  const Icon = tab.icon; const isActive = activeTab === tab.id;
+                  return (
+                    <button key={tab.id} onClick={() => go(tab.id)} aria-current={isActive ? 'page' : undefined}
+                      className={`shrink-0 lg:w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-[13px] transition text-left whitespace-nowrap ${isActive ? 'bg-gold-500 text-imperial-950 font-semibold shadow' : 'text-neutral-400 hover:text-white hover:bg-white/5'}`}>
+                      <span className="flex items-center gap-2.5"><Icon className="w-4 h-4" />{tab.label}</span>
+                      <span className="flex items-center gap-1.5">
+                        {tab.hot && !isActive && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" aria-label="Needs attention" />}
+                        {tab.count !== undefined && tab.count > 0 && <span className={`px-1.5 rounded text-[10px] font-mono ${isActive ? 'bg-black/20' : 'bg-white/10 text-gold-300'}`}>{tab.count}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Main content */}
+        <div className="lg:col-span-9 xl:col-span-10 min-w-0">
+          {/* OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Card variant="marble" className="p-5">
-                  <span className="text-[10px] font-mono text-neutral-400 uppercase block mb-1">Synced Repos</span>
-                  <span className="text-3xl font-serif font-black text-white">{githubRepos.length}</span>
-                  <span className="text-[10px] font-mono text-gold-400 block mt-1">@helloAi0</span>
-                </Card>
+              <Card variant="marble" className="p-6">
+                <h3 className="font-serif font-bold text-lg text-white mb-1">Needs your attention</h3>
+                {attention.length === 0 ? (
+                  <p className="text-sm text-emerald-300 mt-2">✓ All clear. Nothing is waiting for you.</p>
+                ) : (
+                  <ul className="mt-3 divide-y divide-white/5">
+                    {attention.map((x) => (
+                      <li key={x.label} className="flex items-center gap-3 py-2.5">
+                        <span className={`w-2 h-2 rounded-full ${toneCls[x.tone]}`} />
+                        <span className="flex-1 text-sm text-neutral-200">{x.label}</span>
+                        <span className="text-sm font-mono text-white">{x.count}</span>
+                        <button onClick={() => go(x.tab)} className="px-3 py-1 rounded-lg border border-gold-500/40 text-gold-300 text-xs hover:bg-gold-500/10">Open</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
 
-                <Card variant="marble" className="p-5">
-                  <span className="text-[10px] font-mono text-neutral-400 uppercase block mb-1">Pending Review</span>
-                  <span className="text-3xl font-serif font-black text-amber-300">
-                    {githubRepos.filter((r) => r.classificationStatus === 'SUGGESTED').length}
-                  </span>
-                  <span className="text-[10px] font-mono text-neutral-500 block mt-1">Awaiting Approval</span>
-                </Card>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { l: 'Repositories synced', v: githubRepos.length, c: 'text-white', s: '@helloAi0' },
+                  { l: 'Skills cataloged', v: skills.length, c: 'text-emerald-300', s: 'with evidence tiers' },
+                  { l: 'Certificates', v: certificates.length, c: 'text-gold-300', s: `${certificates.length - hiddenCerts} live` },
+                  { l: 'Achievements', v: achievements.length, c: 'text-sky-300', s: `${achievements.length - hiddenAchs} live` },
+                ].map((c) => (
+                  <Card key={c.l} variant="marble" className="p-5">
+                    <span className="text-[10px] font-mono text-neutral-400 uppercase block mb-1">{c.l}</span>
+                    <span className={`text-3xl font-serif font-black ${c.c}`}>{c.v}</span>
+                    <span className="text-[10px] font-mono text-neutral-500 block mt-1">{c.s}</span>
+                  </Card>
+                ))}
+              </div>
 
-                <Card variant="marble" className="p-5">
-                  <span className="text-[10px] font-mono text-neutral-400 uppercase block mb-1">Cataloged Skills</span>
-                  <span className="text-3xl font-serif font-black text-emerald-300">{skills.length}</span>
-                  <span className="text-[10px] font-mono text-neutral-500 block mt-1">5 Evidence Tiers</span>
+              <div className="grid lg:grid-cols-2 gap-6">
+                <Card variant="marble" className="p-6">
+                  <h3 className="font-serif font-bold text-lg text-white mb-3">System status</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {chip(health?.database?.status === 'CONNECTED', 'Database', 'Cannot reach the database.')}
+                    {chip(!!health?.integrations?.githubSync, 'GitHub sync', 'Add GITHUB_TOKEN for higher limits.')}
+                    {chip(!!health?.integrations?.geminiLlm, 'LAMO language model', 'Add GEMINI_API_KEY (LAMO still works without it).')}
+                    {chip(!!health?.integrations?.emailNotifications, 'Email notifications', 'Add RESEND_API_KEY and EMAIL_FROM to get emails.')}
+                  </div>
                 </Card>
-
-                <Card variant="marble" className="p-5">
-                  <span className="text-[10px] font-mono text-neutral-400 uppercase block mb-1">Sync Log Records</span>
-                  <span className="text-3xl font-serif font-black text-gold-300">{syncLogs.length}</span>
-                  <span className="text-[10px] font-mono text-neutral-500 block mt-1">Audit Trail Active</span>
+                <Card variant="marble" className="p-6">
+                  <h3 className="font-serif font-bold text-lg text-white mb-3">Quick actions</h3>
+                  <div className="flex flex-wrap gap-3">
+                    <Button onClick={handleTriggerGithubSync} disabled={loading} variant="primary" size="sm" icon={<Github className="w-3.5 h-3.5" />}>Sync GitHub now</Button>
+                    <Button onClick={handleTriggerCodingSync} disabled={loading} variant="secondary" size="sm" icon={<Code2 className="w-3.5 h-3.5" />}>Sync LeetCode & GFG</Button>
+                    <Button onClick={() => go('certificates')} variant="outline" size="sm">Add certificate</Button>
+                    <Button onClick={() => go('achievements')} variant="outline" size="sm">Add achievement</Button>
+                    <Button onClick={() => go('resume')} variant="outline" size="sm">Upload resume</Button>
+                  </div>
                 </Card>
               </div>
 
-              {/* Quick Actions */}
               <Card variant="marble" className="p-6">
-                <h3 className="font-serif font-bold text-lg text-white mb-4">Immediate Synchronization Actions</h3>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    onClick={handleTriggerGithubSync}
-                    disabled={loading}
-                    variant="primary"
-                    size="sm"
-                    icon={<Github className="w-3.5 h-3.5" />}
-                  >
-                    Trigger GitHub Discovery Sync
-                  </Button>
-                  <Button
-                    onClick={handleTriggerCodingSync}
-                    disabled={loading}
-                    variant="secondary"
-                    size="sm"
-                    icon={<Code2 className="w-3.5 h-3.5" />}
-                  >
-                    Sync LeetCode & GFG Stats
-                  </Button>
-                </div>
-              </Card>
-
-              {/* Recent Sync Audit Stream */}
-              <Card variant="marble" className="p-6">
-                <h3 className="font-serif font-bold text-lg text-white mb-4">Recent Audit Ingestion Stream</h3>
+                <h3 className="font-serif font-bold text-lg text-white mb-4">Recent sync activity</h3>
                 <div className="space-y-2">
+                  {syncLogs.length === 0 && <p className="text-xs text-neutral-500 font-mono">No sync has run yet.</p>}
                   {syncLogs.slice(0, 5).map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-3 rounded bg-imperial-950 border border-white/5 flex items-center justify-between text-xs font-mono"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={log.status === 'SUCCESS' ? 'verified' : 'detected'} size="xs">
-                          {log.status}
-                        </Badge>
+                    <div key={log.id} className="p-3 rounded bg-imperial-950 border border-white/5 flex items-center justify-between gap-3 text-xs font-mono">
+                      <div className="flex items-center gap-2 flex-wrap min-w-0">
+                        <Badge variant={log.status === 'SUCCESS' ? 'verified' : 'detected'} size="xs">{log.status}</Badge>
                         <span className="text-white font-bold">{log.integration?.platform || 'SYNC'}</span>
-                        <span className="text-neutral-400">Trigger: {log.trigger}</span>
-                        {log.details && <span className="text-gold-300/80">• {log.details}</span>}
+                        <span className="text-neutral-400">{log.trigger}</span>
+                        {log.details && <span className="text-gold-300/80 truncate">• {log.details}</span>}
                       </div>
-                      <span className="text-[10px] text-neutral-500">{new Date(log.syncedAt).toLocaleTimeString()}</span>
+                      <span className="text-[10px] text-neutral-500 shrink-0">{new Date(log.syncedAt).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -1118,16 +1171,10 @@ export default function AdminDashboardPage() {
 
               {/* Existing Certificates */}
               <div className="space-y-3">
+                {certificates.length === 0 && <p className="text-xs text-neutral-500 font-mono">No certificates yet. Add one above and it will appear in the Certificates hall.</p>}
                 {certificates.map((cert) => (
-                  <Card key={cert.id} variant="marble" className="p-4 flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-white text-sm">{cert.title}</h4>
-                      <p className="text-xs text-gold-300 font-mono">{cert.issuingOrganization}</p>
-                    </div>
-                    <Badge variant={cert.ownerApproved ? 'verified' : 'detected'} size="xs">
-                      {cert.verificationStatus}
-                    </Badge>
-                  </Card>
+                  <RecordRow key={cert.id} title={cert.title} subtitle={cert.issuingOrganization} approved={!!cert.ownerApproved} isPublic={!!cert.isPublic} fileUrl={cert.filePath} busy={recordBusy}
+                    onToggle={(pub) => handleRecordToggle('certificates', cert.id, pub)} onDelete={() => handleRecordDelete('certificates', cert.id, cert.title)} />
                 ))}
               </div>
             </div>
@@ -1172,16 +1219,10 @@ export default function AdminDashboardPage() {
               </Card>
 
               <div className="space-y-3">
+                {achievements.length === 0 && <p className="text-xs text-neutral-500 font-mono">No achievements yet. Add one above and it will rise into the Heaven sky.</p>}
                 {achievements.map((item) => (
-                  <Card key={item.id} variant="marble" className="p-4 flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-white text-sm">{item.title}</h4>
-                      <p className="text-xs text-neutral-400 font-mono">{item.organization}</p>
-                    </div>
-                    <Badge variant={item.ownerApproved ? 'verified' : 'detected'} size="xs">
-                      {item.verificationStatus}
-                    </Badge>
-                  </Card>
+                  <RecordRow key={item.id} title={item.title} subtitle={`${item.organization}${item.rankOrAward ? ' · ' + item.rankOrAward : ''}`} approved={!!item.ownerApproved} isPublic={!!item.isPublic} fileUrl={item.proofUrl} busy={recordBusy}
+                    onToggle={(pub) => handleRecordToggle('achievements', item.id, pub)} onDelete={() => handleRecordDelete('achievements', item.id, item.title)} />
                 ))}
               </div>
             </div>

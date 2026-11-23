@@ -1,3 +1,4 @@
+import './_nodeDb';
 /**
  * Week 2 DB-free tests: classifier, term matching, difficulty rubric, webhook signature,
  * backoff/error classification, live-URL extraction + SSRF guard. Run: npm run test:unit

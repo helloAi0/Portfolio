@@ -1,476 +1,324 @@
 'use client';
 
-import { LamoMark } from '@/components/brand/LamoMark';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { AgentIcon } from './AgentIcon';
 
-interface MessageCitation {
-  source: string;
-  title: string;
-  status: string;
-  url?: string;
-}
-
-interface NavigationPill {
-  label: string;
-  href: string;
-  badge?: string;
-}
-
+interface Citation { source: string; title: string; status: string; url?: string }
+interface Pill { label: string; href: string }
 interface ChatMessage {
   id: string;
   role: 'USER' | 'ASSISTANT';
   content: string;
   confidence?: string;
-  citations?: MessageCitation[];
-  suggestedActions?: NavigationPill[];
+  citations?: Citation[];
+  suggestedActions?: Pill[];
+  followUps?: string[];
+  steps?: string[];
   isUnanswered?: boolean;
   questionId?: string;
   followUpToken?: string;
-  timestamp: string;
+  time: string;
+  error?: boolean;
 }
 
+const FALLBACK = "I don't currently have verified information about that specific experience. I can forward this question to the portfolio owner for clarification.";
+const STARTERS = [
+  { t: 'Who is Taha?', s: 'A short introduction' },
+  { t: 'What projects has he built?', s: 'Real, published work' },
+  { t: 'Which skills are verified?', s: 'With evidence' },
+  { t: 'How can I contact him?', s: 'Email and links' },
+];
+const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const uid = (p: string) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
 function newSessionId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return 'ses_' + crypto.randomUUID().replace(/-/g, '');
-  } catch {}
+  try { if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return 'ses_' + crypto.randomUUID().replace(/-/g, ''); } catch { /* fall through */ }
   return 'ses_' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-const SUGGESTED_QUESTIONS = [
-  'Tell me about this engineer.',
-  'What projects has he built?',
-  'Which skills are verified?',
-  'What is his educational background?',
-  'How can I contact him?',
-];
+/** Small, safe formatter: paragraphs, "- " lists, **bold**, and https links. Never injects HTML. */
+function Rich({ text }: { text: string }) {
+  const inline = (s: string, k: string): React.ReactNode[] =>
+    s.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s)]+)/g).filter(Boolean).map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) return <strong key={k + i} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
+      if (/^https?:\/\//.test(part)) return <a key={k + i} href={part} target="_blank" rel="noopener noreferrer" className="text-amber-300 underline underline-offset-2 break-all">{part}</a>;
+      return <React.Fragment key={k + i}>{part}</React.Fragment>;
+    });
+  const blocks: React.ReactNode[] = [];
+  let list: string[] = [];
+  const flush = (i: number) => { if (list.length) { blocks.push(<ul key={'u' + i} className="my-1.5 space-y-1 pl-4 list-disc marker:text-amber-400/70">{list.map((l, j) => <li key={j}>{inline(l, `l${i}${j}`)}</li>)}</ul>); list = []; } };
+  text.split('\n').forEach((line, i) => {
+    const m = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
+    if (m) { list.push(m[1]); return; }
+    flush(i);
+    if (line.trim()) blocks.push(<p key={'p' + i} className="my-1.5">{inline(line, `p${i}`)}</p>);
+  });
+  flush(9999);
+  return <>{blocks}</>;
+}
+
+function Tier({ v }: { v: string }) {
+  const map: Record<string, [string, string]> = {
+    VERIFIED: ['Verified', 'text-emerald-300 border-emerald-400/30 bg-emerald-400/10'],
+    OWNER_CONFIRMED: ['Stated by owner', 'text-amber-300 border-amber-400/30 bg-amber-400/10'],
+    IN_PROGRESS: ['In progress', 'text-sky-300 border-sky-400/30 bg-sky-400/10'],
+  };
+  const m = map[v];
+  if (!m) return null;
+  return <span className={`text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border ${m[1]}`}>{m[0]}</span>;
+}
 
 export default function LamoChatWidget() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [wide, setWide] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [liveSteps, setLiveSteps] = useState<string[]>([]);
+  const [typing, setTyping] = useState<{ id: string; shown: number } | null>(null);
   const [sessionId, setSessionId] = useState('');
-  const [followupEmail, setFollowupEmail] = useState<{ [qId: string]: string }>({});
-  const [followupStatus, setFollowupStatus] = useState<{ [qId: string]: 'idle' | 'sending' | 'sent' | 'error' }>({});
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [mail, setMail] = useState<Record<string, string>>({});
+  const [mailState, setMailState] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({});
+  const [copied, setCopied] = useState('');
+  const endRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  const reduce = useRef(false);
 
-  // Initialize session ID
   useEffect(() => {
+    reduce.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let sid: string | null = null;
-    try { sid = typeof window !== 'undefined' ? localStorage.getItem('lamo_session_id') : null; } catch {}
+    try { sid = localStorage.getItem('lamo_session_id'); } catch { /* storage blocked */ }
     if (sid && !/^[A-Za-z0-9_-]{16,64}$/.test(sid)) sid = null;
-    if (!sid) {
-      sid = newSessionId();
-      try { if (typeof window !== 'undefined') localStorage.setItem('lamo_session_id', sid); } catch {}
-    }
+    if (!sid) { sid = newSessionId(); try { localStorage.setItem('lamo_session_id', sid); } catch { /* ignore */ } }
     setSessionId(sid);
-
-    // Initial greeting
-    setMessages([
-      {
-        id: 'msg_welcome',
-        role: 'ASSISTANT',
-        content:
-          'Hello, I am **LAMO**, the Personal AI Portfolio Manager for Taha Udaipurwala. I answer questions using only the verified records on this site: his education, projects, skills and certificates. If I do not have verified information, I will say so.',
-        confidence: 'VERIFIED',
-        citations: [
-          { source: 'Profile:TahaUdaipurwala', title: 'About Taha Udaipurwala', status: 'VERIFIED', url: '/about' },
-        ],
-        suggestedActions: [
-          { label: 'Projects', href: '/projects' },
-          { label: 'Journey', href: '/journey' },
-          { label: 'Coding Arena', href: '/coding-arena' },
-        ],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
   }, []);
 
-  // Auto-scroll to bottom of messages
+  useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: reduce.current ? 'auto' : 'smooth', block: 'end' }); }, [messages, liveSteps, typing, open, busy]);
+  useEffect(() => { if (open) setTimeout(() => boxRef.current?.focus(), 60); }, [open]);
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, []);
+
+  // typewriter reveal of the newest answer
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isOpen, loading]);
+    if (!typing) return;
+    const m = messages.find((x) => x.id === typing.id);
+    if (!m) { setTyping(null); return; }
+    if (typing.shown >= m.content.length) { setTyping(null); return; }
+    const step = Math.max(2, Math.round(m.content.length / 90));
+    const t = setTimeout(() => setTyping({ id: typing.id, shown: Math.min(m.content.length, typing.shown + step) }), 16);
+    return () => clearTimeout(t);
+  }, [typing, messages]);
 
-  const handleSendMessage = async (textToSend?: string) => {
-    const text = (textToSend || input).trim();
-    if (!text || loading) return;
-
-    const userMsg: ChatMessage = {
-      id: 'usr_' + Date.now(),
-      role: 'USER',
-      content: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    if (!textToSend) setInput('');
-    setLoading(true);
-
+  const send = useCallback(async (text?: string) => {
+    const q = (text ?? input).trim();
+    if (!q || busy) return;
+    const history = messages.filter((m) => !m.error).slice(-8).map((m) => ({ role: m.role, content: m.content }));
+    setMessages((p) => [...p, { id: uid('u'), role: 'USER', content: q, time: now() }]);
+    setInput('');
+    setBusy(true);
+    setLiveSteps([]);
+    let final: any = null;
     try {
-      const res = await fetch('/api/lamo/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          sessionId,
-        }),
-      });
-
-      const data = await res.json();
-
-      const assistantMsg: ChatMessage = {
-        id: 'asst_' + Date.now(),
-        role: 'ASSISTANT',
-        content: data.answer || "I don't currently have verified information about that specific experience. I can forward this question to the portfolio owner for clarification.",
-        confidence: data.confidence || 'UNKNOWN',
-        citations: data.citations || [],
-        suggestedActions: data.suggestedActions || [],
-        isUnanswered: !!data.isUnanswered,
-        questionId: data.questionId,
-        followUpToken: data.followUpToken,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
-    } catch (err) {
-      console.error('LAMO chat error:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'asst_err_' + Date.now(),
-          role: 'ASSISTANT',
-          content: "I don't currently have verified information about that specific experience. I can forward this question to the portfolio owner for clarification.",
-          confidence: 'UNKNOWN',
-          citations: [],
-          suggestedActions: [{ label: 'View Projects', href: '/projects' }],
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFollowupSubmit = async (qId: string) => {
-    const email = followupEmail[qId]?.trim();
-    if (!email) return;
-    const followUpToken = messages.find((m) => m.questionId === qId && m.followUpToken)?.followUpToken;
-    if (!followUpToken) {
-      setFollowupStatus((prev) => ({ ...prev, [qId]: 'error' }));
-      return;
-    }
-
-    setFollowupStatus((prev) => ({ ...prev, [qId]: 'sending' }));
-
-    try {
-      const res = await fetch('/api/lamo/followup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          questionId: qId,
-          followUpToken,
-          visitorEmail: email,
-        }),
-      });
-
-      if (res.ok) {
-        setFollowupStatus((prev) => ({ ...prev, [qId]: 'sent' }));
-      } else {
-        setFollowupStatus((prev) => ({ ...prev, [qId]: 'error' }));
+      const res = await fetch('/api/lamo/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: q, sessionId, history, stream: true }) });
+      if (!res.ok || !res.body) { final = await res.json().catch(() => ({})); }
+      else {
+        const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          let nl;
+          while ((nl = buf.indexOf('\n')) >= 0) {
+            const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+            if (!line) continue;
+            try {
+              const ev = JSON.parse(line);
+              if (ev.type === 'step') setLiveSteps((s) => [...s, ev.label]);
+              else if (ev.type === 'done') final = ev;
+            } catch { /* ignore a partial line */ }
+          }
+        }
       }
-    } catch {
-      setFollowupStatus((prev) => ({ ...prev, [qId]: 'error' }));
-    }
+    } catch { /* network error handled below */ }
+    const id = uid('a');
+    const ok = final && typeof final.answer === 'string' && final.answer;
+    setMessages((p) => [...p, {
+      id, role: 'ASSISTANT', time: now(), error: !ok,
+      content: ok ? final.answer : FALLBACK,
+      confidence: ok ? final.confidence : 'UNKNOWN',
+      citations: final?.citations ?? [], suggestedActions: final?.suggestedActions ?? [], followUps: final?.followUps ?? [],
+      steps: final?.steps ?? [], isUnanswered: !!final?.isUnanswered, questionId: final?.questionId, followUpToken: final?.followUpToken,
+    }]);
+    setLiveSteps([]);
+    setBusy(false);
+    if (reduce.current) setTyping(null); else setTyping({ id, shown: 0 });
+  }, [input, busy, messages, sessionId]);
+
+  const notify = async (qId: string) => {
+    const email = mail[qId]?.trim();
+    const token = messages.find((m) => m.questionId === qId && m.followUpToken)?.followUpToken;
+    if (!email || !token) { setMailState((s) => ({ ...s, [qId]: 'error' })); return; }
+    setMailState((s) => ({ ...s, [qId]: 'sending' }));
+    try {
+      const r = await fetch('/api/lamo/followup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ questionId: qId, followUpToken: token, visitorEmail: email }) });
+      setMailState((s) => ({ ...s, [qId]: r.ok ? 'sent' : 'error' }));
+    } catch { setMailState((s) => ({ ...s, [qId]: 'error' })); }
   };
 
-  const clearChat = () => {
-    const sid = newSessionId();
-    setSessionId(sid);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lamo_session_id', sid);
-    }
-    setMessages([
-      {
-        id: 'msg_welcome_' + Date.now(),
-        role: 'ASSISTANT',
-        content: 'Conversation history reset. How may I assist you with Taha Udaipurwala\'s engineering portfolio?',
-        confidence: 'VERIFIED',
-        citations: [],
-        suggestedActions: [
-          { label: 'Robotics Projects', href: '/projects?category=Robotics' },
-          { label: 'Technical Skills', href: '/skills' },
-        ],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
+  const reset = () => {
+    const sid = newSessionId(); setSessionId(sid);
+    try { localStorage.setItem('lamo_session_id', sid); } catch { /* ignore */ }
+    setMessages([]); setLiveSteps([]); setTyping(null); setBusy(false);
   };
+  const copy = async (m: ChatMessage) => { try { await navigator.clipboard.writeText(m.content); setCopied(m.id); setTimeout(() => setCopied(''), 1400); } catch { /* clipboard blocked */ } };
+  const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+  const grow = (el: HTMLTextAreaElement) => { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-sans">
-      {/* Floating Launcher Button */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="group relative flex items-center space-x-3 px-4 py-3 bg-[#0d1017]/95 hover:bg-[#151923] border border-[#d4af37]/60 hover:border-[#d4af37] text-[#e2e8f0] rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95"
-          aria-label="Open LAMO AI Portfolio Manager"
-        >
-          {/* Glowing pulse ring */}
-          <span className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-[#d4af37]/30 to-[#ffd700]/10 blur opacity-60 group-hover:opacity-100 transition duration-300"></span>
-
-          {/* Horse / Imperial Shield Icon */}
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#1b202c] border border-[#d4af37]/80 text-[#d4af37] shadow-inner">
-            <LamoMark size={18} />
-          </div>
-
-          <div className="relative text-left pr-1">
-            <div className="text-[10px] tracking-widest uppercase font-mono text-[#d4af37] font-semibold">
-              AI Manager
-            </div>
-            <div className="text-xs font-semibold text-white tracking-wide">
-              Ask LAMO
-            </div>
-          </div>
-
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+    <div className="fixed z-50 bottom-4 right-4 sm:bottom-6 sm:right-6 font-sans">
+      {!open && (
+        <button onClick={() => setOpen(true)} aria-label="Open LAMO, the AI agent" className="lamo-launch group flex items-center gap-3 pl-2 pr-4 py-2 rounded-full bg-[#0a0d16]/95 border border-amber-300/40 hover:border-amber-300/80 backdrop-blur-md transition hover:scale-[1.03] active:scale-95">
+          <span className="grid place-items-center w-10 h-10 rounded-full bg-gradient-to-br from-[#1a2036] to-[#0c1020] border border-amber-300/30"><AgentIcon size={30} /></span>
+          <span className="text-left leading-tight">
+            <span className="block text-[10px] font-mono uppercase tracking-[0.22em] text-amber-300">AI agent</span>
+            <span className="block text-sm font-semibold text-white">Ask LAMO</span>
           </span>
         </button>
       )}
 
-      {/* Expanded Chat Drawer */}
-      {isOpen && (
-        <div className="w-[92vw] sm:w-[440px] h-[600px] max-h-[85vh] flex flex-col bg-[#0b0d13] border border-[#d4af37]/40 rounded-2xl shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#11151f] border-b border-[#d4af37]/20">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-full bg-[#181d28] border border-[#d4af37] flex items-center justify-center text-[#d4af37]">
-                <LamoMark size={18} />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-sm font-serif font-bold text-white tracking-wide">
-                    LAMO
-                  </h3>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/30 font-mono">
-                    PORTFOLIO AI
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-400 font-mono">
-                  Taha Udaipurwala • Verified Knowledge
-                </p>
-              </div>
+      {open && (
+        <section aria-label="LAMO chat" className={`flex flex-col overflow-hidden rounded-2xl border border-amber-300/25 bg-[#080b13] shadow-[0_24px_80px_rgba(0,0,0,.65)] fixed inset-2 sm:static sm:inset-auto ${wide ? 'sm:w-[640px] sm:h-[78vh]' : 'sm:w-[440px] sm:h-[640px]'} sm:max-h-[88vh] max-sm:!w-auto`}>
+          <header className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-gradient-to-b from-[#121830] to-[#0b0f1c]">
+            <span className="grid place-items-center w-10 h-10 rounded-xl bg-[#0d1224] border border-amber-300/30"><AgentIcon size={32} thinking={busy} /></span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-white leading-none">LAMO <span className="ml-1 text-[10px] font-mono text-amber-300/90 uppercase tracking-widest">AI agent</span></h2>
+              <p className="mt-1 text-[11px] text-neutral-400 flex items-center gap-1.5"><span className={`inline-block w-1.5 h-1.5 rounded-full ${busy ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />{busy ? 'Working through the records…' : 'Answers only from verified records'}</p>
             </div>
-
-            <div className="flex items-center space-x-1">
-              <button
-                onClick={clearChat}
-                title="Reset conversation"
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                title="Minimize chat"
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div className="flex items-center gap-0.5 text-neutral-400">
+              <button onClick={() => setWide((w) => !w)} title={wide ? 'Smaller' : 'Larger'} aria-label="Toggle size" className="hidden sm:grid place-items-center w-8 h-8 rounded-lg hover:bg-white/5 hover:text-white"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={wide ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5' : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'} /></svg></button>
+              <button onClick={reset} title="New conversation" aria-label="New conversation" className="grid place-items-center w-8 h-8 rounded-lg hover:bg-white/5 hover:text-white"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg></button>
+              <button onClick={() => setOpen(false)} title="Close" aria-label="Close chat" className="grid place-items-center w-8 h-8 rounded-lg hover:bg-white/5 hover:text-white"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
             </div>
-          </div>
+          </header>
 
-          {/* Messages Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-800">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${msg.role === 'USER' ? 'items-end' : 'items-start'}`}
-              >
-                {/* Message Bubble */}
-                <div
-                  className={`max-w-[88%] rounded-xl p-3.5 text-xs sm:text-sm leading-relaxed ${
-                    msg.role === 'USER'
-                      ? 'bg-gradient-to-r from-[#212735] to-[#1a1f2b] text-white border border-[#d4af37]/30 rounded-br-none shadow-md'
-                      : 'bg-[#121622] text-gray-200 border border-gray-800/80 rounded-bl-none shadow-lg'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                  {/* Verification Badge */}
-                  {msg.role === 'ASSISTANT' && msg.confidence && (
-                    <div className="mt-2.5 pt-2 border-t border-white/5 flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold ${
-                          msg.confidence === 'VERIFIED'
-                            ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/50'
-                            : msg.confidence === 'OWNER_CONFIRMED'
-                            ? 'bg-amber-950/60 text-amber-400 border border-amber-800/50'
-                            : msg.confidence === 'IN_PROGRESS'
-                            ? 'bg-blue-950/60 text-blue-400 border border-blue-800/50'
-                            : 'bg-neutral-900 text-gray-400 border border-gray-800'
-                        }`}
-                      >
-                        {msg.confidence}
-                      </span>
-
-                      {msg.questionId && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                          Ref: {msg.questionId}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Citations List */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/5">
-                      <div className="text-[10px] font-mono text-gray-400 uppercase tracking-wider mb-1">
-                        Verified Sources:
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {msg.citations.map((c, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1c2230] text-gray-300 border border-gray-700/60"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#d4af37] mr-1"></span>
-                            {c.title || c.source}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Suggested Navigation Actions */}
-                  {msg.suggestedActions && msg.suggestedActions.length > 0 && (
-                    <div className="mt-2.5 pt-2 border-t border-white/5 flex flex-wrap gap-1.5">
-                      {msg.suggestedActions.map((action, idx) => (
-                        <Link
-                          key={idx}
-                          href={action.href}
-                          onClick={() => setIsOpen(false)}
-                          className="text-[11px] font-mono px-2 py-1 rounded bg-[#181d29] hover:bg-[#22293a] text-[#d4af37] hover:text-[#ffd700] border border-[#d4af37]/30 hover:border-[#d4af37] transition inline-flex items-center space-x-1"
-                        >
-                          <span>{action.label}</span>
-                          <span>→</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Inline Follow-up capture for Unanswered Questions */}
-                  {msg.isUnanswered && msg.questionId && (
-                    <div className="mt-3 p-2.5 rounded-lg bg-[#181d28] border border-amber-500/30">
-                      <p className="text-[11px] text-amber-200/90 mb-2">
-                        Would you like Taha to follow up with you directly once he answers?
-                      </p>
-
-                      {followupStatus[msg.questionId] === 'sent' ? (
-                        <div className="text-[11px] text-emerald-400 font-mono">
-                          ✓ Notification saved. Taha has been notified!
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-1.5">
-                          <input
-                            type="email"
-                            placeholder="Your email address"
-                            value={followupEmail[msg.questionId] || ''}
-                            onChange={(e) =>
-                              setFollowupEmail({ ...followupEmail, [msg.questionId!]: e.target.value })
-                            }
-                            className="flex-1 px-2 py-1 text-xs bg-[#0f121a] border border-gray-700 rounded text-white focus:outline-none focus:border-[#d4af37]"
-                          />
-                          <button
-                            onClick={() => handleFollowupSubmit(msg.questionId!)}
-                            disabled={followupStatus[msg.questionId] === 'sending'}
-                            className="px-2.5 py-1 text-xs bg-[#d4af37] hover:bg-[#aa7c11] text-black font-semibold rounded transition"
-                          >
-                            {followupStatus[msg.questionId] === 'sending' ? 'Saving...' : 'Notify Me'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+          <div className="lamo-scroll flex-1 overflow-y-auto px-4 py-4 space-y-5" aria-live="polite">
+            {messages.length === 0 && (
+              <div className="lamo-msg">
+                <div className="flex items-center gap-3">
+                  <span className="grid place-items-center w-12 h-12 rounded-2xl bg-[#0d1224] border border-amber-300/25"><AgentIcon size={38} /></span>
+                  <div><p className="text-base font-semibold text-white">Hi, I&apos;m LAMO.</p><p className="text-xs text-neutral-400">I&apos;m an AI agent for {`Taha Udaipurwala`}&apos;s portfolio.</p></div>
                 </div>
-
-                <span className="text-[10px] text-gray-500 font-mono mt-1 px-1">
-                  {msg.timestamp}
-                </span>
-              </div>
-            ))}
-
-            {/* Typing Indicator */}
-            {loading && (
-              <div className="flex items-center space-x-2 p-3 bg-[#121622] border border-gray-800 rounded-xl w-24">
-                <div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full animate-bounce"></div>
-                <div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                <div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                <p className="mt-3 text-sm text-neutral-300 leading-relaxed">I look through his verified projects, skills, education, certificates and coding activity, show you what I checked, and tell you plainly when I don&apos;t know something.</p>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  {STARTERS.map((s) => (
+                    <button key={s.t} onClick={() => send(s.t)} className="text-left rounded-xl border border-white/8 bg-white/[.03] hover:bg-white/[.07] hover:border-amber-300/40 p-3 transition">
+                      <span className="block text-[13px] text-white leading-snug">{s.t}</span>
+                      <span className="block mt-1 text-[11px] text-neutral-500">{s.s}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div ref={messagesEndRef} />
+            {messages.map((m) => {
+              const isTyping = typing?.id === m.id;
+              const text = isTyping ? m.content.slice(0, typing!.shown) : m.content;
+              const done = !isTyping;
+              return m.role === 'USER' ? (
+                <div key={m.id} className="lamo-msg flex justify-end">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-gradient-to-br from-[#2a3350] to-[#1c2238] border border-white/10 px-3.5 py-2.5 text-sm text-white whitespace-pre-wrap break-words">{m.content}</div>
+                </div>
+              ) : (
+                <div key={m.id} className="lamo-msg flex gap-2.5">
+                  <span className="mt-0.5 shrink-0 grid place-items-center w-7 h-7 rounded-lg bg-[#0d1224] border border-amber-300/25"><AgentIcon size={22} /></span>
+                  <div className="min-w-0 flex-1">
+                    {m.steps && m.steps.length > 0 && (
+                      <details className="mb-1.5 group">
+                        <summary className="cursor-pointer list-none text-[11px] font-mono text-neutral-500 hover:text-neutral-300 flex items-center gap-1.5 select-none">
+                          <svg className="w-3 h-3 transition group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 6l6 6-6 6" /></svg>
+                          Checked {m.steps.length} step{m.steps.length === 1 ? '' : 's'}
+                        </summary>
+                        <ol className="mt-1.5 ml-1 space-y-1 border-l border-white/10 pl-3">
+                          {m.steps.map((s, i) => <li key={i} className="text-[11px] text-neutral-400 flex gap-1.5"><span className="text-emerald-400">✓</span>{s}</li>)}
+                        </ol>
+                      </details>
+                    )}
+                    <div className={`text-[13.5px] leading-relaxed text-neutral-200 break-words ${isTyping ? 'lamo-caret' : ''} ${m.error ? 'text-neutral-300' : ''}`}><Rich text={text} /></div>
+
+                    {done && (
+                      <>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {m.confidence && !m.error && (m.citations?.length ?? 0) > 0 && <Tier v={m.confidence} />}
+                          {m.questionId && <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-400/30 text-amber-300 bg-amber-400/10">Ref {m.questionId}</span>}
+                          <span className="text-[10px] font-mono text-neutral-600">{m.time}</span>
+                          <button onClick={() => copy(m)} className="ml-auto text-[10px] font-mono text-neutral-500 hover:text-white">{copied === m.id ? 'Copied' : 'Copy'}</button>
+                        </div>
+
+                        {m.citations && m.citations.length > 0 && (
+                          <div className="mt-2.5">
+                            <p className="text-[10px] font-mono uppercase tracking-widest text-neutral-500 mb-1">Sources</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {m.citations.map((c, i) => {
+                                const chip = <><span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /><span className="truncate">{c.title || c.source}</span></>;
+                                const cls = 'inline-flex items-center gap-1.5 max-w-[210px] text-[11px] px-2 py-1 rounded-lg border border-white/10 bg-white/[.03] text-neutral-300';
+                                return c.url ? <Link key={i} href={c.url} onClick={() => setOpen(false)} className={cls + ' hover:border-amber-300/50 hover:text-white'}>{chip}</Link> : <span key={i} className={cls}>{chip}</span>;
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {m.suggestedActions && m.suggestedActions.length > 0 && (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {m.suggestedActions.map((a, i) => <Link key={i} href={a.href} onClick={() => setOpen(false)} className="text-[11px] px-2.5 py-1 rounded-full border border-amber-300/35 text-amber-300 hover:bg-amber-300/10">{a.label} →</Link>)}
+                          </div>
+                        )}
+
+                        {m.isUnanswered && m.questionId && (
+                          <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/[.06] p-3">
+                            <p className="text-[12px] text-amber-100/90">Want Taha to answer this and tell you? Leave an email and I&apos;ll pass your question on.</p>
+                            {mailState[m.questionId] === 'sent' ? <p className="mt-2 text-[12px] text-emerald-300 font-mono">✓ Saved. Taha has been notified.</p> : (
+                              <div className="mt-2 flex gap-1.5">
+                                <input type="email" placeholder="you@email.com" value={mail[m.questionId] || ''} onChange={(e) => setMail({ ...mail, [m.questionId!]: e.target.value })} className="flex-1 min-w-0 px-2.5 py-1.5 text-xs bg-black/40 border border-white/10 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:border-amber-300/60" />
+                                <button onClick={() => notify(m.questionId!)} disabled={mailState[m.questionId] === 'sending'} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-300 text-black hover:bg-amber-200 disabled:opacity-60">{mailState[m.questionId] === 'sending' ? 'Saving…' : 'Notify me'}</button>
+                              </div>
+                            )}
+                            {mailState[m.questionId] === 'error' && <p className="mt-1.5 text-[11px] text-red-300">That did not go through. Check the email and try again.</p>}
+                          </div>
+                        )}
+
+                        {m.followUps && m.followUps.length > 0 && m.id === messages[messages.length - 1]?.id && !busy && (
+                          <div className="mt-3 flex flex-col gap-1.5">
+                            {m.followUps.map((f) => <button key={f} onClick={() => send(f)} className="text-left text-[12px] px-3 py-1.5 rounded-xl border border-white/10 text-neutral-300 hover:text-white hover:border-amber-300/40 hover:bg-white/[.04] transition">↳ {f}</button>)}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {busy && (
+              <div className="lamo-msg flex gap-2.5">
+                <span className="mt-0.5 shrink-0 grid place-items-center w-7 h-7 rounded-lg bg-[#0d1224] border border-amber-300/25"><AgentIcon size={22} thinking /></span>
+                <ol className="space-y-1 pt-1">
+                  {liveSteps.map((s, i) => <li key={i} className="text-[12px] text-neutral-400 flex gap-1.5"><span className={i === liveSteps.length - 1 ? 'text-amber-300 animate-pulse' : 'text-emerald-400'}>{i === liveSteps.length - 1 ? '●' : '✓'}</span>{s}</li>)}
+                  {liveSteps.length === 0 && <li className="text-[12px] text-neutral-400 flex gap-1.5"><span className="text-amber-300 animate-pulse">●</span>Thinking…</li>}
+                </ol>
+              </div>
+            )}
+            <div ref={endRef} />
           </div>
 
-          {/* Suggested Starter Chips */}
-          {messages.length <= 2 && (
-            <div className="px-4 py-2 border-t border-gray-800/80 bg-[#0d1017]/80 flex flex-wrap gap-1.5">
-              <span className="text-[10px] text-gray-400 font-mono w-full mb-0.5">
-                Suggested prompts:
-              </span>
-              {SUGGESTED_QUESTIONS.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(q)}
-                  className="text-[11px] px-2 py-1 rounded bg-[#161b26] hover:bg-[#202738] text-gray-300 hover:text-white border border-gray-700/60 transition text-left"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Input Box */}
-          <div className="p-3 bg-[#11151f] border-t border-[#d4af37]/20">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex items-center space-x-2"
-            >
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about Taha's robotics, AI, or skills..."
-                maxLength={400}
-                className="flex-1 bg-[#0b0e14] border border-gray-700/70 focus:border-[#d4af37] text-xs sm:text-sm text-white placeholder-gray-500 rounded-lg px-3 py-2.5 focus:outline-none transition"
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || loading}
-                className="px-3.5 py-2.5 bg-gradient-to-r from-[#d4af37] to-[#aa7c11] disabled:opacity-40 text-black font-semibold text-xs sm:text-sm rounded-lg hover:brightness-110 active:scale-95 transition"
-                aria-label="Send query"
-              >
-                Send
-              </button>
+          <footer className="border-t border-white/5 bg-[#0b0f1c] p-3">
+            <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-end gap-2 rounded-2xl border border-white/10 focus-within:border-amber-300/50 bg-black/30 pl-3.5 pr-2 py-2 transition">
+              <textarea ref={boxRef} rows={1} value={input} maxLength={500} onChange={(e) => { setInput(e.target.value); grow(e.currentTarget); }} onKeyDown={onKey} placeholder="Ask about his projects, skills, education…" aria-label="Your question" className="flex-1 resize-none bg-transparent text-sm text-white placeholder-neutral-600 focus:outline-none py-1 max-h-[120px]" />
+              <button type="submit" disabled={!input.trim() || busy} aria-label="Send" className="grid place-items-center w-9 h-9 rounded-xl bg-gradient-to-br from-amber-200 to-amber-500 text-black disabled:opacity-30 hover:brightness-110 active:scale-95 transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></button>
             </form>
-            <div className="flex justify-between items-center mt-1.5 px-1 text-[10px] text-gray-500 font-mono">
-              <span>Strict RAG • Grounded Knowledge Only</span>
-              <span>{input.length}/400</span>
-            </div>
-          </div>
-        </div>
+            <p className="mt-1.5 px-1 flex justify-between text-[10px] font-mono text-neutral-600"><span>Enter to send · Shift+Enter for a new line</span><span>{input.length}/500</span></p>
+          </footer>
+        </section>
       )}
     </div>
   );
 }
-

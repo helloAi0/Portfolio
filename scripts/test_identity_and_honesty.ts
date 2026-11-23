@@ -1,3 +1,4 @@
+import './_nodeDb';
 /**
  * Database-free tests: identity, privacy, age logic, adapter honesty and a source scan
  * for legacy or fabricated data. Run with: npm run test:unit
@@ -68,11 +69,11 @@ function walk(dir: string, out: string[] = []): string[] {
     if (['node_modules', '.next', '.git'].includes(e.name)) continue;
     const full = path.join(dir, e.name);
     if (e.isDirectory()) walk(full, out);
-    else if (/\.(ts|tsx|prisma|yaml|yml|md|mjs|json)$/.test(e.name) && e.name !== 'package-lock.json') out.push(full);
+    else if (/\.(ts|tsx|prisma|yaml|yml|md|mjs|json|jsonc)$/.test(e.name) && e.name !== 'package-lock.json') out.push(full);
   }
   return out;
 }
-const files = [...walk(path.join(root, 'src')), ...walk(path.join(root, 'prisma')), path.join(root, 'render.yaml'), path.join(root, '.env.example')];
+const files = [...walk(path.join(root, 'src')), ...walk(path.join(root, 'prisma')), path.join(root, 'wrangler.jsonc'), path.join(root, '.env.example')];
 const self = path.basename(__filename);
 const scan = (re: RegExp) => files.filter((f) => re.test(fs.readFileSync(f, 'utf8')));
 const rel = (l: string[]) => l.map((f) => path.relative(root, f));

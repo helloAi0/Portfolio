@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
+import { removeUploadByUrl } from '@/lib/storage';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const admin = getAdminFromRequest(req);
@@ -35,9 +36,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   try {
     const cert = await prisma.certificate.findUnique({ where: { id: params.id }, select: { filePath: true } });
+    if (!cert) return NextResponse.json({ error: 'Certificate not found.' }, { status: 404 });
     await prisma.certificate.delete({ where: { id: params.id } });
-    const m = cert?.filePath?.match(/^\/api\/files\/([a-z0-9]{20,40})$/);
-    if (m) await prisma.storedFile.deleteMany({ where: { id: m[1] } }); // do not leave orphaned uploads
+    await removeUploadByUrl(cert?.filePath); // do not leave orphaned uploads
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete certificate' }, { status: 500 });

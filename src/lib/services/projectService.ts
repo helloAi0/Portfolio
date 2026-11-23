@@ -115,7 +115,8 @@ export async function getProjectCategories() {
   }
 }
 
-function safeJsonParseArray(val: string): string[] {
+function safeJsonParseArray(val: string | null | undefined): string[] {
+  if (!val) return [];
   try {
     const parsed = JSON.parse(val);
     return Array.isArray(parsed) ? parsed : [String(parsed)];

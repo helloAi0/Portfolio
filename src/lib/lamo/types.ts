@@ -37,6 +37,10 @@ export interface LamoResponse {
   isUnanswered: boolean;
   questionId?: string;
   missingInformationReason?: string;
+  /** What the agent did, in plain words (shown to the visitor as it happens). */
+  steps?: string[];
+  /** Grounded follow-up questions the visitor can tap. */
+  followUps?: string[];
 }
 
 export interface GuardrailCheck {

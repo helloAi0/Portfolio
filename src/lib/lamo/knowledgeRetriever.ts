@@ -10,10 +10,8 @@ import { RetrievedKnowledgeChunk, VerificationTier } from './types';
 import { logger } from '@/lib/logger';
 import { rankChunks, MIN_EVIDENCE_SCORE } from './ranking';
 
-export async function retrieveVerifiedKnowledge(query: string): Promise<{
-  chunks: RetrievedKnowledgeChunk[];
-  relevanceScore: number;
-}> {
+/** Every PUBLIC, verified or owner-approved record LAMO may use. Nothing private or unapproved is ever loaded. */
+export async function loadVerifiedKnowledge(): Promise<RetrievedKnowledgeChunk[]> {
   const chunks: RetrievedKnowledgeChunk[] = [];
 
   try {
@@ -231,7 +229,18 @@ export async function retrieveVerifiedKnowledge(query: string): Promise<{
     logger.error('KnowledgeRetriever', error as Error);
   }
 
-  const ranked = rankChunks(chunks, query).filter((sc) => sc.score >= MIN_EVIDENCE_SCORE).slice(0, 8);
+  return chunks;
+}
+
+export function rankKnowledge(chunks: RetrievedKnowledgeChunk[], query: string, limit = 8) {
+  return rankChunks(chunks, query).filter((sc) => sc.score >= MIN_EVIDENCE_SCORE).slice(0, limit);
+}
+
+export async function retrieveVerifiedKnowledge(query: string): Promise<{
+  chunks: RetrievedKnowledgeChunk[];
+  relevanceScore: number;
+}> {
+  const ranked = rankKnowledge(await loadVerifiedKnowledge(), query);
   return {
     chunks: ranked.map((sc) => sc.chunk),
     relevanceScore: ranked.length > 0 ? ranked[0].score : 0,

@@ -6,6 +6,7 @@
  * - Email delivery outcome is recorded honestly (emailNotified / emailError).
  */
 import { prisma } from '@/lib/prisma';
+import { background } from '@/lib/background';
 import { logger } from '@/lib/logger';
 import { sendOwnerUnansweredQuestionNotification } from './emailAdapter';
 import { generateQuestionId, newFollowUpToken, normalizeQuestionKey, tokenMatches, normalizeEmail, sanitizeName } from './security';
@@ -73,7 +74,7 @@ export async function recordUnansweredQuestion(input: RecordInput): Promise<Reco
     }
     if (!record) return null;
 
-    void notifyOwner(record.id);
+    background(notifyOwner(record.id));
     logger.info('UnansweredQuestionService', `Logged ${record.questionId}`, { category });
     return { questionId: record.questionId, followUpToken: token, duplicate: false };
   } catch (error) {
@@ -108,7 +109,7 @@ export async function attachVisitorFollowUp(questionId: string, token: unknown, 
     // Same response for "missing" and "wrong token" so IDs cannot be probed.
     if (!record || !tokenMatches(token, record.followUpTokenHash)) return { success: false, status: 404, error: 'Unable to attach contact to that question.' };
     await prisma.unansweredQuestion.update({ where: { id: record.id }, data: { visitorEmail: email, visitorName: sanitizeName(rawName) } });
-    void notifyOwner(record.id);
+    background(notifyOwner(record.id));
     return { success: true, status: 200 };
   } catch (error) {
     logger.error('attachVisitorFollowUp', error as Error);

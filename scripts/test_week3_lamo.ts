@@ -1,3 +1,4 @@
+import './_nodeDb';
 import { retrieveVerifiedKnowledge } from '../src/lib/lamo/knowledgeRetriever';
 import { generateLamoResponse } from '../src/lib/lamo/llmProvider';
 import { inspectUserInput, INSUFFICIENT_EVIDENCE_PHRASE } from '../src/lib/lamo/guardrails';

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { background } from '@/lib/background';
 import { logger } from '@/lib/logger';
 import { sendOwnerEnquiryNotification } from '@/lib/lamo/emailAdapter';
 
@@ -78,7 +79,7 @@ export async function submitVisitorEnquiry(input: CreateEnquiryInput) {
     });
 
     // 6. Asynchronously notify the portfolio owner
-    sendOwnerEnquiryNotification({
+    background(sendOwnerEnquiryNotification({
       enquiryId: enquiry.id,
       senderName: cleanName,
       senderEmail: cleanEmail,
@@ -87,7 +88,7 @@ export async function submitVisitorEnquiry(input: CreateEnquiryInput) {
       message: cleanMessage,
     }).catch((err) => {
       logger.error('enquiryService.NotificationError', err as Error);
-    });
+    }));
 
     logger.info('enquiryService.submitVisitorEnquiry', 'New visitor enquiry saved', {
       id: enquiry.id,

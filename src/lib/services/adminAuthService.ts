@@ -1,10 +1,9 @@
 /**
  * Admin Authentication Service
  * JWT-based session management for the admin dashboard.
- * Uses bcryptjs for password hashing (no external auth provider dependency).
+ * Passwords are hashed with PBKDF2-SHA256 through Web Crypto, which runs natively on Cloudflare Workers and in Node.
  */
 
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
@@ -51,7 +50,7 @@ export async function verifyAdminCredentials(
     let admin = await prisma.adminUser.findFirst({ where: { OR: [{ username: id }, { email: lower }] } });
     if (admin && admin.email.trim().toLowerCase() !== owner) return null;
 
-    let valid = admin ? await bcrypt.compare(password, admin.passwordHash) : false;
+    let valid = admin ? await verifyPassword(password, admin.passwordHash) : false;
 
     // The owner keeps the password in ADMIN_DEFAULT_PASSWORD. If the stored hash is out of date
     // (or the account is missing), a sign-in with exactly that value repairs the account.
@@ -94,8 +93,28 @@ export function verifyAdminToken(token: string): AdminPayload | null {
   }
 }
 
+const PBKDF2_ITERATIONS = 100_000; // the maximum Cloudflare Workers allows
+
+const toHex = (b: ArrayBuffer | Uint8Array) => Array.from(new Uint8Array(b as ArrayBuffer), (x) => x.toString(16).padStart(2, '0')).join('');
+const fromHex = (h: string) => new Uint8Array((h.match(/.{2}/g) ?? []).map((x) => parseInt(x, 16)));
+
+async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  return toHex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: salt as BufferSource, iterations }, key, 256));
+}
+
+/** Format: pbkdf2$<iterations>$<salt hex>$<hash hex> */
 export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, 12);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${toHex(salt)}$${await pbkdf2(plain, salt, PBKDF2_ITERATIONS)}`;
+}
+
+/** Older bcrypt hashes are not accepted here; the owner's sign-in with ADMIN_DEFAULT_PASSWORD re-creates the hash. */
+export async function verifyPassword(plain: string, stored: string): Promise<boolean> {
+  const [scheme, iter, salt, hash] = stored.split('$');
+  if (scheme !== 'pbkdf2' || !iter || !salt || !hash) return false;
+  const got = await pbkdf2(plain, fromHex(salt), Number(iter));
+  return got.length === hash.length && safeEqual(got, hash);
 }
 
 /**

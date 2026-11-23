@@ -1,0 +1,39 @@
+// Cloudflare Worker configuration for Project LAMO (Next.js on Workers via OpenNext).
+// Replace REPLACE_WITH_D1_DATABASE_ID after `npx wrangler d1 create project-lamo-db` (see deploy/cloudflare.md).
+// Secrets (passwords, API keys) are NOT written here: use `npx wrangler secret put NAME`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "project-lamo",
+  "main": "worker.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "project-lamo" }],
+  "observability": { "enabled": true },
+
+  // Database (SQLite on Cloudflare D1). `wrangler d1 migrations apply` reads ./migrations
+  "d1_databases": [
+    { "binding": "DB", "database_name": "project-lamo-db", "database_id": "REPLACE_WITH_D1_DATABASE_ID", "migrations_dir": "migrations" }
+  ],
+
+  // Uploaded files: resume PDF, certificate scans, project images
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "project-lamo-files" }],
+
+  // Refresh GitHub, LeetCode and GFG every 6 hours (calls POST /api/sync/reconcile with CRON_SECRET)
+  "triggers": { "crons": ["0 */6 * * *"] },
+
+  // Public, non-secret settings
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://REPLACE-WITH-YOUR-DOMAIN",
+    "OWNER_DISPLAY_NAME": "Taha Udaipurwala",
+    "OWNER_CONTACT_EMAIL": "tahaudaipurwala68@gmail.com",
+    "ADMIN_EMAIL": "tahaudaipurwala68@gmail.com",
+    "ADMIN_USERNAME": "taha",
+    "IDENTITY_VERIFICATION_STATUS": "PENDING_OWNER_CONFIRMATION",
+    "GITHUB_USERNAME": "helloAi0",
+    "PROJECT_PUBLICATION_MODE": "AUTOMATIC",
+    "LAMO_GEMINI_MODEL": "gemini-2.5-flash",
+    "LAMO_DAILY_LLM_CAP": "300",
+    "TRUSTED_PROXY_HOPS": "1"
+  }
+}

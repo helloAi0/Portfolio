@@ -1,3 +1,4 @@
+import './_nodeDb';
 import { prisma } from '../src/lib/prisma';
 import { submitVisitorEnquiry } from '../src/lib/services/enquiryService';
 import sitemap from '../src/app/sitemap';
@@ -111,7 +112,7 @@ async function runWeek4ComprehensiveSuite() {
     // -------------------------------------------------------------
     console.log('\n--- MODULE 3: SEO, Dynamic Sitemap & Robots ---');
     const generatedSitemap = await sitemap();
-    assert('Dynamic sitemap generates 15+ canonical routes', generatedSitemap.length >= 15);
+    assert('Dynamic sitemap lists every public page', generatedSitemap.length >= 12 && ['/resume', '/contact', '/ambitions', '/certificates', '/achievements'].every((p) => generatedSitemap.some((e: any) => String(e.url).endsWith(p))));
     const hasHome = generatedSitemap.some((entry) => !entry.url.includes('/about') && entry.priority === 1.0);
     const hasProjects = generatedSitemap.some((entry) => entry.url.endsWith('/projects'));
     const hasContact = generatedSitemap.some((entry) => entry.url.endsWith('/contact'));
@@ -184,17 +185,17 @@ async function runWeek4ComprehensiveSuite() {
     // -------------------------------------------------------------
     // MODULE 7: DEPLOYMENT CONFIGURATIONS & RESILIENCE
     // -------------------------------------------------------------
-    console.log('\n--- MODULE 7: Render Deployment & Disaster Recovery ---');
-    const renderYamlPath = path.join(process.cwd(), 'render.yaml');
-    const renderYamlExists = fs.existsSync(renderYamlPath);
-    assert('render.yaml Blueprint specification exists', renderYamlExists);
-
-    if (renderYamlExists) {
-      const renderContent = fs.readFileSync(renderYamlPath, 'utf8');
-      assert('render.yaml specifies web service and postgres database', renderContent.includes('type: web') && renderContent.includes('databases:'));
-      assert('render.yaml sets healthCheckPath to /api/health', renderContent.includes('healthCheckPath: /api/health'));
-      assert('render.yaml runs cross-platform build script', renderContent.includes('node scripts/render-build.mjs'));
+    console.log('\n--- MODULE 7: Cloudflare Deployment & Disaster Recovery ---');
+    const wranglerPath = path.join(process.cwd(), 'wrangler.jsonc');
+    const wranglerExists = fs.existsSync(wranglerPath);
+    assert('wrangler.jsonc Cloudflare configuration exists', wranglerExists);
+    if (wranglerExists) {
+      const w = fs.readFileSync(wranglerPath, 'utf8');
+      assert('wrangler.jsonc binds the D1 database and the R2 bucket', w.includes('"d1_databases"') && w.includes('"binding": "DB"') && w.includes('"r2_buckets"') && w.includes('"binding": "FILES"'));
+      assert('wrangler.jsonc schedules the sync cron', w.includes('"crons"'));
+      assert('wrangler.jsonc holds no secrets', !/JWT_SECRET|PASSWORD|API_KEY|GITHUB_TOKEN|CRON_SECRET/.test(w.replace(/\/\/.*$/gm, '')));
     }
+    assert('D1 migration exists', fs.existsSync(path.join(process.cwd(), 'migrations', '0001_init.sql')));
 
     const disasterRecoveryPath = path.join(process.cwd(), 'MAINTENANCE_AND_DISASTER_RECOVERY.md');
     const drExists = fs.existsSync(disasterRecoveryPath);

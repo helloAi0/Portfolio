@@ -43,3 +43,10 @@ dev.db
 # Database backups contain private data
 backups/
 *.backup.json
+
+# cloudflare
+.dev.vars
+.wrangler/
+.open-next/
+backups/
+d1-data.sql

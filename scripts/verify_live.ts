@@ -1,3 +1,4 @@
+import './_nodeDb';
 /**
  * LIVE end-to-end check. Run on a machine with internet access, a generated Prisma client and a pushed database:
  *   npm run verify:live
