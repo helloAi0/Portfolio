@@ -15,7 +15,14 @@ import { SKILL_BY_SLUG } from '@/lib/skills/catalog';
 
 import { DIFFICULTIES, slugify, humanizeName, isValidHttpUrl } from '@/lib/projectHelpers';
 export { DIFFICULTIES, slugify, humanizeName, isValidHttpUrl };
-export const AUTO_PUBLISH_MIN_CONFIDENCE = 0.8;
+/** Confidence needed before a repository is published without a click. Tunable: AUTO_PUBLISH_MIN_CONFIDENCE (0-1). */
+export const AUTO_PUBLISH_MIN_CONFIDENCE = 0.8; // legacy constant, kept for tests
+export const autoPublishMin = (): number => {
+  const v = Number(process.env.AUTO_PUBLISH_MIN_CONFIDENCE);
+  return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 0.4;
+};
+/** Default is AUTOMATIC: public repositories become projects on their own. Set PROJECT_PUBLICATION_MODE=REVIEW for approve-first. */
+export const publicationMode = (): string => (process.env.PROJECT_PUBLICATION_MODE || 'AUTOMATIC').toUpperCase();
 
 export interface PublishOverrides {
   categorySlug?: string;
@@ -132,12 +139,24 @@ async function linkSkills(projectId: string, slugs: string[], repoName: string, 
 
 /** AUTOMATIC mode only: publish strong, high-confidence suggestions of non-owner-rejected repos. Default mode is REVIEW (no-op). */
 export async function maybeAutoPublish(githubId: number): Promise<boolean> {
-  if ((process.env.PROJECT_PUBLICATION_MODE || 'REVIEW') !== 'AUTOMATIC') return false;
+  if (publicationMode() !== 'AUTOMATIC') return false;
   const repo = await prisma.githubRepository.findUnique({ where: { githubId } });
   if (!repo || repo.classificationStatus !== 'SUGGESTED' || repo.linkedProjectId) return false;
-  if (repo.isPrivate || repo.classificationScore < AUTO_PUBLISH_MIN_CONFIDENCE) return false;
+  if (repo.isPrivate || repo.classificationScore < autoPublishMin()) return false;
   try { await publishRepositoryAsProject(repo.id, {}, 'automatic'); return true; }
   catch (e) { logger.warn('Publication', `Auto-publish failed for ${repo.name}: ${e instanceof Error ? e.message : String(e)}`); return false; }
+}
+
+/** Catch-up: publish every suggested public repository that has no project yet (new repos, or repos synced before AUTOMATIC was on). */
+export async function publishPendingSuggestions(): Promise<{ published: number; failed: number }> {
+  if (publicationMode() !== 'AUTOMATIC') return { published: 0, failed: 0 };
+  const rows = await prisma.githubRepository.findMany({
+    where: { classificationStatus: 'SUGGESTED', linkedProjectId: null, isPrivate: false, missingSince: null },
+    select: { githubId: true },
+  });
+  let published = 0, failed = 0;
+  for (const r of rows) { if (await maybeAutoPublish(r.githubId)) published++; else failed++; }
+  return { published, failed };
 }
 
 /** Unpublish a project (owner action or rejection). Keeps the record. */

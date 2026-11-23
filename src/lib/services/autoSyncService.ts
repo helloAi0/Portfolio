@@ -8,6 +8,7 @@
 import { syncGithubRepositories } from '@/lib/services/githubSyncService';
 import { syncCodingPlatforms } from '@/lib/services/codingPlatformService';
 import { syncLeetCodeSolutions } from '@/lib/services/codingSolutionService';
+import { publishPendingSuggestions } from '@/lib/services/projectPublicationService';
 import { logger } from '@/lib/logger';
 
 let running = false;
@@ -20,6 +21,8 @@ export async function runAllSyncs(trigger: string): Promise<{ skipped?: boolean;
   try {
     try { result.github = await syncGithubRepositories(trigger === 'MANUAL' ? 'MANUAL' : 'SCHEDULED'); }
     catch (e) { result.github = { error: String((e as Error).message) }; }
+    try { result.autoPublished = await publishPendingSuggestions(); }
+    catch (e) { result.autoPublished = { error: String((e as Error).message) }; }
     try { result.codingPlatforms = await syncCodingPlatforms(); }
     catch (e) { result.codingPlatforms = { error: String((e as Error).message) }; }
     try { result.leetcodeSolutions = await syncLeetCodeSolutions(); }
