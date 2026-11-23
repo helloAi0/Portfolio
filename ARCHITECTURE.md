@@ -53,12 +53,12 @@
 |  UnansweredQuestion, BiographyReview, AdminAuditLog, AiKnowledgeRecord.                               |
 +-------------------------------------------------------------------------------------------------------+
                                |                                                     |
-                     (Local Development)                                     (Production Render)
+                     (Local Development)                                     (Production Cloudflare)
                                |                                                     |
                                v                                                     v
                       +-----------------+                                   +-----------------+
-                      |  SQLite Engine  |                                   | PostgreSQL PaaS |
-                      |    (dev.db)     |                                   |    (Render)     |
+                      |  SQLite Engine  |                                   |   Cloudflare D1   |
+                      |    (dev.db)     |                                   |    (R2 files)     |
                       +-----------------+                                   +-----------------+
 ```
 
@@ -149,7 +149,7 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 
 ---
 
-## 4. Production Hardening, Observability & Render Deployment (Week 4)
+## 4. Production Hardening, Observability & Cloudflare Deployment (Week 4)
 
 ### 4.1 3D WebGL Optimization Pipeline (`src/components/home/BucephalusCanvas.tsx`)
 - **Reduced Motion Support**: Inspects `(prefers-reduced-motion: reduce)`. If active, renders a single high-fidelity static frame without continuous animation loops.
@@ -169,8 +169,8 @@ Project LAMO is structured with clean boundaries between presentation, domain co
 - Monitors Node.js process memory usage (`heapUsedMb`, `rssMb`) and server uptime.
 - Returns `200 OK` for healthy states; returns `503 Service Unavailable` for database failures.
 
-### 4.4 Render Blueprint Infrastructure (`render.yaml`, `scripts/render-build.mjs`)
-- Declarative Infrastructure-as-Code provisioning both the web service and managed PostgreSQL database.
-- Orchestrates build via `node scripts/render-build.mjs`, dynamically handling PostgreSQL (`prisma db push --schema=prisma/schema.postgresql.prisma`) vs SQLite schema generation.
+### 4.4 Cloudflare Infrastructure (`wrangler.jsonc`, `open-next.config.ts`, `worker.ts`, `migrations/`)
+- Worker with D1 and R2 bindings and a Cron Trigger, declared in `wrangler.jsonc`; deployed with `npm run deploy`.
+- Schema is applied from `migrations/0001_init.sql` (generated from the Prisma schema by `scripts/gen-d1-migration.mjs`). See `deploy/cloudflare.md`.
 - Binds health check directly to `/api/health` for automated container healing and zero-downtime rolling deploys.
 - Documented in `MAINTENANCE_AND_DISASTER_RECOVERY.md` for complete backup and zero-vendor-lockin portability.

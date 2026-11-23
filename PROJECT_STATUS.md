@@ -32,4 +32,4 @@ GitHub sync verification, taxonomy/classification review, coding charts, skill e
 - GeeksforGeeks has no official API: manual entry or a trusted `GFG_STATS_ENDPOINT` only.
 - LeetCode sync uses an unofficial endpoint and may be blocked.
 - LinkedIn posts are manual import only.
-- Render Starter web service is a paid plan.
+- Cloudflare Free covers the site; very sync-heavy actions may need the $5 Workers Paid plan.
