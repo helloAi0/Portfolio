@@ -45,7 +45,9 @@ async function renderPdf(url: string, targetW: number): Promise<Doc> {
  * they scroll and grows until it can be read, followed by every page at full width with Open and Download.
  * Nothing is generated here: the pages are the PDF the owner uploaded.
  */
-export function ResumeTrophy({ pdfUrl }: { pdfUrl: string }) {
+export function ResumeTrophy({ versions }: { versions: { key: string; label: string; url: string }[] }) {
+  const [active, setActive] = useState(0);
+  const pdfUrl = versions[Math.min(active, versions.length - 1)].url;
   const outer = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLDivElement>(null);
   const pedestal = useRef<HTMLDivElement>(null);
@@ -173,9 +175,17 @@ export function ResumeTrophy({ pdfUrl }: { pdfUrl: string }) {
               <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">The full résumé</p>
               <h2 className="font-serif font-black text-white text-2xl sm:text-3xl mt-1">Every page, readable</h2>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              {versions.length > 1 && (
+                <div role="tablist" aria-label="Resume version" className="flex rounded-lg border border-gold-500/40 overflow-hidden">
+                  {versions.map((v, i) => (
+                    <button key={v.key} type="button" role="tab" aria-selected={i === active} onClick={() => { if (i !== active) { setDoc(null); setFailed(false); setActive(i); } }}
+                      className={`px-4 py-2 text-sm font-mono ${i === active ? 'bg-gold-400 text-black font-semibold' : 'text-gold-300 hover:bg-gold-500/10'}`}>{v.label}</button>
+                  ))}
+                </div>
+              )}
               <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-lg border border-gold-500/50 text-gold-300 text-sm font-mono hover:bg-gold-500/10">Open PDF ↗</a>
-              <a href={pdfUrl} download className="px-4 py-2 rounded-lg bg-gold-400 text-black text-sm font-semibold hover:bg-gold-300">Download</a>
+              <a href={pdfUrl} download={`Taha_Udaipurwala_Resume_${versions[Math.min(active, versions.length - 1)].label.replace(/[^A-Za-z]/g, "")}.pdf`} className="px-4 py-2 rounded-lg bg-gold-400 text-black text-sm font-semibold hover:bg-gold-300">Download</a>
             </div>
           </div>
           {failed && (

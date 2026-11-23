@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const onProject = published ? null : await prisma.project.findFirst({
       where: { approvalStatus: 'APPROVED', OR: [{ coverImage: url }, { gallery: { contains: url } }] }, select: { id: true },
     });
-    const onResume = published || onProject ? null : await prisma.resumeSettings.findFirst({ where: { OR: [{ photoUrl: url }, { pdfUrl: url }] }, select: { id: true } });
+    const onResume = published || onProject ? null : await prisma.resumeSettings.findFirst({ where: { OR: [{ photoUrl: url }, { pdfUrl: url }, { pdfUrlB: url }] }, select: { id: true } });
     if (!published && !onProject && !onResume) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   const bytes = await readUpload(file);

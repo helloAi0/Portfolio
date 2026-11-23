@@ -183,7 +183,7 @@ export default function AdminDashboardPage() {
       const copilotData = copilotRes.ok ? await copilotRes.json().catch(() => ({ data: [] })) : { data: [] };
 
       try { const h = await fetch('/api/health', { cache: 'no-store' }); if (h.ok) setHealth(await h.json()); } catch { /* health card is optional */ }
-      try { const rr = await fetch('/api/admin/resume'); if (rr.ok) setResumeSet(Boolean((await rr.json())?.data?.pdfUrl)); } catch { /* optional */ }
+      try { const rr = await fetch('/api/admin/resume'); if (rr.ok) { const d = (await rr.json())?.data; setResumeSet(Boolean(d?.pdfUrl || d?.pdfUrlB)); } } catch { /* optional */ }
       try {
         const eq = await fetch('/api/admin/enquiries');
         const ej = eq.ok ? await eq.json() : { data: [] };

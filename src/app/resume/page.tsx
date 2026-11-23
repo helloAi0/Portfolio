@@ -13,12 +13,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function ResumePage() {
   let pdfUrl: string | null = null;
+  let pdfUrlB: string | null = null;
   try {
     const s = await prisma.resumeSettings.findUnique({ where: { id: 'singleton' } });
     pdfUrl = s?.pdfUrl || null;
+    pdfUrlB = s?.pdfUrlB || null;
   } catch { /* database unavailable: show the empty state */ }
 
-  if (!pdfUrl) {
+  if (!pdfUrl && !pdfUrlB) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <Breadcrumbs items={[{ label: 'Resume' }]} />
@@ -32,5 +34,9 @@ export default async function ResumePage() {
       </div>
     );
   }
-  return <ResumeTrophy pdfUrl={pdfUrl} />;
+  const versions = [
+    ...(pdfUrl ? [{ key: 'robotics', label: 'Robotics', url: pdfUrl }] : []),
+    ...(pdfUrlB ? [{ key: 'aiml', label: 'AI / ML', url: pdfUrlB }] : []),
+  ];
+  return <ResumeTrophy versions={versions} />;
 }

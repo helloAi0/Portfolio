@@ -201,9 +201,9 @@ export const RESUME_SECTIONS = ['education', 'skills', 'projects', 'certificates
 export const RESUME_TEMPLATES = ['imperial', 'paper'] as const;
 
 /** Resume Studio settings: summary, photo, downloadable PDF, template, hidden sections and custom sections. */
-export function cleanResumeSettings(b: any): { error: string } | { data: { summary: string | null; photoUrl: string | null; pdfUrl: string | null; template: string; hiddenSections: string[]; extraSections: { title: string; body: string }[] } } {
-  const photo = cleanMediaUrl(b?.photoUrl), pdf = cleanMediaUrl(b?.pdfUrl);
-  if (photo === 'invalid' || pdf === 'invalid') return { error: 'Photo and PDF must be an uploaded file or an https link.' };
+export function cleanResumeSettings(b: any): { error: string } | { data: { summary: string | null; photoUrl: string | null; pdfUrl: string | null; pdfUrlB: string | null; template: string; hiddenSections: string[]; extraSections: { title: string; body: string }[] } } {
+  const photo = cleanMediaUrl(b?.photoUrl), pdf = cleanMediaUrl(b?.pdfUrl), pdfB = cleanMediaUrl(b?.pdfUrlB);
+  if (photo === 'invalid' || pdf === 'invalid' || pdfB === 'invalid') return { error: 'Photo and PDF must be an uploaded file or an https link.' };
   const template = (RESUME_TEMPLATES as readonly string[]).includes(b?.template) ? b.template : 'imperial';
   const hidden = (Array.isArray(b?.hiddenSections) ? b.hiddenSections : []).filter((x: unknown) => (RESUME_SECTIONS as readonly string[]).includes(String(x)));
   const extra: { title: string; body: string }[] = [];
@@ -211,5 +211,5 @@ export function cleanResumeSettings(b: any): { error: string } | { data: { summa
     const title = text(e?.title, 60), body = text(e?.body, 1500);
     if (title && body) extra.push({ title, body });
   }
-  return { data: { summary: text(b?.summary, 800), photoUrl: photo, pdfUrl: pdf, template, hiddenSections: hidden, extraSections: extra } };
+  return { data: { summary: text(b?.summary, 800), photoUrl: photo, pdfUrl: pdf, pdfUrlB: pdfB, template, hiddenSections: hidden, extraSections: extra } };
 }

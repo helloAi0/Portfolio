@@ -55,11 +55,24 @@ out.push(...idx, '');
 const sql = out.join('\n');
 
 if (process.argv.includes('--check')) {
-  const cur = fs.existsSync('migrations/0001_init.sql') ? fs.readFileSync('migrations/0001_init.sql', 'utf8') : '';
-  if (cur !== sql) { console.error('migrations/0001_init.sql is out of date. Run: npm run d1:migration'); process.exit(1); }
-  console.log('migrations/0001_init.sql is up to date.');
-} else {
+  // 0001 is the frozen baseline; later files (0002_...) add columns. Together they must cover every model and column.
+  const files = fs.existsSync('migrations') ? fs.readdirSync('migrations').filter((f) => f.endsWith('.sql')).sort() : [];
+  const all = files.map((f) => fs.readFileSync(`migrations/${f}`, 'utf8')).join('\n');
+  const missing = [];
+  for (const m of models) {
+    if (!all.includes(`CREATE TABLE ${q(m.name)} (`)) { missing.push(`table ${m.name}`); continue; }
+    const body = all.slice(all.indexOf(`CREATE TABLE ${q(m.name)} (`)).split('\n);')[0];
+    for (const f of m.fields.filter((x) => x.kind === 'scalar' || x.kind === 'enum')) {
+      const added = new RegExp(`ALTER TABLE ${q(m.name)} ADD COLUMN ${q(f.name)} `).test(all);
+      if (!body.includes(`${q(f.name)} `) && !added) missing.push(`${m.name}.${f.name}`);
+    }
+  }
+  if (missing.length) { console.error(`Migrations are out of date (missing: ${missing.join(', ')}). Add migrations/000N_<name>.sql; "npm run d1:migration" prints the full current schema for reference.`); process.exit(1); }
+  console.log(`Migrations (${files.join(', ')}) cover the current Prisma schema.`);
+} else if (process.argv.includes('--write-baseline')) {
   fs.mkdirSync('migrations', { recursive: true });
   fs.writeFileSync('migrations/0001_init.sql', sql);
   console.log(`Wrote migrations/0001_init.sql (${models.length} tables, ${idx.length} indexes)`);
+} else {
+  console.log(sql);
 }

@@ -139,8 +139,16 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
   ok('save resume PDF', (await call('PUT', '/api/admin/resume', { ...cur, pdfUrl: rurl })).status === 200);
   ok('resume file public', (await call('GET', rurl, null, { anon: true })).status === 200);
   ok('resume page shows the trophy', (await call('GET', '/resume', null, { anon: true })).text.includes('Read this first'));
-  ok('remove resume PDF', (await call('PUT', '/api/admin/resume', { ...cur, pdfUrl: '' })).status === 200);
-  ok('removed resume file is deleted', (await call('GET', rurl)).status === 404);
+  // second resume (AI/ML) next to the first (Robotics)
+  const rup2 = await call('POST', '/api/admin/uploads', PDF());
+  const rurl2 = rup2.json?.url || rup2.json?.path;
+  ok('save both resumes', (await call('PUT', '/api/admin/resume', { ...cur, pdfUrl: rurl, pdfUrlB: rurl2 })).status === 200);
+  ok('second resume file public', (await call('GET', rurl2, null, { anon: true })).status === 200);
+  const both = (await call('GET', '/resume', null, { anon: true })).text;
+  ok('resume page offers both versions', both.includes('Robotics') && both.includes('AI / ML'));
+  ok('remove only the first resume keeps the second', (await call('PUT', '/api/admin/resume', { ...cur, pdfUrl: '', pdfUrlB: rurl2 })).status === 200 && (await call('GET', rurl2, null, { anon: true })).status === 200 && (await call('GET', rurl)).status === 404);
+  ok('remove resume PDF', (await call('PUT', '/api/admin/resume', { ...cur, pdfUrl: '', pdfUrlB: '' })).status === 200);
+  ok('removed resume files are deleted', (await call('GET', rurl)).status === 404 && (await call('GET', rurl2)).status === 404);
 
   // ---- backup + profile + integrations
   const bk = await call('GET', '/api/admin/backup');

@@ -539,6 +539,7 @@ model ResumeSettings {
   summary       String?
   photoUrl      String?
   pdfUrl        String?
+  pdfUrlB       String? // second resume (the first is Robotics, this one is AI/ML)
   template      String   @default("imperial")
   hiddenSections String? // JSON array of section keys
   extraSections String?  // JSON array of {title, body}
