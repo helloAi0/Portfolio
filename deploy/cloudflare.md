@@ -43,6 +43,15 @@ npx wrangler d1 execute DB --remote --file=d1-data.sql
 No local data yet? Run `npm run db:local:init && npm run db:seed` first, then the two commands above.
 Files uploaded locally are not moved; upload the resume PDF again in the admin.
 
+### Moving your existing local data into the new local database (Windows or any OS)
+If you used the site before the Cloudflare update, your content is in `prisma/dev.db`. Copy it into the new local database once:
+```bash
+npm run d1:migrate:local
+npm run d1:seed-sql          # reads prisma/dev.db (DATABASE_URL), prints rows per table
+npx wrangler d1 execute DB --local --file=d1-data.sql
+```
+Older databases with fewer or extra columns are handled. Admin accounts are not copied (the admin comes from your secrets). Uploaded files larger than about 60 KB are listed and must be uploaded again in the admin.
+
 ## 4. Secrets (never put these in a file or in git)
 Run each line and paste the value when asked:
 ```bash
