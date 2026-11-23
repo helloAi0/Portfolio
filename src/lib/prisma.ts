@@ -1,7 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
 // The WebAssembly build of the client is the one that runs inside a Cloudflare Worker (no native engine).
-// @ts-ignore: same API as '@prisma/client', resolved by the bundler
-import { PrismaClient as WorkerPrismaClient } from '@prisma/client/wasm';
 import { PrismaD1 } from '@prisma/adapter-d1';
 
 /**
@@ -10,6 +8,10 @@ import { PrismaD1 } from '@prisma/adapter-d1';
  *  - In Node scripts and unit tests, scripts/_nodeDb.ts installs a client on globalThis.__LAMO_PRISMA__ first.
  * `prisma` is a thin proxy so the right client is resolved per request, never at import time (build-safe).
  */
+// Production (Cloudflare Worker) needs the WebAssembly build of the client; `next dev` runs in Node, where that build cannot
+// load its .wasm file, so development uses the regular client. The condition is a build-time constant, so the unused branch is dropped.
+const WorkerPrismaClient: typeof import('@prisma/client').PrismaClient =
+  process.env.NODE_ENV === 'development' ? require('@prisma/client').PrismaClient : require('@prisma/client/wasm').PrismaClient;
 const g = globalThis as unknown as { __LAMO_PRISMA__?: PrismaClient };
 const perBinding = new WeakMap<object, PrismaClient>();
 
