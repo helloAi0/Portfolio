@@ -20,10 +20,27 @@ export function extractOwnerAnswer(c: RetrievedKnowledgeChunk): string | null {
   return plain && plain[1].trim() ? plain[1].trim() : null;
 }
 
+/** The profile record is stored as "Key: value." pairs; read it out as sentences instead of a data dump. Every fact is kept as written. */
+export function humanizeIdentity(c: RetrievedKnowledgeChunk): string | null {
+  if (!c.id.startsWith('profile:') || !/Headline:/.test(c.content)) return null;
+  const grab = (k: string) => c.content.match(new RegExp(`${k}:\\s*([\\s\\S]+?)\\.(?=\\s+[A-Z][A-Za-z ]{2,18}:|\\s*$)`))?.[1]?.trim();
+  const name = grab('Name') ?? PROFILE.displayName, head = grab('Headline'), loc = grab('Location'), study = grab('Studying'), inst = grab('Institution');
+  const minor = grab('Minor')?.split(/\.?\s*Additional learning/)[0], extra = c.content.match(/Additional learning in ([^.]+)\./)?.[1], mail = grab('Contact'), gh = c.content.match(/GitHub:\s*(\S+?)\.?(?:\s|$)/)?.[1];
+  if (!head) return null;
+  const parts = [`${name} is an ${head}${loc ? ` based in ${loc}` : ''}.`];
+  if (study) parts.push(`He is studying ${study}${inst ? `, at ${inst}` : ''}${minor ? `, with a minor in ${minor}` : ''}${extra ? ` and additional learning in ${extra}` : ''}.`);
+  const reach = [mail ? `reach him at ${mail}` : '', gh ? `see his code on GitHub: ${gh}` : ''].filter(Boolean).join(', or ');
+  if (reach) parts.push(`You can ${reach}.`);
+  return parts.join(' ');
+}
+
 export function synthesizeGroundedResponse(chunks: RetrievedKnowledgeChunk[]): string {
   if (chunks.length === 0) return INSUFFICIENT_EVIDENCE_PHRASE;
   const owner = chunks.slice(0, 2).map(extractOwnerAnswer).find(Boolean);
   if (owner) return owner;
+
+  const nice = humanizeIdentity(chunks[0]);
+  if (nice) return nice;
 
   const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
   const [first, ...rest] = chunks;

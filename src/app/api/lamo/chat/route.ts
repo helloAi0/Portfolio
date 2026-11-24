@@ -103,8 +103,10 @@ export async function POST(req: NextRequest) {
       }
 
       const rapport = lamoRes.isUnanswered ? '' : rapportLine(audience, userTexts.length);
+      // A visitor who asked for it short gets the first two sentences, not the whole record.
+      const base = audience.brief && !lamoRes.isUnanswered && lamoRes.answer.length > 280 ? (lamoRes.answer.match(/^(?:[\s\S]+?[.!?](?:\s|$)){1,2}/)?.[0].trim() ?? lamoRes.answer) : lamoRes.answer;
       return {
-        answer: rapport ? `${lamoRes.answer}\n\n${rapport}` : lamoRes.answer, confidence: lamoRes.confidence, citations: lamoRes.citations,
+        answer: rapport ? `${base}\n\n${rapport}` : base, confidence: lamoRes.confidence, citations: lamoRes.citations,
         suggestedActions: hiring && !lamoRes.suggestedActions.some((a) => a.href === '/contact') ? [...lamoRes.suggestedActions, { label: 'Contact', href: '/contact' }] : lamoRes.suggestedActions,
         isUnanswered: lamoRes.isUnanswered, questionId, followUpToken, steps: lamoRes.steps ?? [], followUps: lamoRes.followUps ?? [],
       };

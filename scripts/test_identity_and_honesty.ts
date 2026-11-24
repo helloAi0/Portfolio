@@ -32,7 +32,6 @@ assert('Clamps to final year after graduation', deriveAcademicStanding(2024, 202
 
 // ---- Privacy toggle (identity reads env at call time)
 console.log('\n--- Public age privacy ---');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { resolveIdentitySafety } = require('../src/lib/identity');
 process.env.OWNER_BIRTH_DATE = '2006-11-02';
 process.env.OWNER_SHOW_PUBLIC_AGE = 'false';
