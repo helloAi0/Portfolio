@@ -405,3 +405,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .lamo-agent-orbit-a, .lamo-agent-orbit-b, .lamo-agent-core, .lamo-launch, .lamo-msg, .lamo-caret::after { animation: none !important; }
 }
+.resume-hint { animation: resumeHint 1.8s ease-in-out infinite; }
+@keyframes resumeHint { 0%, 100% { transform: translateY(0); opacity: .9; } 50% { transform: translateY(6px); opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .resume-hint { animation: none; } }

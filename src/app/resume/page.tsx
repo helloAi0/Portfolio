@@ -14,10 +14,14 @@ export const dynamic = 'force-dynamic';
 export default async function ResumePage() {
   let pdfUrl: string | null = null;
   let pdfUrlB: string | null = null;
+  let tags: string[] = [];
   try {
     const s = await prisma.resumeSettings.findUnique({ where: { id: 'singleton' } });
     pdfUrl = s?.pdfUrl || null;
     pdfUrlB = s?.pdfUrlB || null;
+    // words that orbit the resume: skills already published on the site, strongest evidence first
+    const skills = await prisma.skill.findMany({ orderBy: { confidenceScore: 'desc' }, take: 14, select: { name: true } });
+    tags = skills.map((k) => k.name);
   } catch { /* database unavailable: show the empty state */ }
 
   if (!pdfUrl && !pdfUrlB) {
@@ -38,5 +42,5 @@ export default async function ResumePage() {
     ...(pdfUrl ? [{ key: 'robotics', label: 'Robotics', url: pdfUrl }] : []),
     ...(pdfUrlB ? [{ key: 'aiml', label: 'AI / ML', url: pdfUrlB }] : []),
   ];
-  return <ResumeTrophy versions={versions} />;
+  return <ResumeTrophy versions={versions} tags={tags} />;
 }

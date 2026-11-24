@@ -20,7 +20,21 @@ function cloudflareDb(): object | undefined {
   return ctx?.env?.DB;
 }
 
+/**
+ * `next dev` hands Cloudflare vars and secrets (.dev.vars, wrangler.jsonc "vars") to the app only as bindings, while the code
+ * reads process.env like on the deployed Worker. Mirror them once so login, Gemini, GitHub and the rest work locally too.
+ */
+let hydrated = false;
+function hydrateEnv() {
+  if (hydrated || process.env.NODE_ENV !== 'development') return;
+  const env = (globalThis as any)[Symbol.for('__cloudflare-context__')]?.env;
+  if (!env) return;
+  hydrated = true;
+  for (const [k, v] of Object.entries(env)) if (typeof v === 'string' && v !== '' && !process.env[k]) process.env[k] = v;
+}
+
 function resolve(): PrismaClient {
+  hydrateEnv();
   if (g.__LAMO_PRISMA__) return g.__LAMO_PRISMA__;
   const db = cloudflareDb();
   if (!db) throw new Error('No database: the D1 binding "DB" is missing (see wrangler.jsonc).');

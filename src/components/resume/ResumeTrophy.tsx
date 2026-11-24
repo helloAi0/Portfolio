@@ -45,7 +45,7 @@ async function renderPdf(url: string, targetW: number): Promise<Doc> {
  * they scroll and grows until it can be read, followed by every page at full width with Open and Download.
  * Nothing is generated here: the pages are the PDF the owner uploaded.
  */
-export function ResumeTrophy({ versions }: { versions: { key: string; label: string; url: string }[] }) {
+export function ResumeTrophy({ versions, tags = [] }: { versions: { key: string; label: string; url: string }[]; tags?: string[] }) {
   const [active, setActive] = useState(0);
   const pdfUrl = versions[Math.min(active, versions.length - 1)].url;
   const outer = useRef<HTMLDivElement>(null);
@@ -57,6 +57,14 @@ export function ResumeTrophy({ versions }: { versions: { key: string; label: str
   const capB = useRef<HTMLDivElement>(null);
   const glint = useRef<HTMLDivElement>(null);
   const face = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ctl = useRef<{ setPos: (p: number) => void; setPages: (p: HTMLCanvasElement[], r: number) => void; setNarrow: (v: boolean) => void; setPointer: (x: number, y: number) => void; dispose: () => void } | null>(null);
+  const docRef = useRef<Doc | null>(null);
+  const capC = useRef<HTMLDivElement>(null);
+  const capD = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const hint = useRef<HTMLDivElement>(null);
+  const [mode, setMode] = useState<'three' | 'css'>('three');
   const pRef = useRef(0);
   const mouse = useRef({ x: 0, y: 0 });
   const [doc, setDoc] = useState<Doc | null>(null);
@@ -75,6 +83,22 @@ export function ResumeTrophy({ versions }: { versions: { key: string; label: str
     return () => { dead = true; };
   }, [pdfUrl]);
 
+  // the real 3D stage (falls back to the CSS card if WebGL is not available)
+  useEffect(() => {
+    if (still) return;
+    let cancelled = false;
+    import('@/lib/three/resumeVault').then(({ createResumeVault }) => {
+      if (cancelled || !canvasRef.current) return;
+      try {
+        ctl.current = createResumeVault({ canvas: canvasRef.current, tags, narrow: window.innerWidth < 800 });
+        if (docRef.current) ctl.current.setPages(docRef.current.pages, docRef.current.ratio);
+      } catch { setMode('css'); }
+    }).catch(() => setMode('css'));
+    return () => { cancelled = true; ctl.current?.dispose(); ctl.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [still]);
+  useEffect(() => { docRef.current = doc; if (doc && ctl.current) ctl.current.setPages(doc.pages, doc.ratio); }, [doc]);
+
   // paint pages into the reading section and page 1 onto the trophy face
   useEffect(() => {
     if (!doc) return;
@@ -85,14 +109,14 @@ export function ResumeTrophy({ versions }: { versions: { key: string; label: str
   }, [doc, still]);
 
   useEffect(() => {
-    const onResize = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    const onResize = () => { setVp({ w: window.innerWidth, h: window.innerHeight }); ctl.current?.setNarrow(window.innerWidth < 800); };
     onResize();
     const onScroll = () => {
       const el = outer.current; if (!el) return;
       const r = el.getBoundingClientRect();
       pRef.current = clamp(-r.top / ((r.height - window.innerHeight) || 1));
     };
-    const onMove = (e: PointerEvent) => { mouse.current = { x: (e.clientX / window.innerWidth - 0.5) * 2, y: (e.clientY / window.innerHeight - 0.5) * 2 }; };
+    const onMove = (e: PointerEvent) => { mouse.current = { x: (e.clientX / window.innerWidth - 0.5) * 2, y: (e.clientY / window.innerHeight - 0.5) * 2 }; ctl.current?.setPointer(mouse.current.x, mouse.current.y); };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
@@ -113,6 +137,17 @@ export function ResumeTrophy({ versions }: { versions: { key: string; label: str
       raf = requestAnimationFrame(loop);
       const t = (performance.now() - t0) / 1000;
       ps += (pRef.current - ps) * 0.1;
+      ctl.current?.setPos(pRef.current);
+      const o = (el: HTMLElement | null, v: number) => { if (el) { el.style.opacity = String(v); el.style.transform = `translateY(${(1 - v) * 14}px)`; } };
+      if (mode === 'three') {
+        o(capA.current, 1 - sm(0.1, 0.2, ps));
+        o(capB.current, sm(0.2, 0.28, ps) * (1 - sm(0.42, 0.5, ps)));
+        o(capC.current, sm(0.55, 0.62, ps) * (1 - sm(0.74, 0.8, ps)));
+        o(capD.current, sm(0.9, 0.98, ps));
+        if (bar.current) bar.current.style.transform = `scaleY(${ps})`;
+        if (hint.current) hint.current.style.opacity = String(1 - sm(0.02, 0.1, ps));
+        return;
+      }
       const turn = sm(0.18, 0.62, ps), grow = sm(0.5, 0.92, ps);
       const swing = Math.sin(t * 0.7) * 9 * (1 - turn);
       const ry = lerp(-48, 0, turn) + swing + mouse.current.x * 6 * (1 - turn);
@@ -130,15 +165,53 @@ export function ResumeTrophy({ versions }: { versions: { key: string; label: str
     };
     loop();
     return () => cancelAnimationFrame(raf);
-  }, [still, fitS]);
+  }, [still, fitS, mode]);
 
   const dust = React.useMemo(() => Array.from({ length: 36 }, (_, i) => ({ l: (i * 53) % 100, d: 6 + (i * 7) % 9, dl: (i * 1.3) % 8, s: 2 + (i % 3) })), []);
 
   return (
     <div>
       {!still && (
-        <div ref={outer} style={{ height: '380vh' }} className="relative" aria-label="Resume showcase">
-          <div className="sticky top-0 h-screen overflow-hidden bg-[#06050a]" style={{ perspective: '1600px' }}>
+        <div ref={outer} style={{ height: mode === 'three' ? '560vh' : '380vh' }} className="relative" aria-label="Resume showcase">
+          <div className="sticky top-0 h-screen overflow-hidden bg-[#05040a]" style={mode === 'css' ? { perspective: '1600px' } : undefined}>
+            {mode === 'three' ? (
+              <>
+                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" aria-hidden />
+                <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 70% at 50% 50%, transparent 55%, rgba(5,4,10,.75) 100%)' }} />
+                {!doc && !failed && <div className="absolute inset-x-0 bottom-24 text-center text-xs font-mono text-gold-300/80">Loading resume…</div>}
+
+                <div ref={capA} className="absolute left-4 sm:left-12 bottom-10 sm:bottom-16 max-w-xs sm:max-w-md pointer-events-none">
+                  <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">Résumé</p>
+                  <p className="font-serif font-black text-white text-3xl sm:text-5xl leading-[1.05] mt-2 [text-shadow:0_4px_40px_rgba(0,0,0,.9)]">Read this first.</p>
+                  <p className="mt-3 text-sm text-neutral-300">Scroll. It turns to face you.</p>
+                </div>
+                <div ref={capB} className="absolute right-4 sm:right-12 top-28 max-w-[18rem] text-right pointer-events-none" style={{ opacity: 0 }}>
+                  <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">{versions.length > 1 ? 'Two versions' : 'Version'}</p>
+                  <p className="font-serif font-black text-white text-2xl sm:text-4xl leading-tight mt-2 [text-shadow:0_4px_40px_rgba(0,0,0,.9)]">{versions[Math.min(active, versions.length - 1)].label}</p>
+                  {versions.length > 1 && <p className="mt-2 text-sm text-neutral-300">Switch the focus with the buttons below.</p>}
+                </div>
+                <div ref={capC} className="absolute left-4 sm:left-12 top-28 max-w-[18rem] pointer-events-none" style={{ opacity: 0 }}>
+                  <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">Every page</p>
+                  <p className="font-serif font-black text-white text-2xl sm:text-4xl leading-tight mt-2 [text-shadow:0_4px_40px_rgba(0,0,0,.9)]">{doc ? (doc.pages.length === 1 ? 'Everything on one page.' : `${doc.pages.length} pages, laid out.`) : 'Laid out.'}</p>
+                </div>
+                <div ref={capD} className="absolute inset-x-0 bottom-8 text-center pointer-events-none" style={{ opacity: 0 }}>
+                  <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">Up close</p>
+                  <p className="font-serif font-black text-white text-2xl sm:text-3xl mt-1 [text-shadow:0_4px_40px_rgba(0,0,0,.95)]">Take your time.</p>
+                </div>
+
+                {versions.length > 1 && (
+                  <div role="tablist" aria-label="Resume version" className="absolute left-1/2 -translate-x-1/2 top-20 sm:left-auto sm:translate-x-0 sm:right-12 sm:top-auto sm:bottom-16 flex rounded-lg border border-gold-500/40 overflow-hidden bg-black/50 backdrop-blur-sm">
+                    {versions.map((v, i) => (
+                      <button key={v.key} type="button" role="tab" aria-selected={i === active} onClick={() => { if (i !== active) { setDoc(null); setFailed(false); setActive(i); } }}
+                        className={`px-4 py-2 text-sm font-mono ${i === active ? 'bg-gold-400 text-black font-semibold' : 'text-gold-300 hover:bg-gold-500/10'}`}>{v.label}</button>
+                    ))}
+                  </div>
+                )}
+                <div aria-hidden className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 h-40 w-[2px] bg-white/10 rounded overflow-hidden pointer-events-none"><div ref={bar} className="w-full h-full bg-gold-400 origin-top" style={{ transform: 'scaleY(0)' }} /></div>
+                <div ref={hint} aria-hidden className="absolute inset-x-0 bottom-3 flex justify-center pointer-events-none text-gold-300/80 text-[10px] font-mono uppercase tracking-[0.35em] resume-hint">Scroll ↓</div>
+              </>
+            ) : (
+              <>
             <div ref={light} aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 55% 80% at 50% -5%, rgba(255,214,120,.42), rgba(255,214,120,.08) 45%, transparent 70%), radial-gradient(ellipse 60% 30% at 50% 100%, rgba(243,201,105,.18), transparent 70%)' }} />
             <div aria-hidden className="absolute inset-0 pointer-events-none">{dust.map((d, i) => <span key={i} className="resume-dust" style={{ left: `${d.l}%`, width: d.s, height: d.s, animationDuration: `${d.d}s`, animationDelay: `-${d.dl}s` }} />)}</div>
 
@@ -164,6 +237,8 @@ export function ResumeTrophy({ versions }: { versions: { key: string; label: str
               <p className="text-xs font-mono uppercase tracking-[0.3em] text-gold-400">Up close</p>
               <p className="font-serif font-black text-white text-2xl sm:text-3xl leading-tight mt-2 [text-shadow:0_4px_40px_rgba(0,0,0,.9)]">Take your time.</p>
             </div>
+              </>
+            )}
           </div>
         </div>
       )}

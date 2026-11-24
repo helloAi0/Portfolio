@@ -8,7 +8,8 @@
 import { logger } from '@/lib/logger';
 
 const GITHUB_API_BASE = 'https://api.github.com';
-const GITHUB_USERNAME = process.env.GITHUB_USERNAME || 'helloAi0';
+/** Read at call time: on Cloudflare the variables only exist once a request is running. */
+const githubUser = () => process.env.GITHUB_USERNAME || 'helloAi0';
 
 interface GithubRawRepo {
   id: number;
@@ -175,34 +176,34 @@ export async function fetchGithubRepositories(): Promise<GithubRepoData[]> {
   const allRepos: GithubRepoData[] = [];
   const perPage = 100;
   for (let page = 1; page <= 20; page++) {
-    const url = `${GITHUB_API_BASE}/users/${GITHUB_USERNAME}/repos?type=owner&sort=updated&per_page=${perPage}&page=${page}`;
+    const url = `${GITHUB_API_BASE}/users/${githubUser()}/repos?type=owner&sort=updated&per_page=${perPage}&page=${page}`;
     const raw = await githubFetch<GithubRawRepo[]>(url);
-    if (raw === null) throw new GithubApiError('NOT_FOUND', `GitHub user "${GITHUB_USERNAME}" not found`, 404);
+    if (raw === null) throw new GithubApiError('NOT_FOUND', `GitHub user "${githubUser()}" not found`, 404);
     for (const r of raw) {
       if (!r.private) allRepos.push(mapRepo(r)); // defence in depth: never ingest private repos
     }
     if (raw.length < perPage) break;
   }
-  logger.info('GithubAdapter', `Fetched ${allRepos.length} public repositories for @${GITHUB_USERNAME}`);
+  logger.info('GithubAdapter', `Fetched ${allRepos.length} public repositories for @${githubUser()}`);
   return allRepos;
 }
 
 /** Fetch a single repository by name. null = repository does not exist or is not visible. */
 export async function fetchGithubRepository(repoName: string): Promise<GithubRepoData | null> {
   if (!/^[A-Za-z0-9._-]+$/.test(repoName)) return null;
-  const raw = await githubFetch<GithubRawRepo>(`${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${repoName}`);
+  const raw = await githubFetch<GithubRawRepo>(`${GITHUB_API_BASE}/repos/${githubUser()}/${repoName}`);
   return raw ? mapRepo(raw) : null;
 }
 
 /** Language byte counts. Empty object when the repo has no detectable code. */
 export async function fetchRepoLanguages(repoName: string): Promise<GithubLanguages> {
-  const raw = await githubFetch<GithubLanguages>(`${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${repoName}/languages`);
+  const raw = await githubFetch<GithubLanguages>(`${GITHUB_API_BASE}/repos/${githubUser()}/${repoName}/languages`);
   return raw || {};
 }
 
 /** README text (base64 decoded). null = the repository has no README. */
 export async function fetchRepoReadme(repoName: string): Promise<string | null> {
-  const raw = await githubFetch<{ content: string; encoding: string }>(`${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${repoName}/readme`);
+  const raw = await githubFetch<{ content: string; encoding: string }>(`${GITHUB_API_BASE}/repos/${githubUser()}/${repoName}/readme`);
   if (!raw?.content) return null;
   return Buffer.from(raw.content, 'base64').toString('utf-8');
 }
@@ -213,7 +214,7 @@ export async function fetchRepoReadme(repoName: string): Promise<string | null> 
  */
 export async function fetchRepoTree(repoName: string, branch: string): Promise<string[] | null> {
   const raw = await githubFetch<{ tree: { path: string; type: string }[]; truncated: boolean }>(
-    `${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${repoName}/git/trees/${encodeURIComponent(branch)}?recursive=1`
+    `${GITHUB_API_BASE}/repos/${githubUser()}/${repoName}/git/trees/${encodeURIComponent(branch)}?recursive=1`
   );
   if (!raw) return null;
   return raw.tree.filter((n) => n.type === 'blob').map((n) => n.path).slice(0, 5000);
@@ -231,7 +232,7 @@ export async function fetchRepoManifests(repoName: string, paths: string[]): Pro
   const out: Record<string, string> = {};
   for (const path of paths) {
     try {
-      const raw = await githubFetch<{ content?: string; size?: number }>(`${GITHUB_API_BASE}/repos/${GITHUB_USERNAME}/${repoName}/contents/${path}`);
+      const raw = await githubFetch<{ content?: string; size?: number }>(`${GITHUB_API_BASE}/repos/${githubUser()}/${repoName}/contents/${path}`);
       if (raw?.content && (raw.size ?? 0) < 200_000) out[path] = Buffer.from(raw.content, 'base64').toString('utf-8').slice(0, 30_000);
     } catch (e) {
       logger.warn('GithubAdapter', `Manifest ${repoName}/${path} unavailable: ${e instanceof Error ? e.message : String(e)}`);
