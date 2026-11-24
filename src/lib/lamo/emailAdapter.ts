@@ -132,11 +132,12 @@ Admin: ${siteUrl()}/admin`;
 }
 
 /** Hiring / partnership signal from the public chat. Sent once per chat session so the owner is not flooded. */
-export async function sendOwnerHiringSignal(p: { message: string; visitorName?: string | null; visitorEmail?: string | null }): Promise<EmailResult> {
+export async function sendOwnerHiringSignal(p: { message: string; visitorName?: string | null; visitorEmail?: string | null; role?: string; org?: string }): Promise<EmailResult> {
   const who = p.visitorEmail ? `${p.visitorName || 'Visitor'} <${p.visitorEmail}>` : 'Anonymous (no contact details given yet)';
   const text = `[High priority] A visitor on the portfolio chat showed hiring, collaboration or meeting intent.
 
 Visitor: ${who}
+Seems to be: ${p.role && p.role !== 'unknown' ? p.role.replace('_', ' ') : 'unknown role'}${p.org ? ` at ${p.org}` : ''} (guessed from what they typed)
 Message: "${p.message}"
 
 LAMO pointed them to your contact page. Open the admin dashboard to follow up:

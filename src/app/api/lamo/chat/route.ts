@@ -4,6 +4,7 @@ import { inspectUserInput, INSUFFICIENT_EVIDENCE_PHRASE } from '@/lib/lamo/guard
 import { runAgent, type AgentTurn } from '@/lib/lamo/agent';
 import { recordUnansweredQuestion } from '@/lib/lamo/unansweredService';
 import { RateLimiter, getClientIp, isValidSessionId, normalizeEmail, sanitizeName } from '@/lib/lamo/security';
+import { detectAudience, aiDisclosure, styleHint, rapportLine } from '@/lib/lamo/audience';
 import { sendOwnerHiringSignal } from '@/lib/lamo/emailAdapter';
 import { background } from '@/lib/background';
 import { PROFILE } from '@/config/profile';
@@ -61,18 +62,24 @@ export async function POST(req: NextRequest) {
       ? body.history.slice(-8).filter((t: any) => t && (t.role === 'USER' || t.role === 'ASSISTANT') && typeof t.content === 'string').map((t: any) => ({ role: t.role, content: String(t.content).slice(0, 600) }))
       : [];
 
+    const userTexts = [...history.filter((t) => t.role === 'USER').map((t) => t.content), message];
+    const audience = detectAudience(userTexts);
+    if (audience.asksIfAi) {
+      return reply({ answer: aiDisclosure(), confidence: 'VERIFIED', suggestedActions: [{ label: 'Message him directly', href: '/contact' }] });
+    }
+
     // Hiring / collaboration intent: tell the owner once per session. The visitor is only ever pointed at the public contact page.
-    const hiring = HIRING.test(message);
+    const hiring = HIRING.test(message) || audience.dealIntent;
     if (hiring) {
       const key = sessionId || ip;
       if (!notifiedSessions.has(key) && notifiedSessions.size < 5000) {
         notifiedSessions.add(key);
-        background(sendOwnerHiringSignal({ message: message.slice(0, 500), visitorName, visitorEmail }).catch((e) => logger.error('LamoChat.HiringSignal', e as Error)));
+        background(sendOwnerHiringSignal({ message: message.slice(0, 500), visitorName: visitorName || audience.name, visitorEmail, role: audience.kind, org: audience.org }).catch((e) => logger.error('LamoChat.HiringSignal', e as Error)));
       }
     }
 
     const finish = async (onStep?: (l: string) => void) => {
-      const lamoRes = await runAgent({ question: message, history, onStep });
+      const lamoRes = await runAgent({ question: message, history, onStep, styleHint: styleHint(audience) });
 
       // 3. Unanswered workflow (single place that records it)
       let questionId: string | undefined;
@@ -95,8 +102,9 @@ export async function POST(req: NextRequest) {
         } catch (e) { logger.error('LamoChat.ConversationLog', e as Error); }
       }
 
+      const rapport = lamoRes.isUnanswered ? '' : rapportLine(audience, userTexts.length);
       return {
-        answer: lamoRes.answer, confidence: lamoRes.confidence, citations: lamoRes.citations,
+        answer: rapport ? `${lamoRes.answer}\n\n${rapport}` : lamoRes.answer, confidence: lamoRes.confidence, citations: lamoRes.citations,
         suggestedActions: hiring && !lamoRes.suggestedActions.some((a) => a.href === '/contact') ? [...lamoRes.suggestedActions, { label: 'Contact', href: '/contact' }] : lamoRes.suggestedActions,
         isUnanswered: lamoRes.isUnanswered, questionId, followUpToken, steps: lamoRes.steps ?? [], followUps: lamoRes.followUps ?? [],
       };
