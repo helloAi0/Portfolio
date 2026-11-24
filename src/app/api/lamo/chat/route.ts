@@ -4,6 +4,8 @@ import { inspectUserInput, INSUFFICIENT_EVIDENCE_PHRASE } from '@/lib/lamo/guard
 import { runAgent, type AgentTurn } from '@/lib/lamo/agent';
 import { recordUnansweredQuestion } from '@/lib/lamo/unansweredService';
 import { RateLimiter, getClientIp, isValidSessionId, normalizeEmail, sanitizeName } from '@/lib/lamo/security';
+import { sendOwnerHiringSignal } from '@/lib/lamo/emailAdapter';
+import { background } from '@/lib/background';
 import { PROFILE } from '@/config/profile';
 import { logger } from '@/lib/logger';
 
@@ -11,6 +13,8 @@ export const dynamic = 'force-dynamic';
 
 const limiter = new RateLimiter(60_000, 12);
 const MAX_MESSAGE = 500;
+const HIRING = /\b(hire|hiring|recruit(er|ing|ment)?|job (offer|opening|opportunity)|opportunit(y|ies)|open (role|position)|we(?:'re| are) looking for|interview|schedule a (call|meeting)|book a (call|meeting)|collaborat(e|ion)|partner(ship)?|freelance|contract role|work together|offer (him|you) a)\b/i;
+const notifiedSessions = new Set<string>();
 
 const reply = (body: Record<string, unknown>, status = 200) =>
   NextResponse.json({ citations: [], suggestedActions: [], isUnanswered: false, confidence: 'UNKNOWN', ...body }, { status });
@@ -57,6 +61,16 @@ export async function POST(req: NextRequest) {
       ? body.history.slice(-8).filter((t: any) => t && (t.role === 'USER' || t.role === 'ASSISTANT') && typeof t.content === 'string').map((t: any) => ({ role: t.role, content: String(t.content).slice(0, 600) }))
       : [];
 
+    // Hiring / collaboration intent: tell the owner once per session. The visitor is only ever pointed at the public contact page.
+    const hiring = HIRING.test(message);
+    if (hiring) {
+      const key = sessionId || ip;
+      if (!notifiedSessions.has(key) && notifiedSessions.size < 5000) {
+        notifiedSessions.add(key);
+        background(sendOwnerHiringSignal({ message: message.slice(0, 500), visitorName, visitorEmail }).catch((e) => logger.error('LamoChat.HiringSignal', e as Error)));
+      }
+    }
+
     const finish = async (onStep?: (l: string) => void) => {
       const lamoRes = await runAgent({ question: message, history, onStep });
 
@@ -82,7 +96,8 @@ export async function POST(req: NextRequest) {
       }
 
       return {
-        answer: lamoRes.answer, confidence: lamoRes.confidence, citations: lamoRes.citations, suggestedActions: lamoRes.suggestedActions,
+        answer: lamoRes.answer, confidence: lamoRes.confidence, citations: lamoRes.citations,
+        suggestedActions: hiring && !lamoRes.suggestedActions.some((a) => a.href === '/contact') ? [...lamoRes.suggestedActions, { label: 'Contact', href: '/contact' }] : lamoRes.suggestedActions,
         isUnanswered: lamoRes.isUnanswered, questionId, followUpToken, steps: lamoRes.steps ?? [], followUps: lamoRes.followUps ?? [],
       };
     };

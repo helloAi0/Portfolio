@@ -130,3 +130,16 @@ ${p.message}
 Admin: ${siteUrl()}/admin`;
   return sendEmail({ to: ownerRecipient(), subject: `Portfolio enquiry: ${p.subject}`, text, replyTo: p.senderEmail });
 }
+
+/** Hiring / partnership signal from the public chat. Sent once per chat session so the owner is not flooded. */
+export async function sendOwnerHiringSignal(p: { message: string; visitorName?: string | null; visitorEmail?: string | null }): Promise<EmailResult> {
+  const who = p.visitorEmail ? `${p.visitorName || 'Visitor'} <${p.visitorEmail}>` : 'Anonymous (no contact details given yet)';
+  const text = `[High priority] A visitor on the portfolio chat showed hiring, collaboration or meeting intent.
+
+Visitor: ${who}
+Message: "${p.message}"
+
+LAMO pointed them to your contact page. Open the admin dashboard to follow up:
+${siteUrl()}/admin`;
+  return sendEmail({ to: ownerRecipient(), subject: `[Portfolio] Hiring / collaboration interest`, text, replyTo: p.visitorEmail || undefined });
+}
