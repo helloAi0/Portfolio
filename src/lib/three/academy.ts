@@ -182,10 +182,10 @@ export function createAcademy(opts: { canvas: HTMLCanvasElement; items: AcademyI
 
   // ---- lights: a fixed set that is moved along the hall, so shaders never recompile ----
   scene.add(new THREE.HemisphereLight(0x3d4c7a, 0x1a1208, 0.45));
-  const moon = new THREE.DirectionalLight(0xaec4ff, 1.6); scene.add(moon, moon.target);
+  const moon = new THREE.DirectionalLight(0xaec4ff, 0.9); scene.add(moon, moon.target);
   if (hi) { moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048); const sc = moon.shadow.camera; sc.left = -14; sc.right = 14; sc.top = 14; sc.bottom = -14; sc.near = 1; sc.far = 60; moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.03; moon.shadow.radius = 4; }
-  const candles = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffb866, 520, 26, 2); scene.add(l); return l; });
-  const spots = [0, 1].map(() => { const s = new THREE.SpotLight(0xffe2ae, 1500, 14, 0.62, 0.7, 2); scene.add(s, s.target); return s; });
+  const candles = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffb866, 300, 26, 2); scene.add(l); return l; });
+  const spots = [0, 1].map(() => { const s = new THREE.SpotLight(0xffe2ae, 55, 14, 0.62, 0.7, 2); scene.add(s, s.target); return s; });
 
   // ---- materials ----
   const floorT = floorTexture(); floorT.anisotropy = maxAniso; floorT.repeat.set(12.4 / 2.4, hallLen / 2.4);
@@ -327,10 +327,10 @@ export function createAcademy(opts: { canvas: HTMLCanvasElement; items: AcademyI
 
   // ---- certificates on lecterns ----
   const holders: { g: THREE.Group; z: number; sheet: THREE.Mesh; glass: THREE.Mesh }[] = [];
-  const goldFrame = new THREE.MeshStandardMaterial({ color: 0xd2a645, metalness: 1, roughness: 0.3 });
+  const goldFrame = new THREE.MeshStandardMaterial({ color: 0xd2a645, metalness: 1, roughness: 0.38, envMapIntensity: 0.6 });
   const wax = new THREE.MeshPhysicalMaterial({ color: 0x8a1420, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.15, sheen: 0.4 });
   const ribbonMat = new THREE.MeshStandardMaterial({ color: 0x8a1c2a, roughness: 0.55, metalness: 0.0, side: THREE.DoubleSide });
-  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, roughness: 0.02, metalness: 0, envMapIntensity: 2.5, specularIntensity: 1, depthWrite: false });
+  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, roughness: 0.02, metalness: 0, envMapIntensity: 0.5, specularIntensity: 0.5, depthWrite: false });
   const FW = 1.62, FH = FW / 1.414;
   const frameShape = (() => { const s = new THREE.Shape(); const w = FW / 2 + 0.11, h = FH / 2 + 0.11; s.moveTo(-w, -h); s.lineTo(w, -h); s.lineTo(w, h); s.lineTo(-w, h); s.lineTo(-w, -h); const hole = new THREE.Path(); const iw = FW / 2, ih = FH / 2; hole.moveTo(-iw, -ih); hole.lineTo(-iw, ih); hole.lineTo(iw, ih); hole.lineTo(iw, -ih); hole.lineTo(-iw, -ih); s.holes.push(hole); return s; })();
   const frameGeo = new THREE.ExtrudeGeometry(frameShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.045, bevelSegments: 8, curveSegments: 2 });
@@ -340,13 +340,13 @@ export function createAcademy(opts: { canvas: HTMLCanvasElement; items: AcademyI
   n0.forEach((item, i) => {
     const z = lecternZ(i); const g = new THREE.Group(); g.position.set(0, 0, z);
     const body = new THREE.Mesh(lecternBody, woodMat); g.add(body);
-    const desk = new THREE.Group(); desk.position.set(0, 1.08, 0); desk.rotation.x = -0.9; g.add(desk);
+    const desk = new THREE.Group(); desk.position.set(0, 0.98, 0); desk.rotation.x = 0.8; g.add(desk);
     const top = new THREE.Mesh(new THREE.BoxGeometry(FW + 0.5, 0.07, FH + 0.4), woodMat); top.position.z = 0; desk.add(top);
     const lip = new THREE.Mesh(new THREE.BoxGeometry(FW + 0.5, 0.06, 0.07), brass); lip.position.set(0, 0.04, (FH + 0.4) / 2 - 0.03); desk.add(lip);
     const frame = new THREE.Mesh(frameGeo, goldFrame); frame.position.set(0, 0.2, -0.0); frame.rotation.x = Math.PI / 2; frame.position.y = 0.045; desk.add(frame);
     const mat = new THREE.Mesh(innerFrame, new THREE.MeshStandardMaterial({ color: 0x1a120a, roughness: 0.8 })); mat.rotation.x = Math.PI / 2; mat.position.y = 0.05; desk.add(mat);
     const pt = paperTexture(item || null); toDispose.push(pt); const bump = pt;
-    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH), new THREE.MeshStandardMaterial({ map: pt, bumpMap: bump, bumpScale: 0.4, roughness: 0.92, metalness: 0, envMapIntensity: 0.3 }));
+    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH), new THREE.MeshStandardMaterial({ map: pt, color: 0xb8b8b8, bumpMap: bump, bumpScale: 0.4, roughness: 0.92, metalness: 0, envMapIntensity: 0.3 }));
     sheet.rotation.x = -Math.PI / 2; sheet.position.y = 0.055; desk.add(sheet);
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(FW + 0.03, FH + 0.03), glassMat); glass.rotation.x = -Math.PI / 2; glass.position.y = 0.075; desk.add(glass);
     // wax seal and ribbon, lying on the paper
@@ -372,7 +372,7 @@ export function createAcademy(opts: { canvas: HTMLCanvasElement; items: AcademyI
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: hi ? Math.min(4, renderer.capabilities.maxSamples) : 0 });
   const composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), hi ? 0.42 : 0.3, 0.55, 0.88); composer.addPass(bloom);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), hi ? 0.35 : 0.25, 0.5, 1.05); composer.addPass(bloom);
   const grade = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, time: { value: 0 }, res: { value: new THREE.Vector2(1, 1) } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
@@ -395,16 +395,16 @@ export function createAcademy(opts: { canvas: HTMLCanvasElement; items: AcademyI
     const dt = Math.min(clock.getDelta(), 0.5); const t = clock.elapsedTime;
     shown += (cur - shown) * (1 - Math.exp(-dt * 3.2));
     const intro = 1 - ease(clamp(shown / 0.5));               // wide establishing shot that settles on the first certificate
-    const zc = lecternZ(0) + 3.5 - shown * BAY + intro * 7.5;
+    const zc = lecternZ(0) + 4.4 - shown * BAY + intro * 7.5;
     const sway = Math.sin(t * 0.37) * 0.05, bob = Math.sin(t * 0.8) * 0.012;
     const cx = narrow ? 0.15 : 0.95;
     camera.position.set(cx + sway + intro * 0.6, 1.72 + bob + intro * 0.7, zc);
-    look.set(narrow ? 0 : -0.05 + sway * 0.4, 1.28 + intro * 0.9, zc - 3.4 - intro * 4);
+    look.set(narrow ? 0 : -0.05 + sway * 0.4, 1.0 + intro * 0.9, zc - 3.4 - intro * 4);
     camera.lookAt(look);
     // the nearest lectern gets the spotlights, candle light follows the walker
     const idx = clamp(shown, 0, n - 1); const near = Math.round(idx);
-    spots.forEach((s, k) => { const h = holders[clamp(near + k - (k ? 0 : 0), 0, holders.length - 1)]; const hz = h ? h.z : lecternZ(0); s.position.set(k ? -1.3 : 1.2, 5.6, hz + 1.8); s.target.position.set(0, 1.2, hz); s.intensity = 1500 * (k ? 0.45 : 1); });
-    candles.forEach((l, k) => { l.position.set(k === 1 ? 2.2 : -2.2, 8.6, zc - 3 - k * BAY * 0.9); l.intensity = 520 * (1 + Math.sin(t * 7 + k * 2) * 0.04 + Math.sin(t * 13 + k) * 0.02); });
+    spots.forEach((s, k) => { const h = holders[clamp(near + k - (k ? 0 : 0), 0, holders.length - 1)]; const hz = h ? h.z : lecternZ(0); s.position.set(k ? -1.3 : 1.2, 5.6, hz + 1.8); s.target.position.set(0, 1.2, hz); s.intensity = 55 * (k ? 0.45 : 1); });
+    candles.forEach((l, k) => { l.position.set(k === 1 ? 2.2 : -2.2, 8.6, zc - 3 - k * BAY * 0.9); l.intensity = 300 * (1 + Math.sin(t * 7 + k * 2) * 0.04 + Math.sin(t * 13 + k) * 0.02); });
     moon.position.set(3, 22, zc + 4); moon.target.position.set(0, 0, zc - 4);
     chand.forEach((c, i) => { c.rotation.y = Math.sin(t * 0.2 + i) * 0.1; });
     holders.forEach(({ g, glass }, i) => { (glass.material as THREE.MeshPhysicalMaterial).opacity = 0.1; g.rotation.y = Math.sin(t * 0.3 + i) * 0.012; });
