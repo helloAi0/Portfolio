@@ -34,17 +34,50 @@ export function humanizeIdentity(c: RetrievedKnowledgeChunk): string | null {
   return parts.join(' ');
 }
 
+/** Splits a "Key: value. Key: value." record into its fields. Empty values ("", "[]", "none listed") are dropped. */
+export function recordFields(content: string): Record<string, string> {
+  const out: Record<string, string> = {}; const re = /([A-Z][A-Za-z ]{1,24}): /g; const hits: { key: string; start: number; end: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content))) { const before = content[m.index - 1]; if (m.index === 0 || before === ' ' || before === '\n') hits.push({ key: m[1].trim(), start: m.index, end: m.index + m[0].length }); }
+  hits.forEach((h, i) => { const v = content.slice(h.end, hits[i + 1]?.start ?? content.length).trim().replace(/\.$/, '').trim(); if (v && !/^(\[\]|none( listed)?|n\/a|-)$/i.test(v)) out[h.key] = v; });
+  return out;
+}
+/** Records are cut at a fixed length, which can leave a half word at the end ("... creators. Tur"). Drop such a fragment. */
+const wholeSentences = (t: string) => { const parts = t.split(/(?<=[.!?])\s+/); const last = parts[parts.length - 1]; if (parts.length > 1 && last.length < 18 && !/[.!?]$/.test(last)) parts.pop(); return parts.join(' ').replace(/\.$/, ''); };
+
+/** A project record as a short, natural paragraph. Only fields that are present are mentioned. */
+export function humanizeProject(c: RetrievedKnowledgeChunk): string | null {
+  if (!c.id.startsWith('project:')) return null;
+  const f = recordFields(c.content); const title = f.Title ?? c.title; if (!title) return null;
+  const kind = [f.Difficulty && !/unrated/i.test(f.Difficulty) ? f.Difficulty.toLowerCase() : '', f.Category ?? ''].filter(Boolean).join(' ');
+  const parts = [`${title} is ${kind ? `a ${kind} project` : 'one of his projects'}${f.Status && !/^active$/i.test(f.Status) ? ` (${f.Status.toLowerCase()})` : ''}.`];
+  if (f.Tagline) parts.push(`${wholeSentences(f.Tagline)}.`);
+  if (f.Problem) parts.push(`The problem: ${wholeSentences(f.Problem)}.`);
+  if (f.Solution) parts.push(`The approach: ${wholeSentences(f.Solution)}.`);
+  if (f['Key Features']) parts.push(`Key features: ${f['Key Features']}.`);
+  if (f['Technologies used']) parts.push(`It is built with ${f['Technologies used'].replace(/, ([^,]+)$/, ' and $1')}.`);
+  const links = [f.GitHub ? `the code is at ${f.GitHub.replace(/\.$/, '')}` : '', f['Live demo'] && /^https?:/.test(f['Live demo']) ? `a live demo is at ${f['Live demo']}` : ''].filter(Boolean);
+  if (links.length) parts.push(`${links.join(' and ')[0].toUpperCase()}${links.join(' and ').slice(1)}.`);
+  return parts.join(' ');
+}
+/** Any other record: the same text without empty fields and "[]". */
+export function tidyRecord(c: RetrievedKnowledgeChunk): string {
+  const f = recordFields(c.content); const keys = Object.keys(f);
+  if (keys.length < 2) return c.content;
+  return keys.map((k) => `${k}: ${f[k]}.`).join(' ');
+}
+
 export function synthesizeGroundedResponse(chunks: RetrievedKnowledgeChunk[]): string {
   if (chunks.length === 0) return INSUFFICIENT_EVIDENCE_PHRASE;
   const owner = chunks.slice(0, 2).map(extractOwnerAnswer).find(Boolean);
   if (owner) return owner;
 
-  const nice = humanizeIdentity(chunks[0]);
+  const nice = humanizeIdentity(chunks[0]) ?? humanizeProject(chunks[0]);
   if (nice) return nice;
 
   const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s);
   const [first, ...rest] = chunks;
-  const lines = [`${first.title}${tierNote(first)}: ${clip(first.content, 650)}`];
+  const lines = [`${first.title}${tierNote(first)}: ${clip(tidyRecord(first), 650)}`];
   const related = rest.slice(0, 2);
   if (related.length) lines.push(`Related: ${related.map((c) => `${c.title}${tierNote(c)}`).join('; ')}.`);
   return lines.join('\n\n');

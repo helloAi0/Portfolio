@@ -53,8 +53,9 @@ export function styleHint(a: Audience): string {
 }
 
 /** Deterministic closing line, so the behaviour works even without an LLM key. Returns '' when nothing should be added. */
-export function rapportLine(a: Audience, turns: number): string {
+export function rapportLine(a: Audience, turns: number, askedBefore = false): string {
   if (a.dealIntent) return `If you would like to take this further, leave your name, company and email and ${PROFILE.displayName} will reply to you personally. I can't agree terms on his behalf, but I will make sure he sees it.`;
+  if (askedBefore) return a.kind === 'executive' || a.kind === 'recruiter' ? `Happy to connect you with ${PROFILE.displayName} directly if that is useful.` : '';
   if (a.kind === 'unknown' && !a.intro) return turns <= 2 ? `By the way, who do I have the pleasure of talking with? It helps me point you to the parts of his work that matter most to you.` : '';
   if (a.kind !== 'unknown' && !a.org && turns <= 3) return 'Which company or team are you with? I can focus on what is most relevant to what you do.';
   if (a.kind === 'executive' || a.kind === 'recruiter') return `Happy to connect you with ${PROFILE.displayName} directly if that is useful.`;

@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         } catch (e) { logger.error('LamoChat.ConversationLog', e as Error); }
       }
 
-      const rapport = lamoRes.isUnanswered ? '' : rapportLine(audience, userTexts.length);
+      const rapport = lamoRes.isUnanswered || /\b(contact|reach|e-?mail|linkedin)\b/i.test(message) ? '' : rapportLine(audience, userTexts.length, history.some((t) => t.role === 'ASSISTANT' && /who do i have the pleasure|which company or team/i.test(t.content)));
       // A visitor who asked for it short gets the first two sentences, not the whole record.
       const base = audience.brief && !lamoRes.isUnanswered && lamoRes.answer.length > 280 ? (lamoRes.answer.match(/^(?:[\s\S]+?[.!?](?:\s|$)){1,2}/)?.[0].trim() ?? lamoRes.answer) : lamoRes.answer;
       return {

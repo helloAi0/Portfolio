@@ -11,6 +11,7 @@
 import type { RetrievedKnowledgeChunk, LamoResponse, VerificationTier } from './types';
 import { loadVerifiedKnowledge, rankKnowledge } from './knowledgeRetriever';
 import { INSUFFICIENT_EVIDENCE_PHRASE, sanitizeOutput, isPureGreeting } from './guardrails';
+import { recordFields } from './synthesis';
 import { synthesizeGroundedResponse, buildNavigationPills, validateModelOutput, greetingAnswer, extractOwnerAnswer } from './synthesis';
 import { logger } from '@/lib/logger';
 import { PROFILE } from '@/config/profile';
@@ -120,7 +121,7 @@ async function runGemini(question: string, history: AgentTurn[], tools: Toolbox,
         body: JSON.stringify({ systemInstruction: { parts: [{ text: hint ? `${SYSTEM}\n\nStyle for this visitor (tone only; the rules above still win):\n${hint}` : SYSTEM }] }, contents, tools: TOOLS, generationConfig: { temperature: 0.2, maxOutputTokens: 500 } }),
         signal: AbortSignal.timeout(9000),
       });
-      if (!res.ok) { logger.warn('LamoAgent', `Gemini HTTP ${res.status}; using the built-in engine.`); return null; }
+      if (!res.ok) { logger.warn('LamoAgent', `Gemini HTTP ${res.status}; using the built-in engine.`); if (process.env.NODE_ENV === 'development') step(`Gemini returned HTTP ${res.status}: using the built-in engine`); return null; }
       const data: any = await res.json();
       const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
       const calls = parts.filter((p) => p.functionCall);
@@ -175,6 +176,18 @@ function followUpsFor(chunks: RetrievedKnowledgeChunk[], asked: string): string[
 
 const looksLikeFollowUp = (q: string) => q.trim().split(/\s+/).length <= 7 && /^(and|what about|how about|also|more|why|how|which|tell me more|what else|those|these|that|it|them)\b|\b(he|his|him|it|they|them|that|those|these)\b/i.test(q);
 
+const CONTACT = /\b(contact|reach (him|out)|get in touch|e-?mail|mail him|linkedin|talk to him|speak (to|with) him|message him|write to him|hire (him|taha))\b/i;
+const PRIVATE = /\b(phone|mobile number|whats ?app|home address|where (exactly )?does he live|address|date of birth|dob|birthday|how old|age|salary|ctc|income|religion|caste|politic\w*|girlfriend|boyfriend|married|wife|relationship status|passport|aadhaar|pan card)\b/i;
+const PERSONAL = /(tea or coffee|coffee or tea|favou?rite (food|movie|music|song|color|colour|game|sport|drink)|hobb(y|ies)|free time|likes? to (eat|watch|play|listen)|\bfood\b|\bmovies?\b|\bmusic\b|\bsports?\b|\bpets?\b|men or women|male or female|\bgender\b|boy or girl|is he (a )?(man|woman|male|female|single))/i;
+
+/** Contact details come only from the profile record. */
+function composeContact(all: RetrievedKnowledgeChunk[]): { answer: string; chunk: RetrievedKnowledgeChunk } | null {
+  const c = all.find((x) => x.id.startsWith('profile:') && /Contact:/.test(x.content)); if (!c) return null;
+  const f = recordFields(c.content); const mail = f.Contact?.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0]; const gh = c.content.match(/https:\/\/github\.com\/[A-Za-z0-9_-]+/)?.[0]; const li = c.content.match(/https:\/\/(www\.)?linkedin\.com\/in\/[A-Za-z0-9_%-]+/)?.[0];
+  const ways = [mail ? `email him at ${mail}` : '', 'send a message through the Contact page on this site', li ? `connect on LinkedIn (${li})` : ''].filter(Boolean);
+  return { chunk: c, answer: `The easiest ways to reach ${PROFILE.displayName} are to ${ways.join(', or ').replace(/, or ([^,]+)$/, ' or $1')}.${gh ? ` His code is on GitHub: ${gh}.` : ''} He reads everything personally.` };
+}
+
 export async function runAgent(params: { question: string; history?: AgentTurn[]; onStep?: StepFn; styleHint?: string }): Promise<LamoResponse> {
   const { question } = params;
   const history = (params.history ?? []).filter((t) => (t.role === 'USER' || t.role === 'ASSISTANT') && typeof t.content === 'string');
@@ -185,12 +198,21 @@ export async function runAgent(params: { question: string; history?: AgentTurn[]
     return { answer: greetingAnswer(), confidence: 'VERIFIED', citations: [], suggestedActions: [{ label: 'Explore Projects', href: '/projects' }, { label: 'Education', href: '/education' }], isUnanswered: false, steps, followUps: ['What projects has he built?', 'Which skills are verified?', 'What is his educational background?'] };
   }
 
+  if (PRIVATE.test(question) && !CONTACT.test(question)) {
+    return { answer: `That is personal, so I do not share it. If you want to reach ${PROFILE.displayName}, the Contact page is the best way, and he will decide what to tell you.`, confidence: 'UNKNOWN', citations: [], suggestedActions: [{ label: 'Contact', href: '/contact' }], isUnanswered: false, steps, followUps: ['What projects has he built?', 'What is he studying?'] };
+  }
+  if (PERSONAL.test(question) && !/\b(project|skill|language|tech|code)\b/i.test(question)) {
+    return { answer: `That is not something ${PROFILE.displayName} has shared on this site, so I will not guess. What I can tell you about is what he builds, studies and is learning. If you would like an answer to this one, I have passed your question on to him, and you can also write to him on the Contact page.`, confidence: 'UNKNOWN', citations: [], suggestedActions: [{ label: 'Contact', href: '/contact' }], isUnanswered: true, missingInformationReason: 'Personal question with no verified record', steps, followUps: ['What projects has he built?', 'What is he studying?'] };
+  }
+
   step('Reading your question');
   const all = await loadVerifiedKnowledge();
   const tools = new Toolbox(all, step);
 
   let answer: string | null = null;
   let modelRefused = false;
+  let contactAnswer = false;
+  if (!process.env.GEMINI_API_KEY && process.env.NODE_ENV === 'development') step('No GEMINI_API_KEY set: using the built-in engine');
   const modelText = await runGemini(question, history, tools, step, params.styleHint);
   if (modelText) {
     if (modelText.includes(INSUFFICIENT_EVIDENCE_PHRASE.slice(0, 40))) modelRefused = true;
@@ -207,7 +229,9 @@ export async function runAgent(params: { question: string; history?: AgentTurn[]
   if (!answer && !modelRefused) {
     // built-in planner
     const kind = listKindFor(question);
-    if (kind) {
+    const contact = !kind && CONTACT.test(question) ? composeContact(all) : null;
+    if (contact) { contactAnswer = true; step('Looking up his contact details'); chunks = [contact.chunk]; answer = contact.answer; }
+    else if (kind) {
       const r = tools.list(kind);
       chunks = r.chunks;
       answer = composeList(kind, r.chunks);
@@ -228,7 +252,7 @@ export async function runAgent(params: { question: string; history?: AgentTurn[]
 
   const cited = chunks;
   const kindPage = listKindFor(question);
-  const suggestedActions = kindPage && KINDS[kindPage] ? [{ label: `Open ${KINDS[kindPage].label}`, href: KINDS[kindPage].page }] : buildNavigationPills(cited);
+  const suggestedActions = contactAnswer ? [{ label: 'Open Contact page', href: '/contact' }] : kindPage && KINDS[kindPage] ? [{ label: `Open ${KINDS[kindPage].label}`, href: KINDS[kindPage].page }] : buildNavigationPills(cited);
   const citations = cited.slice(0, 4).map((c) => ({ source: c.source, title: c.title, status: c.verificationStatus, url: c.urlPath }));
   const confidence: VerificationTier = cited[0]?.verificationStatus ?? 'VERIFIED';
   step('Checking the answer against the records');
