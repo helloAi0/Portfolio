@@ -50,3 +50,4 @@ backups/
 .open-next/
 backups/
 d1-data.sql
+legacy-clean.sql
