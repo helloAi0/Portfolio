@@ -1,3 +1,4 @@
+import { ensureLegacyClean } from '@/lib/services/legacyCleanupService';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
@@ -5,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   const admin = getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureLegacyClean();
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get('status');

@@ -38,3 +38,11 @@ export async function cleanLegacyData(): Promise<Record<string, number>> {
   if (total) logger.info('LegacyCleanup', `Removed ${total} old template/test item(s): ${JSON.stringify(out)}`);
   return out;
 }
+
+let lastEnsure = 0;
+/** Runs the cleanup at most once an hour per server instance; called when the admin opens the inbox, bio or projects. */
+export async function ensureLegacyClean(): Promise<void> {
+  if (Date.now() - lastEnsure < 3600_000) return;
+  lastEnsure = Date.now();
+  try { await cleanLegacyData(); } catch { /* never block the admin page */ }
+}

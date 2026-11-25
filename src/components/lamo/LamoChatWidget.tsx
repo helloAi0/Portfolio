@@ -22,7 +22,7 @@ interface ChatMessage {
   error?: boolean;
 }
 
-const FALLBACK = "I don't currently have verified information about that specific experience. I can forward this question to the portfolio owner for clarification.";
+const FALLBACK = "That is a good question, and it is not something Taha has put on record yet, so I will not guess. I have passed it on to him, and you are welcome to leave your email on the Contact page so he can answer you personally.";
 const STARTERS = [
   { t: 'Who is Taha?', s: 'A short introduction' },
   { t: 'What projects has he built?', s: 'Real, published work' },

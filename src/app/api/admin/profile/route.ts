@@ -1,3 +1,4 @@
+import { ensureLegacyClean } from '@/lib/services/legacyCleanupService';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   if (!getAdminFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureLegacyClean();
   return NextResponse.json({ data: await prisma.profile.findFirst({ orderBy: { createdAt: 'desc' } }) });
 }
 

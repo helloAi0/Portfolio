@@ -1,3 +1,4 @@
+import { ensureLegacyClean } from '@/lib/services/legacyCleanupService';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { prisma } from '@/lib/prisma';
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 /** All projects (including unpublished) for the Projects Studio. */
 export async function GET(req: NextRequest) {
   if (!getAdminFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureLegacyClean();
   const rows = await prisma.project.findMany({ include: { category: { select: { slug: true, name: true } } }, orderBy: [{ updatedAt: 'desc' }] });
   const arr = (v: string | null) => { try { const p = JSON.parse(v ?? '[]'); return Array.isArray(p) ? p : []; } catch { return []; } };
   return NextResponse.json({ data: rows.map((p) => ({

@@ -1,3 +1,4 @@
+import { ensureLegacyClean } from '@/lib/services/legacyCleanupService';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import {
@@ -9,6 +10,7 @@ import {
 export async function GET(req: NextRequest) {
   const admin = getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  await ensureLegacyClean();
 
   try {
     const review = await generateBiographyReview(false);

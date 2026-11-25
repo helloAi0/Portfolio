@@ -64,6 +64,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
   } catch (error: any) {
+    // A project/audit id that no longer exists (deleted, or removed by the legacy cleanup) is a normal 404, not a server error.
+    if (/not found/i.test(String(error?.message))) return NextResponse.json({ error: 'That item no longer exists. Refresh the page to see the current list.' }, { status: 404 });
     console.error('Error in LAMO Copilot API:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }

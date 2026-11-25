@@ -6,7 +6,7 @@
 import { GuardrailCheck } from './types';
 
 export const INSUFFICIENT_EVIDENCE_PHRASE =
-  "I don't currently have verified information about that specific experience. I can forward this question to the portfolio owner for clarification.";
+  "That is a good question, and it is not something Taha has put on record yet, so I will not guess. I have passed it on to him, and you are welcome to leave your email on the Contact page so he can answer you personally.";
 
 /** Collapse tricks used to dodge pattern matching (zero-width chars, homoglyph spacing, leetspeak). */
 export function normalizeForInspection(input: string): string {

@@ -23,5 +23,4 @@ export const secondaryNavItems: NavItem[] = [
   { title: 'Coding Arena', href: '/coding-arena' },
   { title: 'Achievements', href: '/achievements' },
   { title: 'Certificates', href: '/certificates' },
-  { title: 'Admin', href: '/admin', badge: 'Secure' },
 ];
