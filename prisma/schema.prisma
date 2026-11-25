@@ -545,3 +545,36 @@ model ResumeSettings {
   extraSections String?  // JSON array of {title, body}
   updatedAt     DateTime @updatedAt
 }
+
+// Private job agent (admin only): roles it found, scored, and wrote letters for. Nothing here is public.
+model JobMatch {
+  id           String   @id @default(cuid())
+  externalId   String   @unique
+  company      String
+  title        String
+  location     String   @default("")
+  url          String
+  country      String?
+  remote       Boolean  @default(false)
+  score        Int
+  tier         String
+  family       String
+  resume       String
+  why          String   @default("[]")
+  letter       String
+  letterNeeded Boolean  @default(false)
+  todo         String   @default("[]")
+  ratingNote   String?
+  snapshot     String   @default("{}")
+  status       String   @default("NEW")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model JobKv {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -10,6 +10,7 @@ import { syncCodingPlatforms } from '@/lib/services/codingPlatformService';
 import { syncLeetCodeSolutions } from '@/lib/services/codingSolutionService';
 import { publishPendingSuggestions } from '@/lib/services/projectPublicationService';
 import { cleanLegacyData } from '@/lib/services/legacyCleanupService';
+import { runJobScan } from '@/lib/jobs/service';
 import { logger } from '@/lib/logger';
 
 let running = false;
@@ -30,6 +31,8 @@ export async function runAllSyncs(trigger: string): Promise<{ skipped?: boolean;
     catch (e) { result.codingPlatforms = { error: String((e as Error).message) }; }
     try { result.leetcodeSolutions = await syncLeetCodeSolutions(); }
     catch (e) { result.leetcodeSolutions = { error: String((e as Error).message) }; }
+    try { const j = await runJobScan(); result.jobAgent = j.skipped === 'disabled' ? j : { queued: (j as any).queued, scanned: (j as any).scanned }; }
+    catch (e) { result.jobAgent = { error: String((e as Error).message) }; }
     lastRun = { at: new Date().toISOString(), trigger, result };
     logger.info('AutoSync', `Run finished (${trigger})`);
     return { result };

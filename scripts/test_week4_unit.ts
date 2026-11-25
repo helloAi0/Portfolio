@@ -101,7 +101,7 @@ const makeDb = (seed: Record<string, any[]> = {}) => {
     t(`schema(${file.split('/')[1]}): dependency order valid for every model`, info.every((i) => i.dependsOn.every((dep) => ord.indexOf(dep) < ord.indexOf(i.name))));
   }
   const a = parseSchemaModels(fs.readFileSync('prisma/schema.prisma', 'utf8')).map((m) => m.name).sort().join();
-  t('schema: D1 migration covers every model', (() => { const sql = fs.readFileSync('migrations/0001_init.sql', 'utf8'); return a.split(',').every((m) => sql.includes(`CREATE TABLE "${m}"`)); })());
+  t('schema: D1 migration covers every model', (() => { const sql = fs.readdirSync('migrations').filter((f) => f.endsWith('.sql')).map((f) => fs.readFileSync(`migrations/${f}`, 'utf8')).join('\n'); return a.split(',').every((m) => sql.includes(`CREATE TABLE "${m}"`)); })());
   t('schema: loadModelInfo falls back to the file', loadModelInfo(undefined).length > 25);
 
   console.log(`\n${passed} passed, ${failed} failed`);

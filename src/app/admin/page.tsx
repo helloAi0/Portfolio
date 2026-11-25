@@ -9,6 +9,7 @@ import AutomationPanel from '@/components/admin/AutomationPanel';
 import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import VisitorChatsPanel from '@/components/admin/VisitorChatsPanel';
+import JobAgentPanel from '@/components/admin/JobAgentPanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
 import SkillsPanel from '@/components/admin/SkillsPanel';
@@ -61,6 +62,7 @@ type AdminTab =
   | 'experience'
   | 'lamo-questions'
   | 'visitor-chats'
+  | 'job-agent'
   | 'lamo-copilot'
   | 'sync-history'
   | 'settings';
@@ -694,6 +696,7 @@ export default function AdminDashboardPage() {
       { id: 'lamo-questions', label: 'LAMO Questions', icon: Send, count: pendingQuestions, hot: pendingQuestions > 0 },
     ] },
     { title: 'Automation', items: [
+      { id: 'job-agent', label: 'Job Agent', icon: Send },
       { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
       { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length, hot: pendingRepos > 0 },
       { id: 'leetcode', label: 'LeetCode', icon: Code2 },
@@ -1011,6 +1014,7 @@ export default function AdminDashboardPage() {
           {activeTab === 'profile' && <ProfileEditorPanel onChanged={loadAllData} />}
           {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
           {activeTab === 'visitor-chats' && <VisitorChatsPanel />}
+          {activeTab === 'job-agent' && <JobAgentPanel />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
           {activeTab === 'projects' && <ProjectsStudioPanel onChanged={loadAllData} />}
           {activeTab === 'resume' && <ResumeStudioPanel onChanged={loadAllData} />}

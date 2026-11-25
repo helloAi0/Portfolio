@@ -26,7 +26,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
 
 (async () => {
   // ---- access control
-  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/backup', '/api/admin/resume']) {
+  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/backup', '/api/admin/resume']) {
     const r = await call('GET', p, null, { anon: true }); ok(`anonymous blocked: ${p}`, r.status === 401, r.status);
   }
   ok('anonymous upload blocked', (await call('POST', '/api/admin/uploads', PDF(), { anon: true })).status === 401);
@@ -41,7 +41,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
   ok('auth check says admin', (await call('GET', '/api/admin/auth')).json?.admin === true);
 
   // ---- every admin read endpoint answers
-  for (const p of ['/api/admin/profile', '/api/admin/lamo/conversations', '/api/admin/skills', '/api/admin/projects', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/ambitions', '/api/admin/education', '/api/admin/enquiries', '/api/admin/experience', '/api/admin/github', '/api/admin/integrations', '/api/admin/lamo/questions', '/api/admin/lamo/biography', '/api/admin/linkedin', '/api/admin/sync-logs', '/api/admin/coding-stats', '/api/admin/coding-solutions', '/api/admin/resume', '/api/admin/sync-all']) {
+  for (const p of ['/api/admin/profile', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/skills', '/api/admin/projects', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/ambitions', '/api/admin/education', '/api/admin/enquiries', '/api/admin/experience', '/api/admin/github', '/api/admin/integrations', '/api/admin/lamo/questions', '/api/admin/lamo/biography', '/api/admin/linkedin', '/api/admin/sync-logs', '/api/admin/coding-stats', '/api/admin/coding-solutions', '/api/admin/resume', '/api/admin/sync-all']) {
     const r = await call('GET', p); ok(`GET ${p}`, r.status === 200, `${r.status} ${r.text.slice(0, 100)}`);
   }
 
@@ -162,6 +162,20 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
   ok('unknown page is a 404', (await call('GET', '/definitely-not-here', null, { anon: true })).status === 404);
   const adminAnon = await call('GET', '/admin', null, { anon: true });
   ok('admin page leaks no admin data without login', !/E2E/.test(adminAnon.text), adminAnon.status);
+
+  // ---- job agent (admin only, never submits anything)
+  {
+    const g = await call('GET', '/api/admin/jobs');
+    ok('job agent: GET shape', g.status === 200 && Array.isArray(g.json?.data) && g.json?.settings?.mode && g.json?.boards > 0, g.status);
+    const before = g.json?.settings?.mode;
+    const m = await call('PATCH', '/api/admin/jobs', { settings: { mode: 'hybrid' } });
+    ok('job agent: switch to hybrid', m.status === 200 && m.json?.settings?.mode === 'hybrid', m.text);
+    ok('job agent: bad mode rejected', (await call('PATCH', '/api/admin/jobs', { settings: { mode: 'mars' } })).status === 400);
+    ok('job agent: unknown job rejected', (await call('PATCH', '/api/admin/jobs', { id: 'nope', status: 'APPLIED' })).status === 400);
+    ok('job agent: unknown action rejected', (await call('POST', '/api/admin/jobs', { action: 'apply' })).status === 400);
+    await call('PATCH', '/api/admin/jobs', { settings: { mode: before || 'remote' } });
+    ok('job agent: no public route', (await call('GET', '/api/admin/jobs', null, { anon: true })).status === 401);
+  }
 
   // ---- logout
   await call('DELETE', '/api/admin/auth'); cookie = '';
