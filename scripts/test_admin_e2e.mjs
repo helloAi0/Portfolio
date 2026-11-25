@@ -26,7 +26,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
 
 (async () => {
   // ---- access control
-  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/backup', '/api/admin/resume']) {
+  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/backup', '/api/admin/resume']) {
     const r = await call('GET', p, null, { anon: true }); ok(`anonymous blocked: ${p}`, r.status === 401, r.status);
   }
   ok('anonymous upload blocked', (await call('POST', '/api/admin/uploads', PDF(), { anon: true })).status === 401);
@@ -41,7 +41,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
   ok('auth check says admin', (await call('GET', '/api/admin/auth')).json?.admin === true);
 
   // ---- every admin read endpoint answers
-  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/projects', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/ambitions', '/api/admin/education', '/api/admin/enquiries', '/api/admin/experience', '/api/admin/github', '/api/admin/integrations', '/api/admin/lamo/questions', '/api/admin/lamo/biography', '/api/admin/linkedin', '/api/admin/sync-logs', '/api/admin/coding-stats', '/api/admin/coding-solutions', '/api/admin/resume', '/api/admin/sync-all']) {
+  for (const p of ['/api/admin/profile', '/api/admin/lamo/conversations', '/api/admin/skills', '/api/admin/projects', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/ambitions', '/api/admin/education', '/api/admin/enquiries', '/api/admin/experience', '/api/admin/github', '/api/admin/integrations', '/api/admin/lamo/questions', '/api/admin/lamo/biography', '/api/admin/linkedin', '/api/admin/sync-logs', '/api/admin/coding-stats', '/api/admin/coding-solutions', '/api/admin/resume', '/api/admin/sync-all']) {
     const r = await call('GET', p); ok(`GET ${p}`, r.status === 200, `${r.status} ${r.text.slice(0, 100)}`);
   }
 

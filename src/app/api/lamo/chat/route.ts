@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       // 4. Conversation log (best effort; never fails the answer)
       if (sessionId) {
         try {
-          const conv = await prisma.lamoConversation.upsert({ where: { sessionId }, update: {}, create: { sessionId, visitorName, visitorEmail } });
+          const conv = await prisma.lamoConversation.upsert({ where: { sessionId }, update: { ...(visitorEmail ? { visitorEmail } : {}), ...(visitorName || audience.name ? { visitorName: visitorName || audience.name } : {}) }, create: { sessionId, visitorName: visitorName || audience.name || null, visitorEmail } });
           await prisma.lamoMessage.createMany({
             data: [
               { conversationId: conv.id, role: 'USER', content: message },

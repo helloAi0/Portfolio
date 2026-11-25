@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import AutomationPanel from '@/components/admin/AutomationPanel';
 import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
+import VisitorChatsPanel from '@/components/admin/VisitorChatsPanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
 import SkillsPanel from '@/components/admin/SkillsPanel';
@@ -59,6 +60,7 @@ type AdminTab =
   | 'achievements'
   | 'experience'
   | 'lamo-questions'
+  | 'visitor-chats'
   | 'lamo-copilot'
   | 'sync-history'
   | 'settings';
@@ -688,6 +690,7 @@ export default function AdminDashboardPage() {
     ] },
     { title: 'Inbox', items: [
       { id: 'inbox', label: 'Contact Messages', icon: Send, count: unreadEnquiries, hot: unreadEnquiries > 0 },
+      { id: 'visitor-chats', label: 'Visitor Chats', icon: Send },
       { id: 'lamo-questions', label: 'LAMO Questions', icon: Send, count: pendingQuestions, hot: pendingQuestions > 0 },
     ] },
     { title: 'Automation', items: [
@@ -1007,6 +1010,7 @@ export default function AdminDashboardPage() {
           {activeTab === 'automation' && <AutomationPanel onChanged={loadAllData} />}
           {activeTab === 'profile' && <ProfileEditorPanel onChanged={loadAllData} />}
           {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
+          {activeTab === 'visitor-chats' && <VisitorChatsPanel />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
           {activeTab === 'projects' && <ProjectsStudioPanel onChanged={loadAllData} />}
           {activeTab === 'resume' && <ResumeStudioPanel onChanged={loadAllData} />}
