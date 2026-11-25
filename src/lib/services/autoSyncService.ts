@@ -9,6 +9,7 @@ import { syncGithubRepositories } from '@/lib/services/githubSyncService';
 import { syncCodingPlatforms } from '@/lib/services/codingPlatformService';
 import { syncLeetCodeSolutions } from '@/lib/services/codingSolutionService';
 import { publishPendingSuggestions } from '@/lib/services/projectPublicationService';
+import { cleanLegacyData } from '@/lib/services/legacyCleanupService';
 import { logger } from '@/lib/logger';
 
 let running = false;
@@ -19,6 +20,8 @@ export async function runAllSyncs(trigger: string): Promise<{ skipped?: boolean;
   running = true;
   const result: Record<string, unknown> = {};
   try {
+    try { result.legacyCleanup = await cleanLegacyData(); }
+    catch (e) { result.legacyCleanup = { error: String((e as Error).message) }; }
     try { result.github = await syncGithubRepositories(trigger === 'MANUAL' ? 'MANUAL' : 'SCHEDULED'); }
     catch (e) { result.github = { error: String((e as Error).message) }; }
     try { result.autoPublished = await publishPendingSuggestions(); }
