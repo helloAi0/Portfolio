@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface Job { id: string; company: string; title: string; location: string; url: string; country: string | null; remote: boolean; score: number; tier: string; family: string; resume: string; why: string[]; letter: string; letterNeeded: boolean; todo: string[]; ratingNote: string | null; status: string; createdAt: string }
+interface Job { id: string; company: string; title: string; location: string; url: string; country: string | null; remote: boolean; score: number; tier: string; family: string; resume: string; why: string[]; letter: string; letterNeeded: boolean; todo: string[]; ratingNote: string | null; status: string; createdAt: string; atsPlatform: string | null; prefillStatus: string; formConfidence: number | null; essayFree: boolean; draftedAnswers: { question: string; answer: string }[]; screenshotUrl: string | null; prefillNote: string | null }
 interface Data { data: Job[]; stats: Record<string, number>; settings: { mode: string; enabled: boolean; letterTemplate: string }; lastScan: { at?: string; mode?: string; scanned?: number; queued?: number; errors?: string[]; emerging?: string[] }; owner: Record<string, string>; boards: number; families: Record<string, string> }
 const MODES = [['remote', 'Remote'], ['hybrid', 'Hybrid'], ['onsite', 'On-site']] as const;
 const TIER: Record<string, string> = { READY_FOR_ONE_CLICK_REVIEW: 'Ready for review', REVIEW: 'Review', EXPLORATION: 'Exploration' };
@@ -64,6 +64,8 @@ export default function JobAgentPanel() {
               <a href={j.url} target="_blank" rel="noopener noreferrer" className="px-3 py-1 rounded bg-white text-black text-xs font-mono">Open posting</a>
             </div>
             <p className="text-xs font-mono text-neutral-300 mt-2">Attach: <b>{j.resume}</b></p>
+            {j.prefillStatus === 'done' && <p className="text-[11px] font-mono text-emerald-300 mt-1">Form pre-filled ({j.atsPlatform}) · confidence {j.formConfidence != null ? Math.round(j.formConfidence * 100) : '?'}% · {j.essayFree ? 'no essay questions' : 'has custom questions'}{j.prefillNote ? ` · ${j.prefillNote}` : ''}. Nothing was submitted: review the screenshot, then submit yourself.</p>}
+            {j.prefillStatus === 'failed' && <p className="text-[11px] font-mono text-amber-300 mt-1">Pre-fill could not read this form{j.prefillNote ? `: ${j.prefillNote}` : ''}. Use “Open posting”.</p>}
             {j.ratingNote && <p className="text-[11px] font-mono text-amber-300 mt-1">{j.ratingNote}</p>}
             <div className="flex flex-wrap gap-2 mt-2">
               {[['APPLIED', 'I applied'], ['SKIPPED', 'Not for me'], ['INTERVIEW', 'Interview'], ['REJECTED', 'Rejected'], ['OFFER', 'Offer'], ['NO_REPLY', 'No reply']].map(([k, l]) => <button key={k} onClick={() => mark(j.id, k)} className={`px-2 py-1 rounded border text-[11px] font-mono ${j.status === k ? 'bg-white text-black border-white' : 'border-neutral-700 text-neutral-300'}`}>{l}</button>)}
@@ -74,6 +76,8 @@ export default function JobAgentPanel() {
               <ul className="list-disc pl-5 text-[11px] font-mono text-neutral-400">{j.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
               <ul className="list-disc pl-5 text-[11px] font-mono text-neutral-300">{j.todo.map((w, i) => <li key={i}>{w}</li>)}</ul>
               {j.letterNeeded && <p className="text-[11px] font-mono text-amber-300">This posting asks for a letter.</p>}
+              {j.screenshotUrl && <a href={j.screenshotUrl} target="_blank" rel="noopener noreferrer" className="block text-[11px] font-mono text-sky-300 underline">Open pre-fill screenshot</a>}
+              {j.draftedAnswers.length > 0 && <div className="space-y-2"><p className="text-[11px] font-mono text-neutral-400">Drafted answers (from your verified facts only; paste after checking):</p>{j.draftedAnswers.map((a, i) => <div key={i} className="bg-neutral-900 rounded p-2"><p className="text-[11px] font-mono text-neutral-400">{a.question}</p><p className="text-xs text-neutral-200 whitespace-pre-wrap">{a.answer}</p><button onClick={() => copy(a.answer)} className="mt-1 px-2 py-0.5 rounded border border-neutral-700 text-[11px] font-mono text-neutral-300">Copy</button></div>)}</div>}
               <pre className="whitespace-pre-wrap text-xs text-neutral-200 bg-neutral-900 rounded p-3">{j.letter}</pre>
               <button onClick={() => copy(j.letter)} className="px-3 py-1 rounded border border-neutral-700 text-xs font-mono text-neutral-200">Copy letter</button>
             </div>}

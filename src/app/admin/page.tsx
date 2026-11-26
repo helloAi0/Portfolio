@@ -10,6 +10,7 @@ import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import VisitorChatsPanel from '@/components/admin/VisitorChatsPanel';
 import JobAgentPanel from '@/components/admin/JobAgentPanel';
+import OutreachPanel from '@/components/admin/OutreachPanel';
 import CertificateQueuePanel from '@/components/admin/CertificateQueuePanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
@@ -64,6 +65,7 @@ type AdminTab =
   | 'lamo-questions'
   | 'visitor-chats'
   | 'job-agent'
+  | 'outreach'
   | 'lamo-copilot'
   | 'sync-history'
   | 'settings';
@@ -71,6 +73,8 @@ type AdminTab =
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  // Deep links from Telegram / email cards, e.g. /admin#job-agent
+  useEffect(() => { const h = window.location.hash.slice(1); if (['certificates', 'job-agent', 'outreach', 'visitor-chats'].includes(h)) setActiveTab(h as AdminTab); }, []);
   const [health, setHealth] = useState<any | null>(null);
   const [resumeSet, setResumeSet] = useState<boolean | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -698,6 +702,7 @@ export default function AdminDashboardPage() {
     ] },
     { title: 'Automation', items: [
       { id: 'job-agent', label: 'Job Agent', icon: Send },
+      { id: 'outreach', label: 'Outreach', icon: Send },
       { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
       { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length, hot: pendingRepos > 0 },
       { id: 'leetcode', label: 'LeetCode', icon: Code2 },
@@ -1016,6 +1021,7 @@ export default function AdminDashboardPage() {
           {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
           {activeTab === 'visitor-chats' && <VisitorChatsPanel />}
           {activeTab === 'job-agent' && <JobAgentPanel />}
+          {activeTab === 'outreach' && <OutreachPanel />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
           {activeTab === 'projects' && <ProjectsStudioPanel onChanged={loadAllData} />}
           {activeTab === 'resume' && <ResumeStudioPanel onChanged={loadAllData} />}

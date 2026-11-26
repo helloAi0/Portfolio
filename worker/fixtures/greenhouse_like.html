@@ -1,0 +1,14 @@
+<!doctype html><html><body><form id="app" action="/submit" method="post">
+<h1>Apply: ML Intern</h1>
+<label for="fn">First Name *</label><input id="fn" name="first_name" required>
+<label for="ln">Last Name *</label><input id="ln" name="last_name" required>
+<label for="em">Email *</label><input id="em" name="email" type="email" required>
+<label for="ph">Phone</label><input id="ph" name="phone">
+<label for="li">LinkedIn Profile</label><input id="li" name="linkedin">
+<label for="gh">GitHub</label><input id="gh" name="github">
+<label for="cv">Resume/CV *</label><input id="cv" type="file" required>
+<label for="g">Gender</label><select id="g"><option>Prefer not to say</option></select>
+<label for="v">Do you require visa sponsorship?</label><input id="v">
+<button type="submit" id="sub">Submit application</button></form>
+<script>document.getElementById('app').addEventListener('submit',e=>{e.preventDefault();window.__submitted=true;fetch('/submit',{method:'POST',body:'x'}).catch(()=>{});});</script>
+</body></html>

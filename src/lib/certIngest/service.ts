@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { cleanExtraction, findDuplicate } from './validate';
+import { background } from '@/lib/background';
+import { certCard } from '@/lib/notify/telegram';
 
 export const STUCK_MS = 5 * 60 * 1000, MAX_RETRIES = 3;
 const clip = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
@@ -66,6 +68,7 @@ export async function applyResult(x: Outcome) {
   else {
     const made = await prisma.certificate.create({ data: { title: c.title, issuingOrganization: c.issuer, issueDate: c.issueDate ? new Date(c.issueDate + 'T00:00:00Z') : null, credentialId: c.credentialId, credentialUrl: c.verifyUrl, filePath: fileUrl, fileType: fileUrl ? 'application/pdf' : null, isPublic: false, ownerApproved: false, reviewStatus: 'pending', sourceType: c.sourceType, sourceMessageId: row.messageId, confidenceScore: c.confidence, needsUrlReview: c.needsUrlReview } });
     certId = made.id; action = 'created';
+    background(certCard({ id: made.id, title: c.title, issuer: c.issuer, confidence: c.confidence, needsUrlReview: c.needsUrlReview, hasPdf: !!fileUrl }));
   }
   await prisma.emailIngestQueue.update({ where: { id: row.id }, data: { processingStatus: 'done', errorLog: null } });
   return { ok: true, certificateId: certId, action };
@@ -77,4 +80,11 @@ export async function queueStats() {
   for (const g of groups) q[g.processingStatus] = g._count._all;
   const pending = await prisma.certificate.count({ where: { reviewStatus: 'pending' } });
   return { ...q, pendingReview: pending };
+}
+
+/** Approve = live now (public + approved). Reject = hidden everywhere public. */
+export async function reviewCertificate(id: string, status: 'approved' | 'rejected') {
+  return prisma.certificate.update({ where: { id }, data: status === 'approved'
+    ? { reviewStatus: 'approved', isPublic: true, ownerApproved: true, verificationStatus: 'VERIFIED', reviewedAt: new Date() }
+    : { reviewStatus: 'rejected', isPublic: false, ownerApproved: false, verificationStatus: 'PENDING_VERIFICATION', reviewedAt: new Date() } });
 }

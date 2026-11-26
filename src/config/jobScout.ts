@@ -17,6 +17,8 @@ export const JOB_CONFIG = {
   },
   countries: ['india', 'germany', 'japan', 'switzerland', 'netherlands', 'sweden', 'denmark', 'norway', 'finland', 'ireland', 'france', 'austria', 'belgium', 'spain', 'portugal', 'poland', 'estonia', 'luxembourg', 'united kingdom'],
   internTitles: ['intern', 'internship', 'trainee', 'student', 'apprentice', 'working student', 'werkstudent', 'praktikum'],
+  // Which uploaded resume (Admin -> Resume Studio) is attached for each family. pdfUrl = first upload, pdfUrlB = second. Swap here if yours are the other way round.
+  resumeSlot: { ai_robotics: 'pdfUrl', systems_security: 'pdfUrlB' } as Record<string, 'pdfUrl' | 'pdfUrlB'>,
   families: {
     ai_robotics: { resume: 'AI, Machine Learning & Robotics resume', titleWords: ['machine learning', 'ml ', 'ai ', 'deep learning', 'embodied', 'robotics', 'research', 'nlp', 'generative', 'llm', 'computer vision', 'reinforcement'] },
     systems_security: { resume: 'Systems, C++ & Cybersecurity resume', titleWords: ['software engineer', 'backend', 'systems', 'c++', 'security', 'cyber', 'infrastructure', 'platform', 'embedded'] },

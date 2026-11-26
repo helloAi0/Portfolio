@@ -3,6 +3,8 @@ import { PROFILE } from '@/config/profile';
 import { JOB_CONFIG, JOB_BOARDS, type WorkMode } from '@/config/jobScout';
 import { logger } from '@/lib/logger';
 import { sendEmail } from '@/lib/lamo/emailAdapter';
+import { background } from '@/lib/background';
+import { jobCard } from '@/lib/notify/telegram';
 import { placeOk } from './countries';
 import { familyFor, isInternship, scoreJob, type Job } from './score';
 import { writeLetter } from './letter';
@@ -49,7 +51,7 @@ export async function runJobScan(opts: { mode?: WorkMode; jobs?: Job[]; now?: Da
     if (j.rating == null && !j.startup && lim.ratingPolicy === 'skip_unknown') { skipped++; continue; }
     const ratingNote = j.rating == null ? (j.startup && lim.ratingWaivedForStartups ? 'startup: rating waived' : 'rating unverified: check Glassdoor for 4.5+') : null;
     const fam = familyFor(j, boost); if (!fam) { skipped++; continue; }
-    const s = scoreJob(j); const adj = L.adjustment(model, j, fam, place.countries); const total = Math.max(0, Math.min(100, s.match + adj.pts));
+    const s = scoreJob(j, place.countries); const adj = L.adjustment(model, j, fam, place.countries); const total = Math.max(0, Math.min(100, s.match + adj.pts));
     if (adj.pts) s.why.push(`learned from your feedback ${adj.pts > 0 ? '+' : ''}${adj.pts} (${adj.top.join(', ')})`);
     const base = { job: j, fam, match: total, why: s.why, evidence: s.evidence, place, ratingNote };
     if (total >= lim.minMatch) cands.push(base); else if (total >= lim.minMatch - 8 && L.explore(j.id, day)) cands.push({ ...base, exploration: true }); else skipped++;
@@ -66,6 +68,7 @@ export async function runJobScan(opts: { mode?: WorkMode; jobs?: Job[]; now?: Da
     try {
       await db.jobMatch.create({ data: { externalId: c.job.id, company: c.job.company, title: c.job.title, location: c.job.location, url: c.job.url, country: c.place.countries[0] ?? null, remote: c.place.remote, score: c.match, tier, family: c.fam, resume: JOB_CONFIG.families[c.fam].resume, why: JSON.stringify(c.why), letter: letter.text, letterNeeded: !!letter.required, todo: JSON.stringify(todo), ratingNote: c.ratingNote, snapshot: JSON.stringify({ id: c.job.id, company: c.job.company, title: c.job.title, text: c.job.text.slice(0, 1500), countries: c.place.countries }) } });
       stored.push({ title: c.job.title, company: c.job.company, score: c.match, url: c.job.url, tier });
+      if (tier === 'READY_FOR_ONE_CLICK_REVIEW' && !opts.jobs) { const row = await db.jobMatch.findUnique({ where: { externalId: c.job.id }, select: { id: true } }); if (row) background(jobCard({ id: row.id, title: c.job.title, company: c.job.company, score: c.match, resume: JOB_CONFIG.families[c.fam].resume, url: c.job.url, essayFree: !letter.required })); }
     } catch (e) { logger.warn('JobAgent', `Could not store ${c.job.id}: ${(e as Error).message}`); }
   }
   const known = new Set<string>([...JOB_CONFIG.skills.core, ...JOB_CONFIG.skills.adjacent].flatMap((s) => s.split(' ')));

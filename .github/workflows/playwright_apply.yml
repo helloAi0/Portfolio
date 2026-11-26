@@ -1,0 +1,26 @@
+name: LIMO form pre-fill
+# Fills standard application fields on public ATS pages and uploads a screenshot for your review.
+# It NEVER submits an application. Runs here (not on Render) so Chromium cannot exhaust the 512 MB web container.
+on:
+  schedule: [{ cron: '30 3 * * *' }]   # 09:00 IST daily
+  workflow_dispatch: {}
+permissions: { contents: read }
+concurrency: { group: limo-prefill, cancel-in-progress: false }
+jobs:
+  prefill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install playwright==1.49.1 httpx==0.28.1
+      - run: playwright install --with-deps chromium
+      - name: Pre-fill
+        working-directory: worker
+        env:
+          PORTFOLIO_URL: ${{ secrets.PORTFOLIO_URL }}
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}
+          OWNER_PHONE: ${{ secrets.OWNER_PHONE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python playwright_apply.py

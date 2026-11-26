@@ -26,7 +26,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
 
 (async () => {
   // ---- access control
-  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/backup', '/api/admin/resume']) {
+  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/outreach', '/api/admin/backup', '/api/admin/resume']) {
     const r = await call('GET', p, null, { anon: true }); ok(`anonymous blocked: ${p}`, r.status === 401, r.status);
   }
   ok('anonymous upload blocked', (await call('POST', '/api/admin/uploads', PDF(), { anon: true })).status === 401);
@@ -207,6 +207,62 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
     }
     ok('sync-now needs admin', (await call('POST', '/api/admin/sync-now', {}, { anon: true })).status === 401);
     const sn = await call('POST', '/api/admin/sync-now', {}); ok('sync-now explains missing worker instead of crashing', [200, 502, 503].includes(sn.status) && (sn.json?.queue || sn.json?.poll), sn.text.slice(0, 200));
+  }
+
+  // ---- LIMO modes: outreach (Mode 3), job pre-fill endpoints (Mode 2), public API, Telegram approvals
+  {
+    const SECRET = process.env.INGEST_SECRET, TG = process.env.TELEGRAM_WEBHOOK_SECRET, CHAT = process.env.TELEGRAM_CHAT_ID;
+    const W = { headers: { 'x-internal-secret': SECRET || 'wrong' }, anon: true };
+    ok('outreach: anon blocked', (await call('GET', '/api/admin/outreach', null, { anon: true })).status === 401);
+    ok('outreach: bad email rejected', (await call('POST', '/api/admin/outreach', { recipientEmail: 'nope', companyOrLab: 'Lab' })).status === 400);
+    ok('outreach: company required', (await call('POST', '/api/admin/outreach', { recipientEmail: 'a@b.co', companyOrLab: '' })).status === 400);
+    const d = await call('POST', '/api/admin/outreach', { recipientName: 'Dr E2E', recipientEmail: 'e2e@example.com', companyOrLab: 'E2E Robotics Lab', focus: 'robot manipulation' });
+    ok('outreach: draft created under 150 words, pending approval', d.status === 200 && d.json.words <= 150 && d.json.draft.status === 'pending_approval', d.text.slice(0, 200));
+    const id = d.json?.draft?.id;
+    ok('outreach: cannot mark sent before approval', (await call('PATCH', '/api/admin/outreach/' + id, { status: 'sent' })).status === 400);
+    ok('outreach: approve', (await call('PATCH', '/api/admin/outreach/' + id, { status: 'approved' })).json?.draft?.status === 'approved');
+    const ed = await call('PATCH', '/api/admin/outreach/' + id, { subject: 'Changed subject' });
+    ok('outreach: editing an approved draft sends it back for approval', ed.json?.draft?.status === 'pending_approval', ed.text);
+    ok('outreach: over-long edit rejected', (await call('PATCH', '/api/admin/outreach/' + id, { body: 'word '.repeat(200) })).status === 400);
+    await call('PATCH', '/api/admin/outreach/' + id, { status: 'approved' });
+    ok('outreach: owner can mark sent after approval', (await call('PATCH', '/api/admin/outreach/' + id, { status: 'sent' })).json?.draft?.status === 'sent');
+    ok('outreach: delete', (await call('DELETE', '/api/admin/outreach/' + id)).status === 200);
+
+    ok('jobs-internal: no secret -> 401', (await call('GET', '/api/internal/jobs/pending', null, { anon: true })).status === 401);
+    if (SECRET) {
+      const pend = await call('GET', '/api/internal/jobs/pending', null, W);
+      ok('jobs-internal: pending list has applicant but NO phone', pend.status === 200 && pend.json.applicant?.email && !/phone/i.test(pend.text), pend.text.slice(0, 200));
+      ok('jobs-internal: unknown resume family 404', (await call('GET', '/api/internal/jobs/resume/nope', null, W)).status === 404);
+      const fd = new FormData(); fd.append('file', new Blob(['not a png'], { type: 'image/png' }), 'x.png');
+      ok('jobs-internal: non-PNG screenshot rejected', (await call('POST', '/api/internal/jobs/screenshot', fd, W)).status === 415);
+      ok('jobs-internal: result for unknown job 404', (await call('POST', '/api/internal/jobs/result', { id: 'nope', prefillStatus: 'done' }, W)).status === 404);
+    }
+
+    const pub = await call('GET', '/api/public/certificates', null, { anon: true });
+    ok('public: certificates endpoint returns only approved rows', pub.status === 200 && Array.isArray(pub.json?.data));
+    const chat = await call('POST', '/api/public/chat', { message: 'What is Taha studying?', sessionId: 'e2e-session-0123456789' }, { anon: true });
+    ok('public: chat endpoint answers', chat.status === 200 && typeof chat.json?.answer === 'string', chat.text.slice(0, 160));
+
+    ok('telegram: no secret -> 401', (await call('POST', '/api/telegram/webhook', { callback_query: {} }, { anon: true })).status === 401);
+    if (TG && SECRET && CHAT) {
+      const T = { headers: { 'x-telegram-bot-api-secret-token': TG }, anon: true };
+      const id2 = '<e2e-tg-' + Date.now() + '@x>';
+      await call('POST', '/api/internal/ingest/enqueue', { messages: [{ messageId: id2, sender: 'a', subject: 'cert', receivedAt: new Date().toISOString(), rawText: 'x', links: ['https://credly.com/b/tg'], hasPdf: false }] }, W);
+      let row = null; for (let i = 0; i < 40 && !row; i++) { const c = await call('POST', '/api/internal/ingest/claim', {}, W); if (c.json?.row?.messageId === id2) row = c.json.row; else if (c.json?.row) await call('POST', '/api/internal/ingest/result', { id: c.json.row.id, outcome: 'ignored', reason: 'e2e' }, W); else break; }
+      const made = await call('POST', '/api/internal/ingest/result', { id: row.id, outcome: 'done', certificate: { title: 'E2E Telegram Quokka Certificate', issuer: 'E2E TG Org', issueDate: '2026-01-05', credentialId: 'TG-QUOKKA-1', verifyUrl: 'https://credly.com/b/tg', confidence: 0.9, sourceType: 'url' } }, W);
+      const cid = made.json.certificateId;
+      const cb = (chat, data) => ({ callback_query: { id: 'cb1', data, message: { message_id: 1, text: 'card', chat: { id: chat } } } });
+      await call('POST', '/api/telegram/webhook', cb(999999, 'cert:approve:' + cid), T);
+      ok('telegram: callback from another chat is ignored', !(await call('GET', '/certificates', null, { anon: true })).text.includes('E2E Telegram Quokka'));
+      ok('telegram: wrong secret token blocked', (await call('POST', '/api/telegram/webhook', cb(Number(CHAT), 'cert:approve:' + cid), { anon: true, headers: { 'x-telegram-bot-api-secret-token': 'y'.repeat(40) } })).status === 401);
+      await call('POST', '/api/telegram/webhook', cb(Number(CHAT), 'cert:approve:' + cid), T);
+      ok('telegram: owner approve makes the certificate live', (await call('GET', '/certificates', null, { anon: true })).text.includes('E2E Telegram Quokka'));
+      ok('telegram: public API now lists it', (await call('GET', '/api/public/certificates', null, { anon: true })).text.includes('E2E Telegram Quokka'));
+      await call('POST', '/api/telegram/webhook', cb(Number(CHAT), 'cert:reject:' + cid), T);
+      ok('telegram: reject hides it again', !(await call('GET', '/api/public/certificates', null, { anon: true })).text.includes('E2E Telegram Quokka'));
+      ok('telegram: garbage callback does not crash', (await call('POST', '/api/telegram/webhook', cb(Number(CHAT), 'cert:approve:doesnotexist'), T)).status === 200);
+      await call('DELETE', '/api/admin/certificates/' + cid);
+    }
   }
 
   // ---- logout

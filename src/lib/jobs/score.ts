@@ -10,7 +10,7 @@ export function familyFor(job: Job, boost: (fam: string, title: string) => numbe
 export const isInternship = (job: Job) => { const t = job.title.toLowerCase(); return JOB_CONFIG.internTitles.some((w) => t.includes(w)); };
 
 /** Deterministic 0-100 fit score with the reasons spelled out. */
-export function scoreJob(job: Job) {
+export function scoreJob(job: Job, countries: string[] = []) {
   const text = `${job.title} ${job.text}`.toLowerCase(); const why: string[] = [];
   const core = JOB_CONFIG.skills.core.filter((s) => has(text, s)), adj = JOB_CONFIG.skills.adjacent.filter((s) => has(text, s));
   const tech = Math.min(45, Math.round(core.length * 7 + adj.length * 2.5)); why.push(`technical ${tech}/45 (${core.slice(0, 6).join(', ') || 'no core skills named'})`);
@@ -19,6 +19,9 @@ export function scoreJob(job: Job) {
   why.push(`seniority ${seniority}/25 (${intern ? 'internship' : 'not an internship'}${senior ? ', mentions seniority' : ''})`);
   const ev = JOB_CONFIG.evidence.filter((e) => e.tags.some((tg) => has(text, tg))); const impact = Math.min(20, ev.length * 7);
   why.push(`evidence ${impact}/20 (${ev.map((e) => e.name).join(', ') || 'none of your projects match'})`);
-  const clarity = Math.min(10, (job.text.length > 400 ? 6 : 2) + (job.startup ? 2 : 3) + 1); why.push(`clarity ${clarity}/10`);
-  return { match: Math.min(100, tech + seniority + impact + clarity), why, evidence: ev };
+  // 10%: company / lab reputation (rated 4.5+, or an early-stage startup / lab) and target geography (a country on your list, or remote).
+  const rep = job.startup ? 4 : job.rating != null && job.rating >= JOB_CONFIG.limits.minCompanyRating ? 5 : job.rating == null ? 2 : 0;
+  const geo = countries.some((c) => JOB_CONFIG.countries.includes(c)) || /\bremote\b/i.test(job.location) ? 5 : 1;
+  const reputation = Math.min(10, rep + geo); why.push(`reputation & geography ${reputation}/10`);
+  return { match: Math.min(100, tech + seniority + impact + reputation), why, evidence: ev };
 }

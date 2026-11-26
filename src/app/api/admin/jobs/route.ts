@@ -12,7 +12,7 @@ const parse = (s: string, d: unknown) => { try { return JSON.parse(s); } catch {
 export async function GET(req: NextRequest) {
   if (!getAdminFromRequest(req)) return unauth();
   const [rows, settings, lastScan] = await Promise.all([db.jobMatch.findMany({ orderBy: [{ createdAt: 'desc' }, { score: 'desc' }], take: 200 }), getSettings(), getLastScan()]);
-  const data = rows.map((r: any) => ({ ...r, why: parse(r.why, []), todo: parse(r.todo, []), snapshot: undefined, resumeFamilies: undefined }));
+  const data = rows.map((r: any) => ({ ...r, why: parse(r.why, []), todo: parse(r.todo, []), draftedAnswers: parse(r.draftedAnswers, []), snapshot: undefined, resumeFamilies: undefined }));
   const count = (s: string) => rows.filter((r: any) => r.status === s).length;
   const stats = { total: rows.length, new: count('NEW'), applied: count('APPLIED'), interview: count('INTERVIEW'), offer: count('OFFER') };
   return NextResponse.json({
