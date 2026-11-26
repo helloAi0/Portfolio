@@ -266,8 +266,39 @@ model Certificate {
   fileType            String?
   isPublic            Boolean   @default(false)
   ownerApproved       Boolean   @default(false)
+  // Email-ingestion pipeline. Legacy and manual rows are "approved"; ingested rows start "pending". Visibility still
+  // requires isPublic AND ownerApproved, so a pending or rejected row can never reach a public page or LAMO.
+  reviewStatus        String    @default("approved")
+  sourceType          String    @default("manual")
+  sourceMessageId     String?
+  confidenceScore     Float?
+  needsUrlReview      Boolean   @default(false)
+  reviewedAt          DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+
+  @@index([reviewStatus])
+}
+
+/// One inbound email waiting to be (or already) processed. messageId is unique so polling is idempotent.
+model EmailIngestQueue {
+  id               String    @id @default(cuid())
+  messageId        String    @unique
+  sender           String
+  subject          String
+  receivedAt       DateTime
+  rawText          String
+  extractedLinks   String    @default("[]")
+  hasPdf           Boolean   @default(false)
+  pdfFileId        String?
+  processingStatus String    @default("queued")
+  retryCount       Int       @default(0)
+  errorLog         String?
+  claimedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([processingStatus, createdAt])
 }
 
 model Achievement {

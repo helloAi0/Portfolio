@@ -177,6 +177,38 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
     ok('job agent: no public route', (await call('GET', '/api/admin/jobs', null, { anon: true })).status === 401);
   }
 
+  // ---- certificate ingestion pipeline (worker endpoints + staging queue + public isolation)
+  {
+    const SECRET = process.env.INGEST_SECRET;
+    const W = { headers: { 'x-internal-secret': SECRET || 'wrong' }, anon: true };
+    ok('ingest: no secret -> 401', (await call('POST', '/api/internal/ingest/claim', {}, { anon: true })).status === 401);
+    ok('ingest: wrong secret -> 401', (await call('POST', '/api/internal/ingest/claim', {}, { anon: true, headers: { 'x-internal-secret': 'x'.repeat(40) } })).status === 401);
+    ok('ingest: admin cookie is not enough for worker routes', (await call('POST', '/api/internal/ingest/claim', {})).status === 401);
+    if (SECRET) {
+      const id = '<e2e-ingest-' + Date.now() + '@x>';
+      const enq = await call('POST', '/api/internal/ingest/enqueue', { messages: [{ messageId: id, sender: 'a@b.c', subject: 'Your certificate', receivedAt: new Date().toISOString(), rawText: 'x', links: ['https://credly.com/badges/e2e'], hasPdf: false }] }, W);
+      ok('ingest: enqueue', enq.status === 200 && enq.json.added === 1, enq.text);
+      ok('ingest: re-enqueue is idempotent', (await call('POST', '/api/internal/ingest/enqueue', { messages: [{ messageId: id, sender: 'a', subject: 's', receivedAt: new Date().toISOString(), rawText: 'x', links: [], hasPdf: false }] }, W)).json.added === 0);
+      let claimed = null; for (let i = 0; i < 40 && !claimed; i++) { const c = await call('POST', '/api/internal/ingest/claim', {}, W); if (c.json?.row?.messageId === id) claimed = c.json.row; else if (c.json?.row) await call('POST', '/api/internal/ingest/result', { id: c.json.row.id, outcome: 'ignored', reason: 'e2e cleanup' }, W); else break; }
+      ok('ingest: claim returns the row', !!claimed);
+      const done = await call('POST', '/api/internal/ingest/result', { id: claimed?.id, outcome: 'done', certificate: { title: 'E2E Ingested Zebra Certificate', issuer: 'E2E Ingest Org', issueDate: '2026-02-02', credentialId: 'E2E-ZEBRA-1', verifyUrl: 'https://credly.com/badges/e2e', confidence: 0.91, sourceType: 'url' } }, W);
+      ok('ingest: result creates a pending certificate', done.status === 200 && done.json.action === 'created', done.text);
+      ok('ingest: bad result payload rejected', (await call('POST', '/api/internal/ingest/result', { outcome: 'done' }, W)).status === 400);
+      ok('ingest: pending certificate NOT on public page', !(await call('GET', '/certificates', null, { anon: true })).text.includes('E2E Ingested Zebra'));
+      const list = await call('GET', '/api/admin/certificates?status=pending'); const cert = list.json?.data?.find((c) => c.credentialId === 'E2E-ZEBRA-1');
+      ok('ingest: admin sees it in the pending queue with confidence', !!cert && cert.confidenceScore > 0.9 && cert.reviewStatus === 'pending', list.text.slice(0, 200));
+      ok('ingest: edit fields', (await call('PATCH', '/api/admin/certificates/' + cert.id, { title: 'E2E Ingested Zebra Certificate', credentialId: 'E2E-ZEBRA-1B' })).status === 200);
+      ok('ingest: bad link in edit rejected', (await call('PATCH', '/api/admin/certificates/' + cert.id, { credentialUrl: 'javascript:1' })).status === 400);
+      const ap = await call('PATCH', '/api/admin/certificates/' + cert.id, { status: 'approved' });
+      ok('ingest: approve', ap.status === 200 && ap.json.certificate.isPublic && ap.json.certificate.ownerApproved, ap.text);
+      ok('ingest: approved certificate is live immediately', (await call('GET', '/certificates', null, { anon: true })).text.includes('E2E Ingested Zebra'));
+      ok('ingest: reject hides it again', (await call('PATCH', '/api/admin/certificates/' + cert.id, { status: 'rejected' })).status === 200 && !(await call('GET', '/certificates', null, { anon: true })).text.includes('E2E Ingested Zebra'));
+      ok('ingest: delete', (await call('DELETE', '/api/admin/certificates/' + cert.id)).status === 200);
+    }
+    ok('sync-now needs admin', (await call('POST', '/api/admin/sync-now', {}, { anon: true })).status === 401);
+    const sn = await call('POST', '/api/admin/sync-now', {}); ok('sync-now explains missing worker instead of crashing', [200, 502, 503].includes(sn.status) && (sn.json?.queue || sn.json?.poll), sn.text.slice(0, 200));
+  }
+
   // ---- logout
   await call('DELETE', '/api/admin/auth'); cookie = '';
   ok('after logout admin API is blocked', (await call('GET', '/api/admin/profile')).status === 401);

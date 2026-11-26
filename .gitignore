@@ -51,3 +51,4 @@ backups/
 backups/
 d1-data.sql
 legacy-clean.sql
+__pycache__/

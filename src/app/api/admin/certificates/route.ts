@@ -4,16 +4,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
 import { suggestSkillsFromText } from '@/lib/skills/suggest';
 import { prisma } from '@/lib/prisma';
+import { queueStats } from '@/lib/certIngest/service';
 
 export async function GET(req: NextRequest) {
   const admin = getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const status = new URL(req.url).searchParams.get('status');
   const certificates = await prisma.certificate.findMany({
+    ...(status && ['pending', 'approved', 'rejected'].includes(status) ? { where: { reviewStatus: status } } : {}),
     orderBy: { createdAt: 'desc' },
   });
 
-  return NextResponse.json({ data: certificates });
+  return NextResponse.json({ data: certificates, queue: await queueStats() });
 }
 
 export async function POST(req: NextRequest) {

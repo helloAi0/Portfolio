@@ -1,4 +1,4 @@
-import './_nodeDb';
+import './_testDb';
 /** Job Agent: scan with injected fixture jobs, never needs the network. Run: npx tsx scripts/test_job_agent.ts */
 import { runJobScan, setJobStatus, saveSettings, getSettings } from '../src/lib/jobs/service';
 import { prisma } from '../src/lib/prisma';

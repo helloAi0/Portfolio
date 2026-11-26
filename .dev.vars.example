@@ -15,3 +15,9 @@ LINKEDIN_PROFILE_URL=
 
 # Fully automatic portfolio: public GitHub repositories become projects on their own (REVIEW = approve first)
 PROJECT_PUBLICATION_MODE=AUTOMATIC
+
+# Certificate ingestion worker (see worker/README.md). INGEST_SECRET must be 24+ chars and identical on the worker.
+INGEST_SECRET=
+INGEST_WORKER_URL=
+# Job agent: your phone for the admin-only application-form box (never stored in the repo)
+OWNER_PHONE=

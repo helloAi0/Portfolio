@@ -10,6 +10,7 @@ import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import VisitorChatsPanel from '@/components/admin/VisitorChatsPanel';
 import JobAgentPanel from '@/components/admin/JobAgentPanel';
+import CertificateQueuePanel from '@/components/admin/CertificateQueuePanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
 import SkillsPanel from '@/components/admin/SkillsPanel';
@@ -197,7 +198,7 @@ export default function AdminDashboardPage() {
       setCodingStats(csData && typeof csData === 'object' ? csData : { leetcode: null, gfg: null });
       setLinkedinPosts(arr(liData.data));
       setSkills(arr(skData.data));
-      setCertificates(arr(certData.data));
+      setCertificates(arr(certData.data).filter((c: any) => (c.reviewStatus ?? 'approved') === 'approved')); // drafts live in the staging queue
       setAchievements(arr(achData.data));
       setExperiences(arr(expData.data));
       setSyncLogs(arr(logData.data));
@@ -1096,6 +1097,7 @@ export default function AdminDashboardPage() {
           {activeTab === 'certificates' && (
             <div className="space-y-6">
               <h3 className="font-serif font-bold text-xl text-white">Administrative Certificate Vault</h3>
+              <CertificateQueuePanel onChanged={() => loadAllData()} />
 
               {/* Add Certificate Form */}
               <Card variant="marble" className="p-6">
