@@ -62,8 +62,9 @@ function marbleCanvas(size: number, kind: 'white' | 'black', seed: number) {
 }
 function floorTexture() {
   const S = 1024; const c = canvas(S * 2, S * 2); const g = c.getContext('2d')!;
-  const w1 = marbleCanvas(S, 'white', 3), b1 = marbleCanvas(S, 'black', 5), w2 = marbleCanvas(S, 'white', 7), b2 = marbleCanvas(S, 'black', 11);
-  g.drawImage(w1, 0, 0); g.drawImage(b1, S, 0); g.drawImage(b2, 0, S); g.drawImage(w2, S, S);
+  // Veins are low-frequency, so each tile is generated at half size and scaled up: 4x less main-thread work at load.
+  const R = S / 2; const w1 = marbleCanvas(R, 'white', 3), b1 = marbleCanvas(R, 'black', 5), w2 = marbleCanvas(R, 'white', 7), b2 = marbleCanvas(R, 'black', 11);
+  g.drawImage(w1, 0, 0, S, S); g.drawImage(b1, S, 0, S, S); g.drawImage(b2, 0, S, S, S); g.drawImage(w2, S, S, S, S);
   g.strokeStyle = '#8a6a2a'; g.lineWidth = 5; g.strokeRect(2, 2, S * 2 - 4, S * 2 - 4); g.beginPath(); g.moveTo(S, 0); g.lineTo(S, S * 2); g.moveTo(0, S); g.lineTo(S * 2, S); g.stroke();
   return tex(c, { repeat: true, aniso: 16 });
 }
@@ -194,7 +195,7 @@ export function createAcademy(opts: { canvas: HTMLCanvasElement; items: AcademyI
   const woodMat = new THREE.MeshStandardMaterial({ map: walnut, bumpMap: walnutBump, bumpScale: 0.6, roughness: 0.55, metalness: 0 });
   const darkWood = new THREE.MeshStandardMaterial({ map: walnut, color: 0x6a5a4e, roughness: 0.6, metalness: 0 });
   const brass = new THREE.MeshStandardMaterial({ color: 0xc89a3c, metalness: 1, roughness: 0.26 });
-  const marbleT = tex(marbleCanvas(1024, 'white', 14), { repeat: true, aniso: maxAniso });
+  const marbleT = tex(marbleCanvas(512, 'white', 14), { repeat: true, aniso: maxAniso });
   const marble = new THREE.MeshPhysicalMaterial({ map: marbleT, roughness: 0.22, clearcoat: 0.4, clearcoatRoughness: 0.2 });
   const plasterT = tex(plasterTexture(), { repeat: true });
   const plaster = new THREE.MeshStandardMaterial({ map: plasterT, roughness: 0.95, side: THREE.BackSide });

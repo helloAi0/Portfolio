@@ -74,7 +74,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   // Deep links from Telegram / email cards, e.g. /admin#job-agent
-  useEffect(() => { const h = window.location.hash.slice(1); if (['certificates', 'job-agent', 'outreach', 'visitor-chats'].includes(h)) setActiveTab(h as AdminTab); }, []);
+  useEffect(() => { const go = () => { const h = window.location.hash.slice(1); if (['certificates', 'job-agent', 'outreach', 'visitor-chats'].includes(h)) setActiveTab(h as AdminTab); }; go(); window.addEventListener('hashchange', go); return () => window.removeEventListener('hashchange', go); }, []);
   const [health, setHealth] = useState<any | null>(null);
   const [resumeSet, setResumeSet] = useState<boolean | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
