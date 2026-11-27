@@ -27,6 +27,13 @@ export default function VisitorChatsPanel() {
   useEffect(() => { load(); }, [load]);
   const remove = async (id: string) => { if (!confirm('Delete this conversation permanently?')) return; await fetch(`/api/admin/lamo/conversations?id=${encodeURIComponent(id)}`, { method: 'DELETE' }); load(); };
 
+  const [eng, setEng] = useState<{ ok?: boolean; message: string } | null>(null); const [testing, setTesting] = useState(false);
+  const testEngine = async () => {
+    setTesting(true);
+    try { const r = await fetch('/api/admin/lamo/status', { method: 'POST' }); const j = await r.json(); setEng({ ok: j.ok, message: j.message || 'No response' }); }
+    catch { setEng({ ok: false, message: 'Could not reach the server.' }); }
+    setTesting(false);
+  };
   const shown = (rows ?? []).filter((r) => !only || r.hiringIntent);
   const tile = (label: string, v: number | undefined) => <div className="rounded border border-neutral-800 p-3"><div className="text-2xl font-serif text-white">{v ?? '–'}</div><div className="text-[11px] font-mono text-neutral-400">{label}</div></div>;
   return (
@@ -37,6 +44,10 @@ export default function VisitorChatsPanel() {
           <p className="text-xs font-mono text-neutral-400 mt-1">Every conversation visitors have with LAMO. Role and company are guesses from what they typed; nothing else about a visitor is tracked.</p>
         </div>
         <label className="text-xs font-mono text-neutral-300 flex items-center gap-2"><input type="checkbox" checked={only} onChange={(e) => setOnly(e.target.checked)} /> Hiring / collaboration only</label>
+      </div>
+      <div className="rounded border border-neutral-800 p-3 flex flex-wrap items-center gap-3">
+        <button type="button" onClick={testEngine} disabled={testing} className="px-3 py-1.5 text-xs font-mono border border-amber-400/50 text-amber-300 rounded hover:bg-amber-400/10 disabled:opacity-50">{testing ? 'Testing…' : 'Test answer engine'}</button>
+        <span role="status" className={`text-xs font-mono ${eng ? (eng.ok ? 'text-emerald-300' : 'text-red-300') : 'text-neutral-400'}`}>{eng ? eng.message : 'Checks whether Gemini is answering visitors, or LAMO has fallen back to the basic engine.'}</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">{tile('chats total', stats?.total)}{tile('active today', stats?.today)}{tile('this week', stats?.week)}{tile('hiring interest', stats?.hiring)}{tile('left contact details', stats?.withContact)}</div>
       {error && <div role="alert" className="p-3 rounded text-xs font-mono border border-red-500/40 text-red-300 bg-red-950/30">{error}</div>}

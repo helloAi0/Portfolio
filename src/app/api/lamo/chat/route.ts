@@ -7,6 +7,7 @@ import { RateLimiter, getClientIp, isValidSessionId, normalizeEmail, sanitizeNam
 import { detectAudience, aiDisclosure, styleHint, rapportLine } from '@/lib/lamo/audience';
 import { sendOwnerHiringSignal } from '@/lib/lamo/emailAdapter';
 import { background } from '@/lib/background';
+import { fixTypos } from '@/lib/lamo/understand';
 import { PROFILE } from '@/config/profile';
 import { logger } from '@/lib/logger';
 
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Hiring / collaboration intent: tell the owner once per session. The visitor is only ever pointed at the public contact page.
-    const hiring = HIRING.test(message) || audience.dealIntent;
+    const hiring = HIRING.test(fixTypos(message)) || audience.dealIntent;
     if (hiring) {
       const key = sessionId || ip;
       if (!notifiedSessions.has(key) && notifiedSessions.size < 5000) {
