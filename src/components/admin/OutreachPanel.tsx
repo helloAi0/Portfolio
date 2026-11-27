@@ -11,10 +11,11 @@ export default function OutreachPanel() {
   const [rows, setRows] = useState<Draft[]>([]); const [max, setMax] = useState(150); const [note, setNote] = useState<string | null>(null);
   const [form, setForm] = useState({ recipientName: '', recipientEmail: '', companyOrLab: '', focus: '' }); const [busy, setBusy] = useState(false);
   const [edit, setEdit] = useState<string | null>(null); const [e, setE] = useState({ subject: '', body: '', recipientEmail: '' });
-  const load = useCallback(async () => { try { const r = await fetch('/api/admin/outreach'); const j = await r.json(); if (r.ok) { setRows(j.data); setMax(j.maxWords); } } catch { setNote('Could not load drafts.'); } }, []);
+  const load = useCallback(async () => { try { const r = await fetch('/api/admin/outreach'); const j = await r.json(); if (r.ok) { setRows(j.data); setMax(j.maxWords); } else setNote(j.error || 'Could not load drafts.'); } catch { setNote('Could not load drafts.'); } }, []);
   useEffect(() => { load(); }, [load]);
   const call = async (url: string, method: string, body?: unknown) => { const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) { setNote(j.error || 'Something went wrong.'); return null; } return j; };
   const create = async () => { setBusy(true); setNote(null); const j = await call('/api/admin/outreach', 'POST', form); setBusy(false); if (j) { setForm({ recipientName: '', recipientEmail: '', companyOrLab: '', focus: '' }); setNote(`Draft ready (${j.words} words, based on ${j.project}). Review it below.`); load(); } };
+  const sendTest = async () => { setBusy(true); setNote(null); const r = await fetch('/api/admin/outreach', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'test' }) }); const j = await r.json().catch(() => ({})); setBusy(false); setNote(j.success ? `Test email sent to ${j.to}. Check that inbox (and Spam).` : `Test email NOT sent: ${j.error || 'unknown error'}`); };
   const set = async (id: string, status: string) => { if (await call(`/api/admin/outreach/${id}`, 'PATCH', { status })) load(); };
   const save = async (id: string) => { if (await call(`/api/admin/outreach/${id}`, 'PATCH', e)) { setEdit(null); setNote('Saved. If it was approved, it needs approval again.'); load(); } };
   const del = async (id: string) => { if (window.confirm('Delete this draft?') && (await call(`/api/admin/outreach/${id}`, 'DELETE'))) load(); };
@@ -27,7 +28,7 @@ export default function OutreachPanel() {
       <div className="rounded border border-neutral-800 p-3 grid sm:grid-cols-2 gap-2">
         {([['recipientName', 'Recipient name'], ['recipientEmail', 'Recipient email'], ['companyOrLab', 'Company or lab'], ['focus', 'What they work on (e.g. robot manipulation)']] as const).map(([k, l]) => (
           <label key={k} className="text-[11px] font-mono text-neutral-400">{l}<input className={inp} value={form[k]} onChange={(ev) => setForm({ ...form, [k]: ev.target.value })} /></label>))}
-        <div className="sm:col-span-2"><button onClick={create} disabled={busy} className="px-3 py-2 rounded bg-white text-black text-xs font-mono disabled:opacity-50">{busy ? 'Drafting…' : 'Draft email'}</button></div>
+        <div className="sm:col-span-2"><button onClick={sendTest} disabled={busy} className="px-3 py-1.5 rounded border border-amber-400/50 text-amber-300 text-xs font-mono mr-2">Send test email to my inbox</button><button onClick={create} disabled={busy} className="px-3 py-2 rounded bg-white text-black text-xs font-mono disabled:opacity-50">{busy ? 'Drafting…' : 'Draft email'}</button></div>
       </div>
       {rows.length === 0 ? <p className="text-xs font-mono text-neutral-500">No drafts yet.</p> : (
         <ul className="space-y-3">{rows.map((d) => (

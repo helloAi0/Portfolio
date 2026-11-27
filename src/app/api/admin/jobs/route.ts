@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFromRequest } from '@/lib/middleware/adminAuth';
+import { dbFailure } from '@/lib/dbHint';
 import { prisma } from '@/lib/prisma';
 import { JOB_CONFIG, JOB_BOARDS } from '@/config/jobScout';
 import { getSettings, getLastScan, saveSettings, runJobScan, setJobStatus, ownerFields } from '@/lib/jobs/service';
@@ -11,6 +12,7 @@ const parse = (s: string, d: unknown) => { try { return JSON.parse(s); } catch {
 
 export async function GET(req: NextRequest) {
   if (!getAdminFromRequest(req)) return unauth();
+  try {
   const [rows, settings, lastScan] = await Promise.all([db.jobMatch.findMany({ orderBy: [{ createdAt: 'desc' }, { score: 'desc' }], take: 200 }), getSettings(), getLastScan()]);
   const data = rows.map((r: any) => ({ ...r, why: parse(r.why, []), todo: parse(r.todo, []), draftedAnswers: parse(r.draftedAnswers, []), snapshot: undefined, resumeFamilies: undefined }));
   const count = (s: string) => rows.filter((r: any) => r.status === s).length;
@@ -19,6 +21,7 @@ export async function GET(req: NextRequest) {
     data, stats, settings, lastScan, owner: ownerFields(), boards: JOB_BOARDS.length,
     families: Object.fromEntries(Object.entries(JOB_CONFIG.families).map(([k, f]) => [k, f.resume])), limits: JOB_CONFIG.limits,
   });
+  } catch (e) { return dbFailure(e, 'Job Agent'); }
 }
 
 /** POST { action: 'scan', mode? } runs a scan now. Nothing is ever submitted to an employer. */
