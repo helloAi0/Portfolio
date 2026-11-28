@@ -43,8 +43,8 @@ export async function HeroSection() {
   const chapters: HeroChapter[] = [
     {
       id: 'now',
-      from: 0.3,
-      to: 0.6,
+      from: 0.17,
+      to: 0.43,
       node: (
         <div className="max-w-xl space-y-5">
           <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400">Where I am now</span>
@@ -65,12 +65,31 @@ export async function HeroSection() {
       ),
     },
     {
+      id: 'meet',
+      from: 0.57,
+      to: 0.81,
+      node: (
+        <div className="max-w-md space-y-5">
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-cyan-300">Act two · The lab</span>
+          <h2 className="text-3xl sm:text-5xl font-serif font-black text-white leading-tight">From classical craft<br />to robotics.</h2>
+          <p className="text-sm sm:text-base text-neutral-300 leading-relaxed">
+            Agentic AI, robotics simulation and security, built end to end. The figure on the right is rebuilt from a single photo into a depth-relief hologram: a real photo lifted by a depth map, not a 3D scan.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {['Agentic AI', 'Robotics sim', 'Security'].map((t) => (
+              <span key={t} className="px-3 py-1 rounded-full border border-cyan-300/40 bg-[#04121a]/70 text-xs font-mono text-cyan-200">{t}</span>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'enter',
-      from: 0.68,
+      from: 0.85,
       to: 1.01,
       node: (
         <div className="max-w-xl space-y-5">
-          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gold-400">The work</span>
+          <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-cyan-300">The work</span>
           <h2 className="text-3xl sm:text-5xl font-serif font-black text-white leading-tight">Enter the portfolio</h2>
           <p className="text-sm sm:text-base text-neutral-300 leading-relaxed">
             Projects synced from GitHub, skills backed by evidence, and an assistant, LAMO, that only answers from verified records.
@@ -85,5 +104,6 @@ export async function HeroSection() {
     },
   ];
 
-  return <HeroStage intro={intro} chapters={chapters} />;
+  const holo = { portraitUrl: '/hologram/portrait.webp', depthUrl: '/hologram/depth.webp', aspect: 0.7983, name: identity.displayName, headline: profile.headline || 'AI and robotics engineer' };
+  return <HeroStage intro={intro} chapters={chapters} holo={holo} />;
 }
