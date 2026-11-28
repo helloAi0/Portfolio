@@ -1,5 +1,4 @@
 import React from 'react';
-import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
 import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
 import { ChapterStage } from '@/components/about/ChapterStage';
 import { AboutHologramStage } from '@/components/about/AboutHologramStage';
@@ -45,9 +44,7 @@ export default async function AboutPage() {
         name={identity.displayName}
         headline={profile.headline}
         holo={{ portraitUrl: '/hologram/portrait.webp', depthUrl: '/hologram/depth.webp', aspect: 0.7983, name: identity.displayName, headline: profile.headline }}
-      >
-        <Breadcrumbs items={[{ label: 'About' }]} />
-      </AboutHologramStage>
+      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
         <ScrollDepth className="mb-10" strength={0.6}>
           <TiltCard className="marble-card rounded-2xl p-8 grid sm:grid-cols-[auto,1fr] gap-8 items-center">

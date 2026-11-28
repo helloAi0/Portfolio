@@ -18,6 +18,8 @@ export interface RoboticsWorld {
   /** Camera placement for the act (q 0..1). */
   placeCamera(camera: THREE.PerspectiveCamera, q: number, pointer: THREE.Vector2, narrow: boolean): void;
   setStill(): void;
+  /** Canvas height in CSS px, used to size the hologram particles. */
+  setViewport(h: number): void;
   /** Screen-space callouts anchored on the hologram; o is 0..1 visibility. */
   labels(camera: THREE.Camera, w: number, h: number, q: number): Array<{ id: string; text: string; x: number; y: number; o: number }>;
   /** True once a real bust.glb replaced the depth-relief mesh. */
@@ -57,79 +59,38 @@ function panelTexture(lines: Array<[string, string, string]>): THREE.CanvasTextu
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-const HOLO_VERT = /* glsl */ `
-  uniform sampler2D uDepth; uniform float uScale; uniform float uTime; uniform float uGlitch;
-  varying vec2 vUv; varying float vDepth; varying vec3 vView; varying float vWorldY;
+/** Particle hologram: every point is a glowing cyan dot; the volume comes from front/back shells and interior slices. */
+const CLOUD_VERT = /* glsl */ `
+  attribute float aLum; attribute float aEdge; attribute float aLayer; attribute float aSeed;
+  uniform float uTime; uniform float uReveal; uniform float uPx; uniform float uSize; uniform float uGlitch;
+  varying float vLum; varying float vEdge; varying float vLayer; varying float vVis; varying float vH; varying float vWy;
   void main(){
-    vUv = uv;
-    float d = texture2D(uDepth, uv).r; vDepth = d;
     vec3 p = position;
-    p.z += (d - 0.30) * uScale;
-    p.x += sin(uTime * 1.7 + uv.y * 40.0) * 0.0025 * d + uGlitch * 0.06 * sin(uv.y * 30.0 + uTime * 50.0);
-    vec4 wp = modelMatrix * vec4(p, 1.0); vWorldY = wp.y;
+    float h = clamp(p.y / 4.3, 0.0, 1.0); vH = h;
+    p += vec3(sin(uTime * 1.3 + aSeed * 40.0), cos(uTime * 1.1 + aSeed * 31.0), sin(uTime * 0.9 + aSeed * 17.0)) * 0.006;
+    p.x += uGlitch * 0.06 * sin(p.y * 30.0 + uTime * 50.0);
+    vec4 wp = modelMatrix * vec4(p, 1.0); vWy = wp.y;
+    float k = uReveal * 1.3 - 0.1 - h - aSeed * 0.12;
+    vVis = smoothstep(0.0, 0.08, k);
+    vLum = aLum; vEdge = aEdge; vLayer = aLayer;
     vec4 mv = viewMatrix * wp;
-    vView = -mv.xyz;
+    gl_PointSize = uSize * uPx * (1.0 + aEdge * 0.7 + (1.0 - aLayer) * 0.25) / max(0.1, -mv.z);
     gl_Position = projectionMatrix * mv;
   }`;
-const HOLO_FRAG = /* glsl */ `
+const CLOUD_FRAG = /* glsl */ `
   precision highp float;
-  uniform sampler2D uMap; uniform sampler2D uDepth; uniform float uTime; uniform float uReveal; uniform float uOpacity; uniform float uMode; uniform float uMirror; uniform float uGlitch;
-  varying vec2 vUv; varying float vDepth; varying vec3 vView; varying float vWorldY;
-  float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
-    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }
+  uniform float uTime; uniform float uMirror;
+  varying float vLum; varying float vEdge; varying float vLayer; varying float vVis; varying float vH; varying float vWy;
   void main(){
-    vec2 uv = vUv;
-    float band = step(0.992 - uGlitch * 0.05, noise(vec2(floor(uTime * 6.0), floor(uv.y * 24.0))));
-    uv.x += band * 0.02 * sin(uTime * 40.0);
-    vec4 ph = texture2D(uMap, uv);
-    // surface slope from the depth map; steep walls are where a photo gets stretched, so fade those out instead of smearing them
-    vec2 e = vec2(1.0 / 384.0, 1.0 / 480.0);
-    float gx = texture2D(uDepth, uv + vec2(e.x, 0.0)).r - texture2D(uDepth, uv - vec2(e.x, 0.0)).r;
-    float gy = texture2D(uDepth, uv + vec2(0.0, e.y)).r - texture2D(uDepth, uv - vec2(0.0, e.y)).r;
-    float slope = length(vec2(gx, gy));
-    float keep = 1.0 - smoothstep(0.045, 0.11, slope);
-    vec3 nrm = normalize(vec3(-gx * 9.0, -gy * 9.0, 1.0));
-    float fres = pow(1.0 - clamp(dot(nrm, normalize(vView)), 0.0, 1.0), 2.2);
-    float front = uReveal * 1.25 - 0.1;
-    float n = noise(uv * vec2(90.0, 120.0) + uTime * 0.3);
-    float k = front - uv.y - n * 0.07;
-    float vis = smoothstep(0.0, 0.06, k);
-    float edge = smoothstep(0.0, 0.05, k) * (1.0 - smoothstep(0.05, 0.14, k));
-    float lum = dot(ph.rgb, vec3(0.299, 0.587, 0.114));
-    float scan = 0.82 + 0.18 * sin(vWorldY * 80.0 - uTime * 3.0);
-    float flick = 0.94 + 0.06 * sin(uTime * 31.0) * step(0.9, noise(vec2(uTime * 2.0, 3.0)));
-    float sweep = smoothstep(0.02, 0.0, abs(fract(uTime * 0.16) * 1.4 - 0.2 - uv.y));
-    vec3 cyan = vec3(0.21, 0.89, 1.0);
-    float a = ph.a * vis * uOpacity;
-    if (uMode < 0.5) {
-      vec3 lift = pow(ph.rgb, vec3(0.62)) * 1.25;
-      vec3 base = mix(lift, cyan * (pow(lum, 0.6) * 1.9 + 0.08), 0.42) * scan;
-      base += cyan * (0.10 + 0.18 * vDepth) + cyan * fres * 0.5;
-      gl_FragColor = vec4(base * flick, a * keep * 0.95);
-    } else {
-      vec3 glow = cyan * (fres * 1.6 + sweep * 0.55 * ph.a + edge * 1.8) + vec3(0.8, 1.0, 1.0) * edge * 0.6;
-      gl_FragColor = vec4(glow * flick, ph.a * max(vis, edge) * uOpacity * (0.35 + 0.65 * fres + edge) * mix(1.0, keep, 0.7));
-    }
-    if (uMirror > 0.5) gl_FragColor.a *= 0.22 * smoothstep(0.0, 0.5, uv.y);
-    if (gl_FragColor.a < 0.003) discard;
-  }`;
-// true-3D variant (optional bust.glb): fresnel rim, world-space scanlines, additive light
-const BUST_VERT = /* glsl */ `
-  varying vec3 vN; varying vec3 vView; varying float vWorldY; varying vec2 vUv; uniform float uGlitch; uniform float uTime;
-  void main(){ vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); wp.x += uGlitch * 0.05 * sin(wp.y * 30.0 + uTime * 50.0); vWorldY = wp.y;
-    vN = normalize(mat3(modelMatrix) * normal); vec4 mv = viewMatrix * wp; vView = -mv.xyz; gl_Position = projectionMatrix * mv; }`;
-const BUST_FRAG = /* glsl */ `
-  precision highp float; uniform float uTime; uniform float uReveal; uniform float uMirror; uniform sampler2D uTex; uniform float uHasTex;
-  varying vec3 vN; varying vec3 vView; varying float vWorldY; varying vec2 vUv;
-  void main(){
-    vec3 N = normalize(vN); float fres = pow(1.0 - clamp(dot(N, normalize(vView)), 0.0, 1.0), 3.0);
-    float h = clamp(vWorldY / 4.3, 0.0, 1.0); float vis = smoothstep(0.0, 0.05, uReveal * 1.2 - h);
-    float edge = smoothstep(0.0, 0.05, uReveal * 1.2 - h) * (1.0 - smoothstep(0.05, 0.12, uReveal * 1.2 - h));
-    float scan = 0.8 + 0.2 * sin(vWorldY * 80.0 - uTime * 3.0);
-    vec3 cyan = vec3(0.21, 0.89, 1.0); vec3 tex = uHasTex > 0.5 ? texture2D(uTex, vUv).rgb : vec3(0.3);
-    vec3 col = (cyan * (0.18 + fres * 1.5) + tex * 0.35 * cyan + vec3(0.8,1.0,1.0) * edge) * scan;
-    float a = (0.28 + fres * 0.9 + edge) * vis; if (uMirror > 0.5) a *= 0.2;
+    vec2 c = gl_PointCoord - 0.5; float d = length(c); if (d > 0.5) discard;
+    float dot_ = smoothstep(0.5, 0.05, d);
+    float scan = 0.78 + 0.22 * sin(vWy * 60.0 - uTime * 3.0);
+    float sweep = smoothstep(0.03, 0.0, abs(fract(uTime * 0.14) * 4.6 - vWy));
+    vec3 deep = vec3(0.05, 0.55, 0.85), hot = vec3(0.65, 1.0, 1.0);
+    vec3 col = mix(deep, hot, clamp(pow(vLum, 0.6) * 1.1 + vEdge * 0.6 + sweep, 0.0, 1.0)) * scan;
+    float bottom = smoothstep(0.0, 0.25, vH);          // the jacket dissolves into light near the pedestal
+    float a = dot_ * 1.25 * (0.08 + 0.95 * pow(vLum, 0.9) + vEdge * 0.5 + sweep * 0.6) * (1.0 - vLayer * 0.55) * vVis * bottom;
+    if (uMirror > 0.5) a *= 0.22;
     gl_FragColor = vec4(col, a);
   }`;
 
@@ -154,7 +115,7 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
 
   // ---------- Materials for the arms
   const ceramic = track(new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.34, metalness: 0.12, envMapIntensity: 1.3 }));
-  const graphite = track(new THREE.MeshStandardMaterial({ color: 0x14171c, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.5 }));
+  const graphite = track(new THREE.MeshStandardMaterial({ color: 0x181b20, roughness: 0.25, metalness: 0.9, envMapIntensity: 2.2 }));
   const accent = track(new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.4, metalness: 0.3, emissive: 0xff5a00, emissiveIntensity: 0.15 }));
   const chrome = track(new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.12, metalness: 1, envMapIntensity: 2 }));
 
@@ -185,12 +146,24 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
     const flange = cyl(0.11, 0.11, 0.05, chrome, 24); flange.position.y = 0.03; j6.add(flange);
     for (const s of [-1, 1]) { const f = rbox(0.03, 0.3, 0.07, 0.01, chrome); f.position.set(s * 0.07, 0.22, 0); j6.add(f); }
     const cube = rbox(0.1, 0.1, 0.1, 0.012, accent); cube.position.set(0, 0.26, 0); j6.add(cube);
+    const led = (parent: THREE.Object3D, r: number, y: number, rotZ: boolean, color: number) => {
+      const t = new THREE.Mesh(track(new THREE.TorusGeometry(r, 0.012, 8, 48)), track(new THREE.MeshBasicMaterial({ color, toneMapped: false })));
+      if (rotZ) t.rotation.y = Math.PI / 2; else t.rotation.x = Math.PI / 2; t.position.y = y; parent.add(t);
+    };
+    led(j1, 0.45, 0.42, false, 0x35e3ff); led(j2, 0.31, 0, true, 0xffa040); led(j3, 0.25, 0, true, 0x35e3ff); led(j4, 0.15, 0.2, false, 0xffa040); led(j5, 0.13, 0, true, 0x35e3ff);
     group.add(root);
     return { root, j: [j1, j2, j3, j4, j5, j6], phase, speed: 0.55 + phase * 0.02 };
   }
   arms.push(makeArm(-4.2, -1.2, 0.5, 1.15, 0.0));
   arms.push(makeArm(7.4, -4.6, -0.7, 1.0, 2.1));
   if (!lowPower) arms.push(makeArm(-9.5, -9, 0.9, 1.2, 4.2));
+
+  const laserA = new THREE.Vector3(), laserB = new THREE.Vector3();
+  const laserGeo = track(new THREE.CylinderGeometry(0.006, 0.03, 1, 10, 1, true)); laserGeo.translate(0, 0.5, 0);
+  const lasers: THREE.Mesh[] = arms.map((_, i) => {
+    const m = new THREE.Mesh(laserGeo, track(new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffb050 : 0x35e3ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })));
+    m.frustumCulled = false; group.add(m); return m;
+  });
 
   // ---------- Lighting truss with emissive bars
   const truss = new THREE.Group();
@@ -252,64 +225,94 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
 
   const panelDefs: Array<{ lines: Array<[string, string, string]>; pos: [number, number, number] }> = holo ? [
     { lines: [['IDENTITY', holo.name.toUpperCase(), '#e9fdff'], ['FOCUS', 'AI/ML · ROBOTICS · SECURITY', '#7df0ff']], pos: [-3.2, 3.3, 0.6] },
-    { lines: [['MODEL', 'DEPTH-RELIEF HOLOGRAM', '#e9fdff'], ['SOURCE', 'SINGLE PHOTO, DEPTH MAP', '#7df0ff']], pos: [3.2, 3.6, 0.2] },
+    { lines: [['MODEL', 'VOLUMETRIC POINT CLOUD', '#e9fdff'], ['SOURCE', 'PHOTO-DERIVED DEPTH', '#7df0ff']], pos: [3.2, 3.6, 0.2] },
   ] : [];
   const panels: THREE.Sprite[] = [];
   for (const d of panelDefs) { const s = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: track(panelTexture(d.lines)), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false }))); s.scale.set(2.5, 0.78, 1); s.position.set(...d.pos); stage.add(s); panels.push(s); }
 
-  const holoH = 4.3; let holoW = holoH * (holo?.aspect ?? 0.8);
-  const holoUniforms = { uMap: { value: null as THREE.Texture | null }, uDepth: { value: null as THREE.Texture | null }, uScale: { value: 0.6 }, uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 1 }, uMode: { value: 0 }, uMirror: { value: 0 }, uGlitch: { value: 0 } };
-  let body: THREE.Mesh | null = null, glow: THREE.Mesh | null = null, mirror: THREE.Mesh | null = null;
+  const holoH = 4.3; const holoW = holoH * (holo?.aspect ?? 0.8);
+  const holoUniforms = { uTime: { value: 0 }, uReveal: { value: 0 }, uPx: { value: 700 }, uSize: { value: lowPower ? 0.036 : 0.025 }, uGlitch: { value: 0 } };
   const holoRoot = new THREE.Group(); holoRoot.position.set(0, 0.22, 0); stage.add(holoRoot);
+  let cloudBuilt = false;
+  function addCloud(pos: number[], lum: number[], edge: number[], layer: number[], seed: number[]) {
+    if (dead || cloudBuilt) return; cloudBuilt = true;
+    const geo = track(new THREE.BufferGeometry());
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('aLum', new THREE.Float32BufferAttribute(lum, 1));
+    geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 1)); geo.setAttribute('aLayer', new THREE.Float32BufferAttribute(layer, 1)); geo.setAttribute('aSeed', new THREE.Float32BufferAttribute(seed, 1));
+    for (const mf of [0, 1]) {
+      const m = track(new THREE.ShaderMaterial({ uniforms: { ...holoUniforms, uMirror: { value: mf } }, vertexShader: CLOUD_VERT, fragmentShader: CLOUD_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      const pts = new THREE.Points(geo, m); pts.frustumCulled = false; pts.renderOrder = mf ? 3 : 5;
+      if (mf) { pts.scale.y = -1; pts.position.y = -0.02; }
+      holoRoot.add(pts);
+    }
+    pointCount = pos.length / 3; opts.onTexturesReady?.();
+  }
+  let pointCount = 0;
   if (holo) {
-    const loader = new THREE.TextureLoader(); let loaded = 0;
+    const loader = new THREE.TextureLoader(); const imgs: Record<string, HTMLImageElement> = {};
     const done = () => {
-      if (dead || ++loaded < 2) return;
-      const seg = lowPower ? [90, 112] : [150, 188];
-      const geo = track(new THREE.PlaneGeometry(holoW, holoH, seg[0], seg[1])); geo.translate(0, holoH / 2, 0);
-      const mk = (mode: number, mirrorFlag: number, blending: THREE.Blending) => {
-        const u = { ...holoUniforms, uMode: { value: mode }, uMirror: { value: mirrorFlag } };
-        const m = track(new THREE.ShaderMaterial({ uniforms: u, vertexShader: HOLO_VERT, fragmentShader: HOLO_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending, extensions: { derivatives: true } as never }));
-        return new THREE.Mesh(geo, m);
-      };
-      body = mk(0, 0, THREE.NormalBlending); body.renderOrder = 4;
-      glow = mk(1, 0, THREE.AdditiveBlending); glow.renderOrder = 5;
-      mirror = mk(1, 1, THREE.AdditiveBlending); mirror.renderOrder = 3; mirror.scale.y = -1; mirror.position.y = -0.02;
-      holoRoot.add(mirror, body, glow);
-      opts.onTexturesReady?.();
+      if (dead || !imgs.p || !imgs.d) return;
+      const W = lowPower ? 100 : 176, H = Math.round(W / holo.aspect);
+      const read = (im: HTMLImageElement) => { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d', { willReadFrequently: true })!; g.drawImage(im, 0, 0, W, H); return g.getImageData(0, 0, W, H).data; };
+      const ph = read(imgs.p), dp = read(imgs.d);
+      const pos: number[] = [], lum: number[] = [], edge: number[] = [], layer: number[] = [], seed: number[] = [];
+      const inside = (i: number, j: number) => i >= 0 && j >= 0 && i < W && j < H && ph[(j * W + i) * 4 + 3] > 128;
+      let rnd = 7; const rand = () => { rnd = (rnd * 16807) % 2147483647; return rnd / 2147483647; };
+      const layers = lowPower ? [0, 1] : [0, 0.5, 1];
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+        if (!inside(i, j)) continue;
+        const k = (j * W + i) * 4; const d = dp[k] / 255;
+        const l = (0.299 * ph[k] + 0.587 * ph[k + 1] + 0.114 * ph[k + 2]) / 255;
+        const e = (!inside(i - 1, j) || !inside(i + 1, j) || !inside(i, j - 1) || !inside(i, j + 1)) ? 1 : 0;
+        const x = (i / (W - 1) - 0.5) * holoW, y = (1 - j / (H - 1)) * holoH;
+        const zF = (d - 0.30) * 0.9, thick = 0.25 + 0.95 * d;
+        for (const ly of layers) {
+          if (ly > 0 && ly < 1 && rand() > 0.3) continue;
+          if (ly === 1 && rand() > 0.45) continue;
+          pos.push(x + (rand() - 0.5) * 0.02, y + (rand() - 0.5) * 0.02, zF - thick * ly); lum.push(ly === 0 ? l : l * 0.7 + 0.1); edge.push(e); layer.push(ly); seed.push(rand());
+        }
+      }
+      addCloud(pos, lum, edge, layer, seed);
     };
-    const tex = (url: string, cs: THREE.ColorSpace, set: (t: THREE.Texture) => void) => loader.load(url, (t) => { t.colorSpace = cs; t.anisotropy = 8; t.minFilter = THREE.LinearFilter; set(t); dispo.push(t); done(); }, undefined, () => { /* missing image: the world still renders without the hologram */ });
-    tex(holo.portraitUrl, THREE.SRGBColorSpace, (t) => { holoUniforms.uMap.value = t; });
-    tex(holo.depthUrl, THREE.NoColorSpace, (t) => { holoUniforms.uDepth.value = t; });
+    const load = (url: string, key: 'p' | 'd') => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { imgs[key] = im; done(); }; im.onerror = () => { /* missing image: the world still renders without the hologram */ }; im.src = url; };
+    void loader; load(holo.portraitUrl, 'p'); load(holo.depthUrl, 'd');
 
-    // Optional true-3D bust: if /hologram/bust.glb exists it replaces the depth-relief planes.
+    // Optional true-3D bust: if /hologram/bust.glb exists its surface is sampled into the particle cloud instead of the photo relief.
     const glbUrl = holo.portraitUrl.replace(/[^/]+$/, 'bust.glb');
     fetch(glbUrl, { method: 'HEAD' }).then(async (r) => {
       if (!r.ok || dead) return;
-      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const [{ GLTFLoader }, { MeshSurfaceSampler }] = await Promise.all([import('three/examples/jsm/loaders/GLTFLoader.js'), import('three/examples/jsm/math/MeshSurfaceSampler.js')]);
       new GLTFLoader().load(glbUrl, (gltf) => {
         if (dead) return;
-        const model = gltf.scene;
-        const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3()); const c = box.getCenter(new THREE.Vector3());
-        const k = holoH / Math.max(size.y, 1e-3);
-        model.scale.setScalar(k); model.position.set(-c.x * k, -box.min.y * k, -c.z * k);
-        const wrap = new THREE.Group(); wrap.add(model);
-        const mirrorWrap = wrap.clone(true); mirrorWrap.scale.y = -1; mirrorWrap.position.y = -0.02;
-        const mkMat = (mirrorFlag: number, tex: THREE.Texture | null) => track(new THREE.ShaderMaterial({
-          uniforms: { uTime: holoUniforms.uTime, uReveal: holoUniforms.uReveal, uGlitch: holoUniforms.uGlitch, uMirror: { value: mirrorFlag }, uTex: { value: tex }, uHasTex: { value: tex ? 1 : 0 } },
-          vertexShader: BUST_VERT, fragmentShader: BUST_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-        }));
-        for (const [root, mf] of [[wrap, 0], [mirrorWrap, 1]] as const) {
-          root.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; const old = m.material as THREE.MeshStandardMaterial; m.material = mkMat(mf, (old && old.map) || null); m.renderOrder = 5; });
+        const model = gltf.scene; const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3()); const c = box.getCenter(new THREE.Vector3());
+        const k = holoH / Math.max(size.y, 1e-3); model.scale.setScalar(k); model.position.set(-c.x * k, -box.min.y * k, -c.z * k); model.updateMatrixWorld(true);
+        const meshes: THREE.Mesh[] = []; model.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+        if (!meshes.length) return;
+        const total = lowPower ? 14000 : 30000, per = Math.floor(total / meshes.length);
+        const pos: number[] = [], lum: number[] = [], edge: number[] = [], layer: number[] = [], seed: number[] = [];
+        const v = new THREE.Vector3(), n = new THREE.Vector3();
+        for (const m of meshes) { const sm = new MeshSurfaceSampler(m).build(); for (let i = 0; i < per; i++) { sm.sample(v, n); v.applyMatrix4(m.matrixWorld); pos.push(v.x, v.y, v.z); lum.push(0.55 + Math.random() * 0.4); edge.push(Math.abs(n.z) < 0.35 ? 1 : 0); layer.push(0); seed.push(Math.random()); } }
+        if (cloudBuilt) { // replace the photo-based cloud
+          for (const ch of [...holoRoot.children]) holoRoot.remove(ch); cloudBuilt = false;
         }
-        if (body) { holoRoot.remove(body, glow!, mirror!); }
-        holoRoot.add(mirrorWrap, wrap); usingGlb = true;
-        opts.onTexturesReady?.();
-      }, undefined, () => { /* bad glb: keep the relief */ });
-    }).catch(() => { /* no glb: keep the relief */ });
+        usingGlb = true; addCloud(pos, lum, edge, layer, seed);
+      }, undefined, () => { /* bad glb: keep the photo cloud */ });
+    }).catch(() => { /* no glb */ });
   }
 
-  let usingGlb = false;
+  // ---------- Projection cone and rising light motes: visually connect the pedestal to the bust
+  const coneMat = track(new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, uniforms: { uTime: { value: 0 }, uAmt: { value: 0 } },
+    vertexShader: 'varying float vY; varying vec2 vUv; void main(){ vUv = uv; vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'precision highp float; uniform float uTime; uniform float uAmt; varying float vY; varying vec2 vUv; void main(){ float fade = pow(1.0 - vY, 1.6); float streak = 0.55 + 0.45 * sin(vUv.x * 80.0 + uTime * 0.5) * sin(vUv.y * 24.0 - uTime * 2.0); gl_FragColor = vec4(0.2, 0.85, 1.0, fade * streak * 0.11 * uAmt); }',
+  }));
+  const cone = new THREE.Mesh(track(new THREE.CylinderGeometry(1.2, 1.12, 4.4, 64, 1, true)), coneMat); cone.position.y = 2.3; stage.add(cone);
+  const nRise = lowPower ? 90 : 240, risePos = new Float32Array(nRise * 3), riseSeed = new Float32Array(nRise);
+  for (let i = 0; i < nRise; i++) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 1.05; risePos[i * 3] = Math.cos(a) * r; risePos[i * 3 + 1] = Math.random() * 4.2; risePos[i * 3 + 2] = Math.sin(a) * r; riseSeed[i] = Math.random(); }
+  const riseGeo = track(new THREE.BufferGeometry()); riseGeo.setAttribute('position', new THREE.BufferAttribute(risePos, 3));
+  const rise = new THREE.Points(riseGeo, track(new THREE.PointsMaterial({ map: track(glowSprite('rgba(170,245,255,1)')), size: 0.07, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, color: 0x7df0ff }))); rise.position.y = 0.12; stage.add(rise);
+
+  let usingGlb = false; let viewH = 800;
   const camTarget = new THREE.Vector3();
   let lastQ = 0;
   const tmpV = new THREE.Vector3();
@@ -333,6 +336,7 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
     },
     update(time, _dt, q, camera, pointer) {
       cloudMat.uniforms.uTime.value = time; holoUniforms.uTime.value = time;
+      holoUniforms.uPx.value = (viewH * 0.5) / Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
       const reveal = state.still ? 1 : smooth(clamp01((q - 0.1) / 0.34));
       holoUniforms.uReveal.value = reveal;
       holoUniforms.uGlitch.value += (Math.min(1, Math.abs(q - lastQ) * 60) - holoUniforms.uGlitch.value) * 0.2; lastQ = q;
@@ -360,8 +364,21 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
       holoRoot.rotation.y = THREE.MathUtils.clamp(Math.atan2(dx, dz) * 0.8 + pointer.x * 0.12, -0.7, 0.7);
       holoRoot.position.y = 0.22 + Math.sin(time * 0.9) * 0.025;
       rimA.intensity = 30 + Math.sin(time * 1.7) * 3;
+      coneMat.uniforms.uTime.value = time; coneMat.uniforms.uAmt.value = reveal;
+      for (let i = 0; i < nRise; i++) { let y = risePos[i * 3 + 1] + 0.006 + riseSeed[i] * 0.012; if (y > 4.2) y = 0; risePos[i * 3 + 1] = y; } riseGeo.attributes.position.needsUpdate = true;
+      (rise.material as THREE.PointsMaterial).opacity = 0.8 * reveal;
+      // scanning lasers from each end-effector to a point sweeping up and down the bust
+      stage.updateWorldMatrix(true, false);
+      const chest = tmpV.set(0, 1.5 + (Math.sin(time * 0.8) * 0.5 + 0.5) * 2.4, 0.25); holoRoot.localToWorld(chest);
+      lasers.forEach((L, i) => {
+        arms[i].j[5].getWorldPosition(laserA); laserB.copy(chest).add(new THREE.Vector3(Math.sin(time * 1.3 + i) * 0.35, 0, 0));
+        const dir = laserB.clone().sub(laserA); const len = dir.length();
+        L.position.copy(laserA); L.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); L.scale.set(1, len, 1);
+        (L.material as THREE.MeshBasicMaterial).opacity = 0.6 * reveal * (0.7 + 0.3 * Math.sin(time * 9 + i));
+      });
     },
     setStill() { state.still = true; },
+    setViewport(h) { viewH = h; },
     get usingGlb() { return usingGlb; },
     labels(camera, w, h, q) {
       return anchors.map((a) => {

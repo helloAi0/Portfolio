@@ -7,7 +7,6 @@
  * Framework-free on purpose (testable headlessly; the React wrapper only mounts/disposes it).
  */
 import * as THREE from 'three';
-import { buildRoboticsWorld, type HologramSource, type RoboticsWorld } from './roboticsWorld';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export interface HallOptions {
@@ -15,10 +14,6 @@ export interface HallOptions {
   lowPower: boolean;
   /** Render a single still frame; no loop, no scroll scrubbing. */
   reducedMotion: boolean;
-  /** Second act: robotics lab with a depth-relief hologram. Omit for the hall only. */
-  robotics?: { holo?: HologramSource };
-  /** Called every frame with act/flash so the page can draw the transition flash and retint the UI. */
-  onPhase?: (info: { act: 'hall' | 'robotics'; flash: number; q: number; labels?: Array<{ id: string; text: string; x: number; y: number; o: number }> }) => void;
 }
 
 export interface HallController {
@@ -161,7 +156,6 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
   disposables.push({ dispose: () => { envTex.dispose(); pmrem.dispose(); envScene.dispose(); } });
 
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
-  let narrow = false;
 
   // ---------- Lighting ----------
   const key = new THREE.DirectionalLight(0xffd9a0, 2.6);
@@ -401,31 +395,6 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
   scene.add(dust);
 
   // ---------- Camera rig ----------
-  // ---------- Act two: robotics world (hidden until the scroll crosses the midpoint, then the hall is hidden)
-  const hallObjects = [...scene.children];
-  let robo: RoboticsWorld | null = null;
-  let act: 'hall' | 'robotics' = 'hall';
-  const SPLIT = opts.robotics ? 0.5 : 2;
-  if (opts.robotics) {
-    try {
-      robo = buildRoboticsWorld({ lowPower, holo: opts.robotics.holo, onTexturesReady: () => { if (reducedMotion) renderer.render(scene, camera); } });
-      robo.group.visible = false; scene.add(robo.group);
-      if (reducedMotion) robo.setStill();
-    } catch { robo = null; }
-  }
-  function setAct(next: 'hall' | 'robotics') {
-    if (next === act || !robo) return;
-    act = next;
-    const r = next === 'robotics';
-    hallObjects.forEach((o) => { o.visible = !r; });
-    robo.group.visible = r;
-    const bg = r ? 0x03060a : 0x07080b;
-    (scene.background as THREE.Color).setHex(bg);
-    (scene.fog as THREE.FogExp2).color.setHex(bg);
-    (scene.fog as THREE.FogExp2).density = r ? (lowPower ? 0.035 : 0.02) : (lowPower ? 0.05 : 0.036);
-    scene.environmentIntensity = r ? 0.6 : 0.28;
-    renderer.toneMappingExposure = r ? 1.15 : 1.05;
-  }
   let scrollTarget = 0, scrollNow = 0;
   const pointerTarget = new THREE.Vector2(), pointerNow = new THREE.Vector2();
   let width = 1, height = 1;
@@ -446,17 +415,7 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
     time += dt;
     scrollNow += (scrollTarget - scrollNow) * (1 - Math.pow(0.0025, dt)); // frame-rate independent damping
     pointerNow.lerp(pointerTarget, 1 - Math.pow(0.01, dt));
-    if (robo) setAct(scrollNow >= SPLIT ? 'robotics' : 'hall');
-    if (act === 'robotics' && robo) {
-      const q = clamp01((scrollNow - SPLIT) / (1 - SPLIT));
-      robo.placeCamera(camera, q, pointerNow, narrow);
-      robo.update(time, dt, q, camera, pointerNow);
-      opts.onPhase?.({ act, flash: 1 - clamp01(Math.abs(scrollNow - SPLIT) / 0.04), q, labels: robo.labels(camera, width, height, q) });
-      renderer.render(scene, camera);
-      return;
-    }
-    placeCamera(robo ? clamp01(scrollNow / SPLIT) : scrollNow);
-    opts.onPhase?.({ act, flash: robo ? 1 - clamp01(Math.abs(scrollNow - SPLIT) / 0.04) : 0, q: 0 });
+    placeCamera(scrollNow);
     wreath.rotation.y = Math.sin(time * 0.45) * 0.38;
     wreath.rotation.x = Math.sin(time * 0.3) * 0.06;
     wreath.position.y = 2.7 + Math.sin(time * 0.8) * 0.06;
@@ -509,8 +468,7 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       // keep the subject framed on tall/narrow screens
-      narrow = width / height < 0.8;
-      camera.fov = narrow ? 62 : 48;
+      camera.fov = width / height < 0.8 ? 62 : 48;
       camera.updateProjectionMatrix();
       if (reducedMotion) renderer.render(scene, camera);
     },
@@ -519,7 +477,6 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
       disposed = true;
       cancelAnimationFrame(raf);
       disposables.forEach((d) => { try { d.dispose(); } catch { /* ignore */ } });
-      robo?.dispose();
       [shafts, bases, echini, abaci, leaves, berries].forEach((im) => im.dispose());
       renderer.dispose();
     },

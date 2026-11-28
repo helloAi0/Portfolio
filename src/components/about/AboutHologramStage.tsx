@@ -12,7 +12,7 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
  * About-page header: replaces the plain name heading with the robotics lab and the owner's hologram.
  * Scroll scrubs the camera (orbit + dolly), the arms and the callouts. The neural stage below is unchanged.
  */
-export function AboutHologramStage({ name, headline, holo, children }: { name: string; headline: string; holo: HologramSource; children?: React.ReactNode }) {
+export function AboutHologramStage({ name, headline, holo }: { name: string; headline: string; holo: HologramSource }) {
   const stageRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -71,8 +71,6 @@ export function AboutHologramStage({ name, headline, holo, children }: { name: s
         {webgl && <HoloCallouts ref={calloutRef} />}
         <div ref={titleRef} className="absolute inset-0 flex items-center will-change-transform">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-24">
-            {children}
-            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-cyan-300 mt-6 mb-4">About</p>
             <h1 className="font-serif font-black text-white leading-[0.92] text-[clamp(2.4rem,6.5vw,5.8rem)] [text-shadow:0_4px_30px_rgba(0,0,0,.8)]" aria-label={name}>
               {words.map((w, i) => <span key={w} className="kw mr-[0.25em]" aria-hidden><span style={{ ['--i' as string]: i }}>{w}</span></span>)}
             </h1>
