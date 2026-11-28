@@ -1,0 +1,10 @@
+NAME=Taha Udaipurwala
+PROFILE_NAME=Taha Udaipurwala
+PROFILE_BIO=REQUIRED_USER_INPUT
+TARGET_ROLES=Junior Robotics Software Engineer; Robotics Software Engineer; Robotics Engineer; Robotics Engineer Intern; Robotics Software Intern; Autonomous Systems Engineer; Perception Engineer; Computer Vision Engineer; AI Engineer; Machine Learning Engineer; Embedded Software Engineer; Controls Engineer
+LOCATION_PREFERENCE=India; Remote; Global
+TARGET_COMPANIES=NVIDIA; Boston Dynamics; Figure AI; Tesla; Agility Robotics
+SCHEDULE=Daily 08:00 Asia/Kolkata
+RESUME_URL=REQUIRED_USER_INPUT
+PORTFOLIO_URL=REQUIRED_USER_INPUT
+SENDING_GMAIL=REQUIRED_USER_INPUT

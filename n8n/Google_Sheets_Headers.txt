@@ -1,0 +1,11 @@
+Create three tabs named exactly Jobs, Contacts, and Log. Paste each matching comma-separated header line into row 1 of that tab.
+
+Jobs
+Job Link,Company,Job Title,Location,Date Found,Status,Posting Text,Contact Name,Contact Title,Contact Email,LinkedIn URL,Email Verification,Draft,Replied,First Sent Date,Follow-Up Due Date,Follow-Up Sent Date,Follow-Up Draft,Follow-Up Approved At,History,Last Error,Approved At,Gmail Message ID,Gmail Thread ID,Reply Detected At,Draft Subject,Approval Status,Reply Subject,Reply Snippet
+
+Contacts
+Email,Name,Title,Company,LinkedIn URL,Job Link,First Seen,Contacted At,Contact State,Last Message Date,Opted Out,Gmail Thread ID
+
+Log
+Timestamp,Workflow,Stage,Job Link,Company,Contact Email,Outcome,Details,Execution ID,Message ID
+
