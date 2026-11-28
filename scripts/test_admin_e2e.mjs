@@ -26,7 +26,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
 
 (async () => {
   // ---- access control
-  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/outreach/status', '/api/admin/backup', '/api/admin/resume']) {
+  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/generate-cold-email', '/api/admin/backup', '/api/admin/resume']) {
     const r = await call('GET', p, null, { anon: true }); ok(`anonymous blocked: ${p}`, r.status === 401, r.status);
   }
   ok('anonymous upload blocked', (await call('POST', '/api/admin/uploads', PDF(), { anon: true })).status === 401);
@@ -213,11 +213,8 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
   {
     const SECRET = process.env.INGEST_SECRET, TG = process.env.TELEGRAM_WEBHOOK_SECRET, CHAT = process.env.TELEGRAM_CHAT_ID;
     const W = { headers: { 'x-internal-secret': SECRET || 'wrong' }, anon: true };
-    ok('outreach status: anon blocked', (await call('GET', '/api/admin/outreach/status', null, { anon: true })).status === 401);
-    ok('outreach run: anon blocked', (await call('POST', '/api/admin/outreach/run', {}, { anon: true })).status === 401);
-    const os = await call('GET', '/api/admin/outreach/status');
-    ok('outreach status: not configured is explained, not an error', os.status === 200 && (os.json.configured === false || os.json.configured === true), os.text.slice(0, 160));
-    ok('outreach run: refuses when n8n URL not set', !process.env.N8N_RUN_WEBHOOK_URL ? (await call('POST', '/api/admin/outreach/run', {})).status === 400 : true);
+    ok('cold email: anon blocked', (await call('POST', '/api/admin/generate-cold-email', { company: 'X', jobTitle: 'Y' }, { anon: true })).status === 401);
+    ok('cold email: company and title required', (await call('POST', '/api/admin/generate-cold-email', { company: '', jobTitle: '' })).status === 400);
 
     ok('jobs-internal: no secret -> 401', (await call('GET', '/api/internal/jobs/pending', null, { anon: true })).status === 401);
     if (SECRET) {

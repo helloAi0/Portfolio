@@ -12,7 +12,7 @@
     "db:seed": "node node_modules/tsx/dist/cli.mjs prisma/seed.ts",
     "backup": "node node_modules/tsx/dist/cli.mjs scripts/backup.ts",
     "restore": "node node_modules/tsx/dist/cli.mjs scripts/restore_backup.ts",
-    "test:unit": "node scripts/_applyMigrations.mjs prisma/test.db && node node_modules/tsx/dist/cli.mjs scripts/test_identity_and_honesty.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week2_sync.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week3_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_automation_mocked.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week4_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_job_agent.ts && node node_modules/tsx/dist/cli.mjs scripts/test_cert_ingest.ts && node node_modules/tsx/dist/cli.mjs scripts/test_lamo_quality.ts && node node_modules/tsx/dist/cli.mjs scripts/test_outreach_dashboard.ts",
+    "test:unit": "node scripts/_applyMigrations.mjs prisma/test.db && node node_modules/tsx/dist/cli.mjs scripts/test_identity_and_honesty.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week2_sync.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week3_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_automation_mocked.ts && node node_modules/tsx/dist/cli.mjs scripts/test_week4_unit.ts && node node_modules/tsx/dist/cli.mjs scripts/test_job_agent.ts && node node_modules/tsx/dist/cli.mjs scripts/test_cert_ingest.ts && node node_modules/tsx/dist/cli.mjs scripts/test_lamo_quality.ts && node node_modules/tsx/dist/cli.mjs scripts/test_cold_email.ts",
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "postinstall": "node scripts/postinstall.mjs",
     "d1:migration": "node scripts/gen-d1-migration.mjs",

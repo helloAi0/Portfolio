@@ -10,7 +10,7 @@ import ProfileEditorPanel from '@/components/admin/ProfileEditorPanel';
 import EnquiriesPanel from '@/components/admin/EnquiriesPanel';
 import VisitorChatsPanel from '@/components/admin/VisitorChatsPanel';
 import JobAgentPanel from '@/components/admin/JobAgentPanel';
-import OutreachAgentPanel from '@/components/admin/OutreachAgentPanel';
+import ColdEmailPanel from '@/components/admin/ColdEmailPanel';
 import CertificateQueuePanel from '@/components/admin/CertificateQueuePanel';
 import ManualEntryPanel from '@/components/admin/ManualEntryPanel';
 import ProjectsStudioPanel from '@/components/admin/ProjectsStudioPanel';
@@ -65,7 +65,7 @@ type AdminTab =
   | 'lamo-questions'
   | 'visitor-chats'
   | 'job-agent'
-  | 'outreach-agent'
+  | 'cold-email'
   | 'lamo-copilot'
   | 'sync-history'
   | 'settings';
@@ -74,7 +74,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   // Deep links from Telegram / email cards, e.g. /admin#job-agent
-  useEffect(() => { const go = () => { const h = window.location.hash.slice(1); if (['certificates', 'job-agent', 'outreach-agent', 'visitor-chats'].includes(h)) setActiveTab(h as AdminTab); }; go(); window.addEventListener('hashchange', go); return () => window.removeEventListener('hashchange', go); }, []);
+  useEffect(() => { const go = () => { const h = window.location.hash.slice(1); if (['certificates', 'job-agent', 'cold-email', 'visitor-chats'].includes(h)) setActiveTab(h as AdminTab); }; go(); window.addEventListener('hashchange', go); return () => window.removeEventListener('hashchange', go); }, []);
   const [health, setHealth] = useState<any | null>(null);
   const [resumeSet, setResumeSet] = useState<boolean | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -702,7 +702,7 @@ export default function AdminDashboardPage() {
     ] },
     { title: 'Automation', items: [
       { id: 'job-agent', label: 'Job Agent', icon: Send },
-      { id: 'outreach-agent', label: 'Outreach Agent', icon: Send },
+      { id: 'cold-email', label: 'Cold Email', icon: Send },
       { id: 'automation', label: 'Auto-Sync & Quick Add', icon: RefreshCw },
       { id: 'github', label: 'GitHub Repositories', icon: Github, count: githubRepos.length, hot: pendingRepos > 0 },
       { id: 'leetcode', label: 'LeetCode', icon: Code2 },
@@ -1021,7 +1021,7 @@ export default function AdminDashboardPage() {
           {activeTab === 'inbox' && <EnquiriesPanel onChanged={loadAllData} />}
           {activeTab === 'visitor-chats' && <VisitorChatsPanel />}
           {activeTab === 'job-agent' && <JobAgentPanel />}
-          {activeTab === 'outreach-agent' && <OutreachAgentPanel />}
+          {activeTab === 'cold-email' && <ColdEmailPanel />}
           {activeTab === 'manual' && <ManualEntryPanel onChanged={loadAllData} />}
           {activeTab === 'projects' && <ProjectsStudioPanel onChanged={loadAllData} />}
           {activeTab === 'resume' && <ResumeStudioPanel onChanged={loadAllData} />}

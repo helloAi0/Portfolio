@@ -21,12 +21,3 @@ INGEST_SECRET=
 INGEST_WORKER_URL=
 # Job agent: your phone for the admin-only application-form box (never stored in the repo)
 OWNER_PHONE=
-
-# Outreach Agent dashboard (read-only view of the n8n agent's Google Sheet; see docs/OUTREACH_DASHBOARD.md).
-# NO Apify / Apollo / Hunter / OpenAI keys belong here: those live only in n8n.
-GOOGLE_SA_EMAIL=
-GOOGLE_SA_PRIVATE_KEY=
-OUTREACH_SHEET_ID=
-# "Run scan now" button: n8n production webhook URL (…/webhook/outreach-run-now) and the shared secret set as N8N_RUN_SECRET in n8n.
-N8N_RUN_WEBHOOK_URL=
-N8N_RUN_SECRET=
