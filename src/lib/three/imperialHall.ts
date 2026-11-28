@@ -18,7 +18,7 @@ export interface HallOptions {
   /** Second act: robotics lab with a depth-relief hologram. Omit for the hall only. */
   robotics?: { holo?: HologramSource };
   /** Called every frame with act/flash so the page can draw the transition flash and retint the UI. */
-  onPhase?: (info: { act: 'hall' | 'robotics'; flash: number; q: number }) => void;
+  onPhase?: (info: { act: 'hall' | 'robotics'; flash: number; q: number; labels?: Array<{ id: string; text: string; x: number; y: number; o: number }> }) => void;
 }
 
 export interface HallController {
@@ -451,7 +451,7 @@ export function createImperialHall(canvas: HTMLCanvasElement, opts: HallOptions)
       const q = clamp01((scrollNow - SPLIT) / (1 - SPLIT));
       robo.placeCamera(camera, q, pointerNow, narrow);
       robo.update(time, dt, q, camera, pointerNow);
-      opts.onPhase?.({ act, flash: 1 - clamp01(Math.abs(scrollNow - SPLIT) / 0.04), q });
+      opts.onPhase?.({ act, flash: 1 - clamp01(Math.abs(scrollNow - SPLIT) / 0.04), q, labels: robo.labels(camera, width, height, q) });
       renderer.render(scene, camera);
       return;
     }

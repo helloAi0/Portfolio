@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createImperialHall, type HallController } from '@/lib/three/imperialHall';
 import type { HologramSource } from '@/lib/three/roboticsWorld';
 import { HallFallback } from './HallFallback';
+import { HoloCallouts, applyCallouts } from './HoloCallouts';
 
 export interface HeroChapter {
   id: string;
@@ -37,6 +38,7 @@ export function HeroStage({ intro, chapters, holo }: HeroStageProps) {
   const hintRef = useRef<HTMLDivElement>(null);
   const flashRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
+  const calloutRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('cinematic');
   const [webgl, setWebgl] = useState(true);
 
@@ -57,7 +59,8 @@ export function HeroStage({ intro, chapters, holo }: HeroStageProps) {
         lowPower,
         reducedMotion: reduced,
         robotics: { holo },
-        onPhase: ({ act, flash }) => {
+        onPhase: ({ act, flash, labels }) => {
+          applyCallouts(calloutRef.current, labels);
           if (flashRef.current) flashRef.current.style.opacity = String(Math.pow(flash, 1.5));
           if (hudRef.current) hudRef.current.style.opacity = act === 'robotics' ? '1' : '0';
         },
@@ -157,6 +160,7 @@ export function HeroStage({ intro, chapters, holo }: HeroStageProps) {
           <div ref={flashRef} className="absolute inset-0 opacity-0 pointer-events-none [background:radial-gradient(circle_at_50%_50%,#ffffff,#9ff0ff_55%,#16b8e6)]" />
         </div>
 
+        {cinematic && webgl && <HoloCallouts ref={calloutRef} />}
         <div ref={introRef} className="absolute inset-0 flex items-center will-change-transform" style={cinematic ? undefined : { position: 'relative' }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-24 pb-16">{intro}</div>
         </div>

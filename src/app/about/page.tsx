@@ -1,12 +1,13 @@
 import React from 'react';
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
-import { ScrollDepth, TiltCard, OrbitRing } from '@/components/motion/Depth';
+import { ScrollDepth, TiltCard } from '@/components/motion/Depth';
 import { ChapterStage } from '@/components/about/ChapterStage';
+import { AboutHologramStage } from '@/components/about/AboutHologramStage';
 import { NeuralStage } from '@/components/about/NeuralStage';
 import { SkillUniverse, type UniDomain } from '@/components/about/SkillUniverse';
 import { resolveIdentitySafety } from '@/lib/identity';
 import { PROFILE } from '@/config/profile';
-import { ABOUT_CHAPTERS, ORBIT_WORDS } from '@/config/aboutContent';
+import { ABOUT_CHAPTERS } from '@/config/aboutContent';
 import { TAXONOMY } from '@/lib/taxonomy';
 import { getPublicProfile } from '@/lib/services/publicProfile';
 import { getSkillTaxonomy } from '@/lib/services/skillService';
@@ -38,19 +39,16 @@ export default async function AboutPage() {
     .sort((a, b) => b.skills.length - a.skills.length);
   const allDomainNames = Array.from(new Set([...TAXONOMY.map((t) => t.name), ...domains.map((d) => d.name)]));
 
-  const words = identity.displayName.toUpperCase().split(' ');
-
   return (
     <div>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+      <AboutHologramStage
+        name={identity.displayName}
+        headline={profile.headline}
+        holo={{ portraitUrl: '/hologram/portrait.webp', depthUrl: '/hologram/depth.webp', aspect: 0.7983, name: identity.displayName, headline: profile.headline }}
+      >
         <Breadcrumbs items={[{ label: 'About' }]} />
-        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-gold-400 mt-10 mb-4">About</p>
-        <h1 className="font-serif font-black text-white leading-[0.92] text-[clamp(2.6rem,8vw,7rem)]" aria-label={identity.displayName}>
-          {words.map((w, i) => <span key={w} className="kw mr-[0.25em]" aria-hidden><span style={{ ['--i' as string]: i }}>{w}</span></span>)}
-        </h1>
-        <p className="mt-5 text-xl sm:text-3xl font-serif italic text-gold-300">{profile.headline}</p>
-        <OrbitRing items={ORBIT_WORDS} />
-
+      </AboutHologramStage>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
         <ScrollDepth className="mb-10" strength={0.6}>
           <TiltCard className="marble-card rounded-2xl p-8 grid sm:grid-cols-[auto,1fr] gap-8 items-center">
             <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-gold-500/20 via-imperial-800 to-imperial-950 border border-gold-500/40 flex items-center justify-center shadow-imperial-gold">

@@ -18,6 +18,10 @@ export interface RoboticsWorld {
   /** Camera placement for the act (q 0..1). */
   placeCamera(camera: THREE.PerspectiveCamera, q: number, pointer: THREE.Vector2, narrow: boolean): void;
   setStill(): void;
+  /** Screen-space callouts anchored on the hologram; o is 0..1 visibility. */
+  labels(camera: THREE.Camera, w: number, h: number, q: number): Array<{ id: string; text: string; x: number; y: number; o: number }>;
+  /** True once a real bust.glb replaced the depth-relief mesh. */
+  readonly usingGlb: boolean;
   dispose(): void;
 }
 
@@ -54,55 +58,79 @@ function panelTexture(lines: Array<[string, string, string]>): THREE.CanvasTextu
 }
 
 const HOLO_VERT = /* glsl */ `
-  uniform sampler2D uDepth; uniform float uScale; uniform float uTime; uniform float uMirror;
-  varying vec2 vUv; varying float vDepth; varying vec3 vView;
+  uniform sampler2D uDepth; uniform float uScale; uniform float uTime; uniform float uGlitch;
+  varying vec2 vUv; varying float vDepth; varying vec3 vView; varying float vWorldY;
   void main(){
     vUv = uv;
     float d = texture2D(uDepth, uv).r; vDepth = d;
     vec3 p = position;
     p.z += (d - 0.30) * uScale;
-    p.x += sin(uTime * 1.7 + uv.y * 40.0) * 0.0035 * smoothstep(0.0, 1.0, d);
-    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    p.x += sin(uTime * 1.7 + uv.y * 40.0) * 0.0025 * d + uGlitch * 0.06 * sin(uv.y * 30.0 + uTime * 50.0);
+    vec4 wp = modelMatrix * vec4(p, 1.0); vWorldY = wp.y;
+    vec4 mv = viewMatrix * wp;
     vView = -mv.xyz;
     gl_Position = projectionMatrix * mv;
   }`;
 const HOLO_FRAG = /* glsl */ `
   precision highp float;
-  uniform sampler2D uMap; uniform float uTime; uniform float uReveal; uniform float uOpacity; uniform float uMode; uniform float uMirror;
-  varying vec2 vUv; varying float vDepth; varying vec3 vView;
+  uniform sampler2D uMap; uniform sampler2D uDepth; uniform float uTime; uniform float uReveal; uniform float uOpacity; uniform float uMode; uniform float uMirror; uniform float uGlitch;
+  varying vec2 vUv; varying float vDepth; varying vec3 vView; varying float vWorldY;
   float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
     return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }
   void main(){
     vec2 uv = vUv;
-    // occasional horizontal glitch bands
-    float band = step(0.992, noise(vec2(floor(uTime * 6.0), floor(uv.y * 24.0))));
+    float band = step(0.992 - uGlitch * 0.05, noise(vec2(floor(uTime * 6.0), floor(uv.y * 24.0))));
     uv.x += band * 0.02 * sin(uTime * 40.0);
     vec4 ph = texture2D(uMap, uv);
-    // build-up from the feet to the head, with a noisy dissolve front
+    // surface slope from the depth map; steep walls are where a photo gets stretched, so fade those out instead of smearing them
+    vec2 e = vec2(1.0 / 384.0, 1.0 / 480.0);
+    float gx = texture2D(uDepth, uv + vec2(e.x, 0.0)).r - texture2D(uDepth, uv - vec2(e.x, 0.0)).r;
+    float gy = texture2D(uDepth, uv + vec2(0.0, e.y)).r - texture2D(uDepth, uv - vec2(0.0, e.y)).r;
+    float slope = length(vec2(gx, gy));
+    float keep = 1.0 - smoothstep(0.045, 0.11, slope);
+    vec3 nrm = normalize(vec3(-gx * 9.0, -gy * 9.0, 1.0));
+    float fres = pow(1.0 - clamp(dot(nrm, normalize(vView)), 0.0, 1.0), 2.2);
     float front = uReveal * 1.25 - 0.1;
     float n = noise(uv * vec2(90.0, 120.0) + uTime * 0.3);
-    float vis = smoothstep(0.0, 0.06, front - uv.y - n * 0.07);
-    float edge = smoothstep(0.0, 0.05, front - uv.y - n * 0.07) * (1.0 - smoothstep(0.05, 0.14, front - uv.y - n * 0.07));
+    float k = front - uv.y - n * 0.07;
+    float vis = smoothstep(0.0, 0.06, k);
+    float edge = smoothstep(0.0, 0.05, k) * (1.0 - smoothstep(0.05, 0.14, k));
     float lum = dot(ph.rgb, vec3(0.299, 0.587, 0.114));
-    float scan = 0.84 + 0.16 * sin(uv.y * 900.0 + uTime * 3.0);
-    float sweep = smoothstep(0.015, 0.0, abs(fract(uTime * 0.16) * 1.4 - 0.2 - uv.y));
-    // relief normal from the depth gradient: bright rim where the surface turns away
-    float gx = dFdx(vDepth) * 140.0, gy = dFdy(vDepth) * 140.0;
-    vec3 nrm = normalize(vec3(-gx, -gy, 1.0));
-    float rim = pow(1.0 - clamp(nrm.z, 0.0, 1.0), 1.6);
+    float scan = 0.82 + 0.18 * sin(vWorldY * 80.0 - uTime * 3.0);
+    float flick = 0.94 + 0.06 * sin(uTime * 31.0) * step(0.9, noise(vec2(uTime * 2.0, 3.0)));
+    float sweep = smoothstep(0.02, 0.0, abs(fract(uTime * 0.16) * 1.4 - 0.2 - uv.y));
     vec3 cyan = vec3(0.21, 0.89, 1.0);
     float a = ph.a * vis * uOpacity;
-    if (uMode < 0.5) {                                   // body: the real photo, graded cool, scanlined
-      vec3 base = mix(ph.rgb, cyan * (lum * 1.5 + 0.05), 0.38) * scan;
-      base += cyan * rim * 0.22 + cyan * (0.05 + 0.10 * vDepth);
-      gl_FragColor = vec4(base, a * 0.94);
-    } else {                                             // glow: additive rim light, scan front and sweep
-      vec3 glow = cyan * (rim * 1.1 + sweep * 0.55 * ph.a + edge * 1.8) + vec3(0.8, 1.0, 1.0) * edge * 0.6;
-      gl_FragColor = vec4(glow, ph.a * max(vis, edge) * uOpacity * (0.55 + 0.45 * rim + edge));
+    if (uMode < 0.5) {
+      vec3 lift = pow(ph.rgb, vec3(0.62)) * 1.25;
+      vec3 base = mix(lift, cyan * (pow(lum, 0.6) * 1.9 + 0.08), 0.42) * scan;
+      base += cyan * (0.10 + 0.18 * vDepth) + cyan * fres * 0.5;
+      gl_FragColor = vec4(base * flick, a * keep * 0.95);
+    } else {
+      vec3 glow = cyan * (fres * 1.6 + sweep * 0.55 * ph.a + edge * 1.8) + vec3(0.8, 1.0, 1.0) * edge * 0.6;
+      gl_FragColor = vec4(glow * flick, ph.a * max(vis, edge) * uOpacity * (0.35 + 0.65 * fres + edge) * mix(1.0, keep, 0.7));
     }
     if (uMirror > 0.5) gl_FragColor.a *= 0.22 * smoothstep(0.0, 0.5, uv.y);
     if (gl_FragColor.a < 0.003) discard;
+  }`;
+// true-3D variant (optional bust.glb): fresnel rim, world-space scanlines, additive light
+const BUST_VERT = /* glsl */ `
+  varying vec3 vN; varying vec3 vView; varying float vWorldY; varying vec2 vUv; uniform float uGlitch; uniform float uTime;
+  void main(){ vUv = uv; vec4 wp = modelMatrix * vec4(position, 1.0); wp.x += uGlitch * 0.05 * sin(wp.y * 30.0 + uTime * 50.0); vWorldY = wp.y;
+    vN = normalize(mat3(modelMatrix) * normal); vec4 mv = viewMatrix * wp; vView = -mv.xyz; gl_Position = projectionMatrix * mv; }`;
+const BUST_FRAG = /* glsl */ `
+  precision highp float; uniform float uTime; uniform float uReveal; uniform float uMirror; uniform sampler2D uTex; uniform float uHasTex;
+  varying vec3 vN; varying vec3 vView; varying float vWorldY; varying vec2 vUv;
+  void main(){
+    vec3 N = normalize(vN); float fres = pow(1.0 - clamp(dot(N, normalize(vView)), 0.0, 1.0), 3.0);
+    float h = clamp(vWorldY / 4.3, 0.0, 1.0); float vis = smoothstep(0.0, 0.05, uReveal * 1.2 - h);
+    float edge = smoothstep(0.0, 0.05, uReveal * 1.2 - h) * (1.0 - smoothstep(0.05, 0.12, uReveal * 1.2 - h));
+    float scan = 0.8 + 0.2 * sin(vWorldY * 80.0 - uTime * 3.0);
+    vec3 cyan = vec3(0.21, 0.89, 1.0); vec3 tex = uHasTex > 0.5 ? texture2D(uTex, vUv).rgb : vec3(0.3);
+    vec3 col = (cyan * (0.18 + fres * 1.5) + tex * 0.35 * cyan + vec3(0.8,1.0,1.0) * edge) * scan;
+    float a = (0.28 + fres * 0.9 + edge) * vis; if (uMirror > 0.5) a *= 0.2;
+    gl_FragColor = vec4(col, a);
   }`;
 
 export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSource; onTexturesReady?: () => void }): RoboticsWorld {
@@ -223,14 +251,14 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
   const ticks = new THREE.LineSegments(tickGeo, track(new THREE.LineBasicMaterial({ color: CYAN, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }))); ticks.position.y = 0.12; stage.add(ticks);
 
   const panelDefs: Array<{ lines: Array<[string, string, string]>; pos: [number, number, number] }> = holo ? [
-    { lines: [['IDENTITY', holo.name.toUpperCase(), '#e9fdff'], ['FOCUS', holo.headline.toUpperCase().slice(0, 34), '#7df0ff']], pos: [-2.9, 4.2, 0.6] },
-    { lines: [['MODEL', 'DEPTH-RELIEF HOLOGRAM', '#e9fdff'], ['SOURCE', 'SINGLE PHOTO, DEPTH MAP', '#7df0ff']], pos: [3.0, 1.6, 0.4] },
+    { lines: [['IDENTITY', holo.name.toUpperCase(), '#e9fdff'], ['FOCUS', 'AI/ML · ROBOTICS · SECURITY', '#7df0ff']], pos: [-3.2, 3.3, 0.6] },
+    { lines: [['MODEL', 'DEPTH-RELIEF HOLOGRAM', '#e9fdff'], ['SOURCE', 'SINGLE PHOTO, DEPTH MAP', '#7df0ff']], pos: [3.2, 3.6, 0.2] },
   ] : [];
   const panels: THREE.Sprite[] = [];
   for (const d of panelDefs) { const s = new THREE.Sprite(track(new THREE.SpriteMaterial({ map: track(panelTexture(d.lines)), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false }))); s.scale.set(2.5, 0.78, 1); s.position.set(...d.pos); stage.add(s); panels.push(s); }
 
   const holoH = 4.3; let holoW = holoH * (holo?.aspect ?? 0.8);
-  const holoUniforms = { uMap: { value: null as THREE.Texture | null }, uDepth: { value: null as THREE.Texture | null }, uScale: { value: 0.85 }, uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 1 }, uMode: { value: 0 }, uMirror: { value: 0 } };
+  const holoUniforms = { uMap: { value: null as THREE.Texture | null }, uDepth: { value: null as THREE.Texture | null }, uScale: { value: 0.6 }, uTime: { value: 0 }, uReveal: { value: 0 }, uOpacity: { value: 1 }, uMode: { value: 0 }, uMirror: { value: 0 }, uGlitch: { value: 0 } };
   let body: THREE.Mesh | null = null, glow: THREE.Mesh | null = null, mirror: THREE.Mesh | null = null;
   const holoRoot = new THREE.Group(); holoRoot.position.set(0, 0.22, 0); stage.add(holoRoot);
   if (holo) {
@@ -253,16 +281,50 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
     const tex = (url: string, cs: THREE.ColorSpace, set: (t: THREE.Texture) => void) => loader.load(url, (t) => { t.colorSpace = cs; t.anisotropy = 8; t.minFilter = THREE.LinearFilter; set(t); dispo.push(t); done(); }, undefined, () => { /* missing image: the world still renders without the hologram */ });
     tex(holo.portraitUrl, THREE.SRGBColorSpace, (t) => { holoUniforms.uMap.value = t; });
     tex(holo.depthUrl, THREE.NoColorSpace, (t) => { holoUniforms.uDepth.value = t; });
+
+    // Optional true-3D bust: if /hologram/bust.glb exists it replaces the depth-relief planes.
+    const glbUrl = holo.portraitUrl.replace(/[^/]+$/, 'bust.glb');
+    fetch(glbUrl, { method: 'HEAD' }).then(async (r) => {
+      if (!r.ok || dead) return;
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      new GLTFLoader().load(glbUrl, (gltf) => {
+        if (dead) return;
+        const model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3()); const c = box.getCenter(new THREE.Vector3());
+        const k = holoH / Math.max(size.y, 1e-3);
+        model.scale.setScalar(k); model.position.set(-c.x * k, -box.min.y * k, -c.z * k);
+        const wrap = new THREE.Group(); wrap.add(model);
+        const mirrorWrap = wrap.clone(true); mirrorWrap.scale.y = -1; mirrorWrap.position.y = -0.02;
+        const mkMat = (mirrorFlag: number, tex: THREE.Texture | null) => track(new THREE.ShaderMaterial({
+          uniforms: { uTime: holoUniforms.uTime, uReveal: holoUniforms.uReveal, uGlitch: holoUniforms.uGlitch, uMirror: { value: mirrorFlag }, uTex: { value: tex }, uHasTex: { value: tex ? 1 : 0 } },
+          vertexShader: BUST_VERT, fragmentShader: BUST_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+        }));
+        for (const [root, mf] of [[wrap, 0], [mirrorWrap, 1]] as const) {
+          root.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; const old = m.material as THREE.MeshStandardMaterial; m.material = mkMat(mf, (old && old.map) || null); m.renderOrder = 5; });
+        }
+        if (body) { holoRoot.remove(body, glow!, mirror!); }
+        holoRoot.add(mirrorWrap, wrap); usingGlb = true;
+        opts.onTexturesReady?.();
+      }, undefined, () => { /* bad glb: keep the relief */ });
+    }).catch(() => { /* no glb: keep the relief */ });
   }
 
+  let usingGlb = false;
   const camTarget = new THREE.Vector3();
+  let lastQ = 0;
+  const tmpV = new THREE.Vector3();
+  const anchors = [
+    { id: 'ai', text: 'Agentic AI', at: new THREE.Vector3(-0.95, 3.5, 0.3), from: 0.30, to: 0.45 },
+    { id: 'sim', text: 'Robotics Sim', at: new THREE.Vector3(1.0, 2.7, 0.3), from: 0.48, to: 0.62 },
+    { id: 'sec', text: 'Security', at: new THREE.Vector3(-0.8, 1.5, 0.4), from: 0.66, to: 0.8 },
+  ];
   const state = { still: false };
   return {
     group, lights,
     placeCamera(camera, q, pointer, narrow) {
       const e = smooth(clamp01(q));
       const ang = -0.5 + e * 0.9;                      // slow orbit around the hologram
-      const R = narrow ? 11.5 : 8.6;
+      const R = (narrow ? 11.5 : 8.6) * (1 - 0.3 * e);   // dolly in as you scroll
       const cx = (narrow ? 0 : HX) + Math.sin(ang) * R * 0.78 + pointer.x * 0.5 - (narrow ? 0 : 2.2);
       const cz = Math.cos(ang) * R + 0.5;
       camera.position.set(cx, 1.7 + e * 0.5 + pointer.y * 0.25, cz);
@@ -273,13 +335,18 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
       cloudMat.uniforms.uTime.value = time; holoUniforms.uTime.value = time;
       const reveal = state.still ? 1 : smooth(clamp01((q - 0.1) / 0.34));
       holoUniforms.uReveal.value = reveal;
+      holoUniforms.uGlitch.value += (Math.min(1, Math.abs(q - lastQ) * 60) - holoUniforms.uGlitch.value) * 0.2; lastQ = q;
+      const reach = smooth(clamp01((q - 0.25) / 0.5));
       for (const a of arms) {
         const t = time * a.speed + a.phase;
-        a.j[0].rotation.y = Math.sin(t * 0.8) * 0.9;
-        a.j[1].rotation.z = -0.45 + Math.sin(t) * 0.35;
-        a.j[2].rotation.z = 0.95 + Math.sin(t * 1.3 + 1) * 0.4;
-        a.j[3].rotation.y = Math.sin(t * 0.7) * 1.2;
-        a.j[4].rotation.z = 0.4 + Math.sin(t * 1.1) * 0.5;
+        // aim each arm's bend plane at the hologram, then reach further as the scroll advances
+        const dx = stage.position.x - a.root.position.x, dz = stage.position.z - a.root.position.z;
+        const aim = Math.atan2(dz, -dx) - a.root.rotation.y;
+        a.j[0].rotation.y = aim + Math.sin(t * 0.8) * 0.12;
+        a.j[1].rotation.z = 0.15 + reach * 0.5 + Math.sin(t) * 0.06;
+        a.j[2].rotation.z = 1.15 - reach * 0.75 + Math.sin(t * 1.3 + 1) * 0.08;
+        a.j[3].rotation.y = Math.sin(t * 0.7) * 0.5;
+        a.j[4].rotation.z = 0.3 + Math.sin(t * 1.1) * 0.2;
         a.j[5].rotation.y = t * 1.5;
       }
       rings.forEach((r, i) => { r.rotation.z = time * (0.25 + i * 0.15) * (i % 2 ? -1 : 1); (r.material as THREE.MeshBasicMaterial).opacity = 0.5 * reveal; });
@@ -295,6 +362,14 @@ export function buildRoboticsWorld(opts: { lowPower: boolean; holo?: HologramSou
       rimA.intensity = 30 + Math.sin(time * 1.7) * 3;
     },
     setStill() { state.still = true; },
+    get usingGlb() { return usingGlb; },
+    labels(camera, w, h, q) {
+      return anchors.map((a) => {
+        tmpV.copy(a.at); holoRoot.localToWorld(tmpV); tmpV.project(camera);
+        const o = state.still ? 1 : smooth(clamp01((q - a.from) / (a.to - a.from)));
+        return { id: a.id, text: a.text, x: (tmpV.x * 0.5 + 0.5) * w, y: (-tmpV.y * 0.5 + 0.5) * h, o: tmpV.z < 1 ? o : 0 };
+      });
+    },
     dispose() { dead = true; dispo.forEach((d) => { try { d.dispose(); } catch { /* ignore */ } }); },
   };
 }
