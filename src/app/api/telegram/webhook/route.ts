@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
   let result = 'Unknown action.';
   try {
     if (kind === 'cert' && (action === 'approve' || action === 'reject') && id) { await reviewCertificate(id, action === 'approve' ? 'approved' : 'rejected'); result = action === 'approve' ? 'Approved: now live.' : 'Rejected.'; }
-    else if (kind === 'mail' && (action === 'approve' || action === 'reject') && id) { await prisma.coldEmailDraft.update({ where: { id }, data: { status: action === 'approve' ? 'approved' : 'rejected' } }); result = action === 'approve' ? 'Approved. Send it yourself from Admin → Outreach.' : 'Rejected.'; }
     else if (kind === 'job' && (action === 'applied' || action === 'skipped') && id) { await setJobStatus(id, action.toUpperCase()); result = action === 'applied' ? 'Marked as applied.' : 'Skipped (the agent learns from this).'; }
   } catch { result = 'That item no longer exists.'; }
   await answerCallback(cb.id, result);

@@ -15,13 +15,14 @@ export default function OutreachAgentPanel() {
   const [s, setS] = useState<Status | null>(null); const [busy, setBusy] = useState(false); const [note, setNote] = useState<string | null>(null);
   const load = useCallback(async () => { setBusy(true); try { const r = await fetch('/api/admin/outreach/status'); setS(await r.json()); } catch { setS({ configured: true, canRun: false, error: 'Could not reach the server.' }); } setBusy(false); }, []);
   useEffect(() => { load(); }, [load]);
-  const run = async () => { setNote('Requesting…'); const r = await fetch('/api/admin/outreach/run', { method: 'POST' }); const j = await r.json().catch(() => ({})); setNote(j.message || 'Done.'); };
+  const run = async () => { setNote('Requesting…'); const r = await fetch('/api/admin/outreach/run', { method: 'POST' }); const j = await r.json().catch(() => ({})); setNote(j.message || 'Done.'); if (r.ok) { setTimeout(load, 90_000); setTimeout(load, 180_000); } };
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><h2 className="text-2xl font-display">Outreach Agent</h2><p className="text-xs font-mono text-neutral-400 max-w-2xl">What the n8n agent did, read from its Google Sheet. Read-only: approvals happen from the email link, and sending is done by n8n only.</p></div>
         <div className="flex gap-2">
           <button type="button" onClick={load} disabled={busy} className="px-3 py-1.5 text-xs font-mono border border-neutral-700 rounded hover:bg-neutral-800 disabled:opacity-50">{busy ? 'Loading…' : 'Refresh'}</button>
+          {s && !s.canRun && <span className="text-[11px] font-mono text-red-300 self-center">Run scan now: not configured (N8N_RUN_WEBHOOK_URL missing)</span>}
           {s?.canRun && <button type="button" onClick={run} className="px-3 py-1.5 text-xs font-mono border border-amber-400/50 text-amber-300 rounded hover:bg-amber-400/10">Run scan now</button>}
         </div>
       </div>

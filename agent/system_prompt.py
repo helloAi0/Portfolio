@@ -4,7 +4,7 @@ LIMO master runtime prompt and tool-privilege matrix.
 This file is the written CONTRACT for the four modes. The code that enforces it:
   Mode 1  src/lib/lamo/agent.ts + src/app/api/lamo/chat/route.ts   (read-only tools, guardrails, validation)
   Mode 2  src/lib/jobs/*  +  worker/playwright_apply.py            (scoring, letters, pre-fill; never submits)
-  Mode 3  src/lib/outreach/* + src/app/api/admin/outreach          (drafts only; never sends)
+  Mode 3  n8n workflows (scrape, Apollo, Hunter, draft, code gate, approval, send); portfolio only shows /api/admin/outreach/status
   Mode 4  worker/main.py + src/lib/certIngest/*                    (gmail -> queue -> gemini -> pending)
 
 `tools_for(mode)` is checked by agent/test_system_prompt.py so a privileged tool can never be added to the public mode by accident.

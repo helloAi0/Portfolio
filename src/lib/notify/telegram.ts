@@ -31,9 +31,6 @@ export const editCard = (chatId: number | string, messageId: number, text: strin
 export const certCard = (c: { id: string; title: string; issuer: string; confidence: number | null; needsUrlReview: boolean; hasPdf: boolean }) =>
   sendCard('New certificate to review', [`${c.title}`, `${c.issuer}`, `Confidence ${c.confidence != null ? Math.round(c.confidence * 100) + '%' : 'n/a'}${c.hasPdf ? ' · PDF attached' : ''}${c.needsUrlReview ? ' · needs URL review' : ''}`],
     [[{ text: '✅ Approve', data: `cert:approve:${c.id}` }, { text: '✏️ Edit', url: adminUrl('certificates') }, { text: '❌ Reject', data: `cert:reject:${c.id}` }]]);
-export const mailCard = (d: { id: string; to: string; company: string; subject: string }) =>
-  sendCard('Cold email draft awaiting approval', [`To: ${d.to} (${d.company})`, d.subject, 'Nothing is sent from here: you send it yourself after approving.'],
-    [[{ text: '✅ Approve', data: `mail:approve:${d.id}` }, { text: '✏️ Edit', url: adminUrl('outreach') }, { text: '❌ Reject', data: `mail:reject:${d.id}` }]]);
 export const jobCard = (j: { id: string; title: string; company: string; score: number; resume: string; url: string; essayFree: boolean }) =>
   sendCard('Job ready for one-click review', [`${j.title}, ${j.company}`, `Match ${j.score}/100 · attach: ${j.resume}`, j.essayFree ? 'No essay questions detected.' : 'Check the form for custom questions.'],
     [[{ text: '🔗 Open posting', url: j.url }, { text: '📋 Details', url: adminUrl('job-agent') }], [{ text: '✅ I applied', data: `job:applied:${j.id}` }, { text: '⏭ Skip', data: `job:skipped:${j.id}` }]]);

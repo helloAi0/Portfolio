@@ -26,7 +26,7 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
 
 (async () => {
   // ---- access control
-  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/outreach', '/api/admin/backup', '/api/admin/resume']) {
+  for (const p of ['/api/admin/profile', '/api/admin/skills', '/api/admin/certificates', '/api/admin/achievements', '/api/admin/enquiries', '/api/admin/lamo/conversations', '/api/admin/jobs', '/api/admin/outreach/status', '/api/admin/backup', '/api/admin/resume']) {
     const r = await call('GET', p, null, { anon: true }); ok(`anonymous blocked: ${p}`, r.status === 401, r.status);
   }
   ok('anonymous upload blocked', (await call('POST', '/api/admin/uploads', PDF(), { anon: true })).status === 401);
@@ -213,20 +213,11 @@ const PDF = () => { const f = new FormData(); f.append('file', new File([Buffer.
   {
     const SECRET = process.env.INGEST_SECRET, TG = process.env.TELEGRAM_WEBHOOK_SECRET, CHAT = process.env.TELEGRAM_CHAT_ID;
     const W = { headers: { 'x-internal-secret': SECRET || 'wrong' }, anon: true };
-    ok('outreach: anon blocked', (await call('GET', '/api/admin/outreach', null, { anon: true })).status === 401);
-    ok('outreach: bad email rejected', (await call('POST', '/api/admin/outreach', { recipientEmail: 'nope', companyOrLab: 'Lab' })).status === 400);
-    ok('outreach: company required', (await call('POST', '/api/admin/outreach', { recipientEmail: 'a@b.co', companyOrLab: '' })).status === 400);
-    const d = await call('POST', '/api/admin/outreach', { recipientName: 'Dr E2E', recipientEmail: 'e2e@example.com', companyOrLab: 'E2E Robotics Lab', focus: 'robot manipulation' });
-    ok('outreach: draft created under 150 words, pending approval', d.status === 200 && d.json.words <= 150 && d.json.draft.status === 'pending_approval', d.text.slice(0, 200));
-    const id = d.json?.draft?.id;
-    ok('outreach: cannot mark sent before approval', (await call('PATCH', '/api/admin/outreach/' + id, { status: 'sent' })).status === 400);
-    ok('outreach: approve', (await call('PATCH', '/api/admin/outreach/' + id, { status: 'approved' })).json?.draft?.status === 'approved');
-    const ed = await call('PATCH', '/api/admin/outreach/' + id, { subject: 'Changed subject' });
-    ok('outreach: editing an approved draft sends it back for approval', ed.json?.draft?.status === 'pending_approval', ed.text);
-    ok('outreach: over-long edit rejected', (await call('PATCH', '/api/admin/outreach/' + id, { body: 'word '.repeat(200) })).status === 400);
-    await call('PATCH', '/api/admin/outreach/' + id, { status: 'approved' });
-    ok('outreach: owner can mark sent after approval', (await call('PATCH', '/api/admin/outreach/' + id, { status: 'sent' })).json?.draft?.status === 'sent');
-    ok('outreach: delete', (await call('DELETE', '/api/admin/outreach/' + id)).status === 200);
+    ok('outreach status: anon blocked', (await call('GET', '/api/admin/outreach/status', null, { anon: true })).status === 401);
+    ok('outreach run: anon blocked', (await call('POST', '/api/admin/outreach/run', {}, { anon: true })).status === 401);
+    const os = await call('GET', '/api/admin/outreach/status');
+    ok('outreach status: not configured is explained, not an error', os.status === 200 && (os.json.configured === false || os.json.configured === true), os.text.slice(0, 160));
+    ok('outreach run: refuses when n8n URL not set', !process.env.N8N_RUN_WEBHOOK_URL ? (await call('POST', '/api/admin/outreach/run', {})).status === 400 : true);
 
     ok('jobs-internal: no secret -> 401', (await call('GET', '/api/internal/jobs/pending', null, { anon: true })).status === 401);
     if (SECRET) {

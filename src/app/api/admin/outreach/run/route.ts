@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   lastRun = Date.now();
   try {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-run-secret': process.env.N8N_RUN_SECRET || '' }, body: JSON.stringify({ source: 'portfolio-admin', requestedAt: new Date().toISOString() }), signal: AbortSignal.timeout(10_000) });
-    return NextResponse.json(res.ok ? { ok: true, message: 'Scan requested. Results appear in the tables below as n8n works (drafts still need your emailed approval).' } : { ok: false, message: `n8n answered HTTP ${res.status}. Is the workflow active?` }, { status: res.ok ? 200 : 502 });
+    if (res.status === 401 || res.status === 403) return NextResponse.json({ ok: false, message: 'n8n rejected the request: N8N_RUN_SECRET is missing in n8n or does not match the portfolio value. Nothing was started.' }, { status: 502 });
+    return NextResponse.json(res.ok ? { ok: true, message: 'Scan started in n8n. It runs in the background, so this page cannot tell when it finishes; the tables refresh automatically in about 90 seconds (drafts still need your emailed approval).' } : { ok: false, message: `n8n answered HTTP ${res.status}. Is the workflow active?` }, { status: res.ok ? 200 : 502 });
   } catch (e) { return NextResponse.json({ ok: false, message: 'Could not reach n8n: ' + (e as Error).message }, { status: 502 }); }
 }
