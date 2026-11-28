@@ -9,6 +9,15 @@ What was tested here, on Cloudflare's own local runtime (workerd) with a real D1
 What could NOT be tested from here: your real Cloudflare account, your domain, live GitHub / LeetCode / GFG calls,
 real e-mail delivery. The steps below cover those; run the checks in section 9 after deploying.
 
+## Quick path (read this first)
+1. `git pull && npm install && npx wrangler login`
+2. `npx wrangler d1 create project-lamo-db` and `npx wrangler r2 bucket create project-lamo-files`; paste the database_id and your final `https://` address into `wrangler.jsonc`.
+3. `npm run d1:migrate:remote` (applies migrations 0001 to 0006, including the Cold Email table removal).
+4. Secrets (section 4). Required: `ADMIN_JWT_SECRET`, `CRON_SECRET`, `GITHUB_WEBHOOK_SECRET` (24+ random chars, `check:deploy` fails without it), `ADMIN_DEFAULT_PASSWORD` (12+ chars, a NEW password, not the one that was shared earlier). Recommended: `GEMINI_API_KEY` (LAMO fluency and the Cold Email generator), `GITHUB_TOKEN` (a NEW token, revoke the exposed one), `RESEND_API_KEY` + `EMAIL_FROM` + `OWNER_NOTIFICATION_EMAIL`. Job/certificate workers also need `INGEST_SECRET` (new value) if you run the Render worker.
+5. `npm run check:deploy` (zero FAIL), then `npm run deploy`.
+6. Open `/admin/login`, sign in, then `npx wrangler secret delete ADMIN_DEFAULT_PASSWORD`. Upload both resumes in Admin -> Resume.
+7. Verify: `/api/health` shows `CONNECTED`; run section 9; open the home page and scroll the intro (hall, flash, robotics lab with the hologram).
+
 ## 0. One-time setup
 ```bash
 git pull
