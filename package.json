@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "predev": "node node_modules/tsx/dist/cli.mjs scripts/init-local-db.ts",
+    "predev": "node scripts/migrate-local.mjs",
     "dev": "node node_modules/next/dist/bin/next dev",
     "build": "node node_modules/next/dist/bin/next build",
     "lint": "node node_modules/next/dist/bin/next lint",
@@ -16,7 +16,7 @@
     "db:generate": "node node_modules/prisma/build/index.js generate",
     "postinstall": "node scripts/postinstall.mjs",
     "d1:migration": "node scripts/gen-d1-migration.mjs",
-    "d1:migrate:local": "wrangler d1 migrations apply DB --local",
+    "d1:migrate:local": "node scripts/migrate-local.mjs",
     "d1:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "data:clean-legacy": "node node_modules/tsx/dist/cli.mjs scripts/clean-legacy-data.ts",
     "d1:seed-sql": "node node_modules/tsx/dist/cli.mjs scripts/dump-sql.ts",
